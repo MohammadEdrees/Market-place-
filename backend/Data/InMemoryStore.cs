@@ -108,6 +108,15 @@ public class InMemoryStore
     {
         _users.Add(new User
         {
+            Id = 3,
+            Email = "superadmin@marketplace.dev",
+            Name = "Super Admin",
+            Role = "SuperAdmin",
+            PasswordHash = PasswordHasher.Hash("123456"),
+        });
+
+        _users.Add(new User
+        {
             Id = 1,
             Email = "admin@marketplace.dev",
             Name = "Ada Admin",

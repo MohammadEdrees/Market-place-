@@ -42,10 +42,11 @@ a `401` from the API clears the session and returns to the login page.
 
 **Demo accounts** (also shown on the login page and seeded in `InMemoryStore`):
 
-| Email                      | Password     | Role   |
-| -------------------------- | ------------ | ------ |
-| `admin@marketplace.dev`    | `Admin123!`  | Admin  |
-| `viewer@marketplace.dev`   | `Viewer123!` | Viewer |
+| Email                      | Password     | Role      |
+| -------------------------- | ------------ | --------- |
+| `superadmin@marketplace.dev` | `123456`   | SuperAdmin |
+| `admin@marketplace.dev`    | `Admin123!`  | Admin     |
+| `viewer@marketplace.dev`   | `Viewer123!` | Viewer    |
 
 ```powershell
 # Get a token
