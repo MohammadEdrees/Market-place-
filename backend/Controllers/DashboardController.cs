@@ -1,3 +1,4 @@
+using System.Globalization;
 using MarketWorkplace.Api.Data;
 using MarketWorkplace.Api.Models.Dashboard;
 using Microsoft.AspNetCore.Mvc;
@@ -8,6 +9,9 @@ namespace MarketWorkplace.Api.Controllers;
 [Route("api/dashboard")]
 public class DashboardController(InMemoryStore store) : ControllerBase
 {
+    /// <summary>Culture used for display strings so output never depends on the host machine's locale.</summary>
+    private static readonly CultureInfo DisplayCulture = CultureInfo.GetCultureInfo("en-US");
+
     /// <summary>Everything the dashboard page needs in a single call.</summary>
     [HttpGet]
     public ActionResult<DashboardResponse> Get()
@@ -32,12 +36,12 @@ public class DashboardController(InMemoryStore store) : ControllerBase
 
         var metrics = new List<MetricCardDto>
         {
-            new("revenue", "Revenue", revenue.ToString("C0"), revenueDelta.Text, revenueDelta.IsUp, "wallet"),
-            new("orders", "Orders", monthOrders.Count.ToString("N0"), orderDelta.Text, orderDelta.IsUp, "shopping-cart"),
-            new("customers", "Customers", customers.ToString("N0"), customerDelta.Text, customerDelta.IsUp, "users"),
+            new("revenue", "Revenue", revenue.ToString("C0", DisplayCulture), revenueDelta.Text, revenueDelta.IsUp, "wallet"),
+            new("orders", "Orders", monthOrders.Count.ToString("N0", DisplayCulture), orderDelta.Text, orderDelta.IsUp, "shopping-cart"),
+            new("customers", "Customers", customers.ToString("N0", DisplayCulture), customerDelta.Text, customerDelta.IsUp, "users"),
             new("aov",
                 "Avg. order value",
-                (monthOrders.Count == 0 ? 0 : revenue / monthOrders.Count).ToString("C2"),
+                (monthOrders.Count == 0 ? 0 : revenue / monthOrders.Count).ToString("C2", DisplayCulture),
                 "+2.4%", true, "chart-line"),
         };
 
@@ -70,7 +74,7 @@ public class DashboardController(InMemoryStore store) : ControllerBase
                 .ToList();
 
             points.Add(new TrendPointDto(
-                monthStart.ToString("MMM"),
+                monthStart.ToString("MMM", DisplayCulture),
                 Math.Round(monthOrders.Sum(o => o.Total), 2),
                 monthOrders.Count));
         }

@@ -1,0 +1,161 @@
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.metric-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.metric-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--app-accent);
+}
+
+.metric-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(18, 183, 106, 0.12);
+  color: #12b76a;
+  font-size: 0.75rem;
+  font-weight: 700;
+
+  i {
+    font-size: 0.65rem;
+  }
+
+  &.down {
+    background: rgba(240, 68, 56, 0.12);
+    color: #f04438;
+  }
+}
+
+.metric-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.metric-label {
+  color: var(--app-muted);
+  font-size: 0.82rem;
+}
+
+.chart-box {
+  height: 300px;
+}
+
+.legend-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--app-muted);
+  font-size: 0.75rem;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+
+  &.accent {
+    background: #6366f1;
+  }
+
+  &.green {
+    background: #12b76a;
+  }
+
+  &.amber {
+    background: #f79009;
+  }
+
+  &.red {
+    background: #f04438;
+  }
+}
+
+.order-id {
+  font-weight: 600;
+  color: var(--app-accent);
+}
+
+.health-score {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.health-value {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.health-bar {
+  margin: 0.75rem 0 1rem;
+}
+
+.health-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  strong {
+    margin-left: auto;
+  }
+}
+
+.health-alert {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 1rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 10px;
+  background: rgba(247, 144, 9, 0.12);
+  color: #b54708;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 3rem 1rem;
+  text-align: center;
+  color: var(--app-muted);
+
+  i {
+    font-size: 2rem;
+  }
+
+  code {
+    padding: 0.1rem 0.35rem;
+    border-radius: 6px;
+    background: var(--app-surface-2);
+  }
+}

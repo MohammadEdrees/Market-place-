@@ -18,7 +18,8 @@ public class ProductsController(InMemoryStore store) : ControllerBase
         {
             products = products.Where(p =>
                 p.Name.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                p.Sku.Contains(search, StringComparison.OrdinalIgnoreCase));
+                p.Sku.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                p.Category.Contains(search, StringComparison.OrdinalIgnoreCase));
         }
 
         if (!string.IsNullOrWhiteSpace(category))

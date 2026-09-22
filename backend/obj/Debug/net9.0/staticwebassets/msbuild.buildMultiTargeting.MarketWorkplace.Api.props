@@ -1,3 +1,0 @@
-﻿<Project>
-  <Import Project="..\build\MarketWorkplace.Api.props" />
-</Project>

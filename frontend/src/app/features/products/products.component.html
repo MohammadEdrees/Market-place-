@@ -1,0 +1,188 @@
+<section class="page">
+  <div class="page-head">
+    <div>
+      <h2>Products</h2>
+      <p>{{ filtered().length }} of {{ products().length }} items · full CRUD against the API</p>
+    </div>
+    <div class="toolbar">
+      <p-iconfield>
+        <p-inputicon piSearch />
+        <input
+          pInputText
+          type="search"
+          placeholder="Search name or SKU"
+          [ngModel]="search()"
+          (ngModelChange)="search.set($event)"
+        />
+      </p-iconfield>
+
+      <p-select
+        [options]="categories()"
+        placeholder="All categories"
+        [showClear]="true"
+        styleClass="category-select"
+        [ngModel]="category()"
+        (ngModelChange)="category.set($event)"
+      />
+
+      <p-button label="Reset" icon="pi pi-filter-slash" [text]="true" severity="secondary" (onClick)="clearFilters()" />
+      <p-button label="New product" icon="pi pi-plus" (onClick)="openNew()" />
+    </div>
+  </div>
+
+  <div class="panel">
+    @if (loading()) {
+      <div class="skeleton-rows">
+        @for (row of [1, 2, 3, 4, 5]; track row) {
+          <p-skeleton height="2.5rem" />
+        }
+      </div>
+    } @else {
+      <p-table
+        [value]="filtered()"
+        styleClass="data-table"
+        [paginator]="true"
+        [rows]="8"
+        [showCurrentPageReport]="true"
+        currentPageReportTemplate="{first}–{last} of {totalRecords}"
+        [rowsPerPageOptions]="[8, 16, 32]"
+        [tableStyle]="{ 'min-width': '62rem' }"
+        paginatorPosition="bottom"
+      >
+        <ng-template #header>
+          <tr>
+            <th pSortableColumn="name">Name <p-sortIcon field="name" /></th>
+            <th pSortableColumn="sku">SKU <p-sortIcon field="sku" /></th>
+            <th pSortableColumn="category">Category <p-sortIcon field="category" /></th>
+            <th pSortableColumn="price">Price <p-sortIcon field="price" /></th>
+            <th pSortableColumn="stock">Stock <p-sortIcon field="stock" /></th>
+            <th pSortableColumn="sold">Sold <p-sortIcon field="sold" /></th>
+            <th style="width: 7rem">Actions</th>
+          </tr>
+        </ng-template>
+
+        <ng-template #body let-product>
+          <tr>
+            <td>
+              <span class="cell-title">{{ product.name }}</span>
+              <span class="cell-sub">{{ product.createdAt | date: 'MMM y' }}</span>
+            </td>
+            <td class="mono">{{ product.sku }}</td>
+            <td>{{ product.category }}</td>
+            <td>{{ product.price | currency: 'USD' : 'symbol' : '1.2-2' }}</td>
+            <td>
+              <div class="stock-cell">
+                <span>{{ product.stock }}</span>
+                <p-progressbar
+                  [value]="stockPercent(product)"
+                  styleClass="stock-bar"
+                  [showValue]="false"
+                />
+              </div>
+            </td>
+            <td>
+              <p-tag
+                [value]="product.status"
+                [severity]="statusSeverity(product.status)"
+              />
+            </td>
+            <td>
+              <div class="row-actions">
+                <p-button
+                  icon="pi pi-pencil"
+                  [text]="true"
+                  [rounded]="true"
+                  severity="secondary"
+                  pTooltip="Edit"
+                  (onClick)="openEdit(product)"
+                />
+                <p-button
+                  icon="pi pi-trash"
+                  [text]="true"
+                  [rounded]="true"
+                  severity="danger"
+                  pTooltip="Delete"
+                  (onClick)="confirmDelete(product)"
+                />
+              </div>
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template #emptymessage>
+          <tr>
+            <td colspan="7" class="empty-row">No products match your filters.</td>
+          </tr>
+        </ng-template>
+      </p-table>
+    }
+  </div>
+
+  <p-dialog
+    [header]="title()"
+    [(visible)]="dialogVisible"
+    [modal]="true"
+    styleClass="product-dialog"
+    [style]="{ width: '34rem' }"
+  >
+    <div class="form-grid">
+      <div class="field field-full">
+        <label for="p-name">Name</label>
+        <input
+          id="p-name"
+          pInputText
+          type="text"
+          [(ngModel)]="draft.name"
+          placeholder="e.g. Aurora Wireless Headset"
+        />
+      </div>
+
+      <div class="field">
+        <label for="p-sku">SKU</label>
+        <input id="p-sku" pInputText type="text" [(ngModel)]="draft.sku" placeholder="AUR-1001" />
+      </div>
+
+      <div class="field">
+        <label for="p-category">Category</label>
+        <p-select
+          id="p-category"
+          [options]="categories()"
+          [(ngModel)]="draft.category"
+          placeholder="Select a category"
+          [showClear]="true"
+          editable="true"
+        />
+      </div>
+
+      <div class="field">
+        <label for="p-price">Price (USD)</label>
+        <p-inputnumber
+          id="p-price"
+          mode="decimal"
+          [minFractionDigits]="2"
+          [maxFractionDigits]="2"
+          [min]="0"
+          [(ngModel)]="draft.price"
+        />
+      </div>
+
+      <div class="field">
+        <label for="p-stock">Stock on hand</label>
+        <p-inputnumber id="p-stock" [min]="0" [useGrouping]="false" [(ngModel)]="draft.stock" />
+      </div>
+    </div>
+
+    <ng-template #footer>
+      <p-button label="Cancel" [text]="true" severity="secondary" (onClick)="dialogVisible.set(false)" />
+      <p-button
+        [label]="saving() ? 'Saving…' : 'Save product'"
+        icon="pi pi-check"
+        (onClick)="save()"
+        [loading]="saving()"
+      />
+    </ng-template>
+  </p-dialog>
+
+  <p-toast />
+  <p-confirmDialog />
+</section>

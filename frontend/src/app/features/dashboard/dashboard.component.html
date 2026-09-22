@@ -1,0 +1,170 @@
+<section class="page">
+  <div class="page-head">
+    <div>
+      <h2>Market overview</h2>
+      <p>Live metrics from the .NET API · last 30 days vs. previous period</p>
+    </div>
+    <p-tag
+      [value]="loading() ? 'Loading…' : 'Synced'"
+      [severity]="loading() ? 'warn' : 'success'"
+      icon="pi pi-refresh"
+    />
+  </div>
+
+  @if (loading()) {
+    <div class="grid">
+      @for (row of [1, 2, 3, 4]; track row) {
+        <div class="col-12 sm:col-6 xl:col-3">
+          <p-skeleton height="7.5rem" styleClass="panel" />
+        </div>
+      }
+      <div class="col-12 xl:col-8"><p-skeleton height="22rem" styleClass="panel" /></div>
+      <div class="col-12 xl:col-4"><p-skeleton height="22rem" styleClass="panel" /></div>
+    </div>
+  } @else if (data(); as d) {
+    <div class="grid">
+      @for (metric of d.metrics; track metric.key) {
+        <div class="col-12 sm:col-6 xl:col-3">
+          <div class="panel metric">
+            <div class="metric-top">
+              <span class="metric-icon"><i [class]="'pi pi-' + metric.icon"></i></span>
+              <span class="metric-delta" [class.down]="!metric.isUp">
+                <i [class]="metric.isUp ? 'pi pi-arrow-up' : 'pi pi-arrow-down'"></i>
+                {{ metric.delta }}
+              </span>
+            </div>
+            <span class="metric-value">{{ metric.value }}</span>
+            <span class="metric-label">{{ metric.label }}</span>
+          </div>
+        </div>
+      }
+
+      <!-- Charts -->
+      <div class="col-12 xl:col-8">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>Revenue &amp; orders</h3>
+              <small>Rolling 12 months</small>
+            </div>
+            <span class="legend-hint">
+              <span class="dot accent"></span> Revenue
+              <span class="dot green"></span> Orders
+            </span>
+          </div>
+          <div class="chart-box">
+            <p-chart type="line" [data]="lineData()" [options]="lineOptions" height="300px" />
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 xl:col-4">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>Sales by category</h3>
+              <small>All-time revenue split</small>
+            </div>
+          </div>
+          <div class="chart-box">
+            <p-chart type="doughnut" [data]="doughnutData()" [options]="doughnutOptions" height="300px" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent orders -->
+      <div class="col-12 xl:col-8">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>Recent orders</h3>
+              <small>Latest activity across all customers</small>
+            </div>
+          </div>
+          <p-table [value]="d.recentOrders" styleClass="data-table" [tableStyle]="{ 'min-width': '100%' }">
+            <ng-template #header>
+              <tr>
+                <th>Order</th>
+                <th>Customer</th>
+                <th>Product</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Date</th>
+              </tr>
+            </ng-template>
+            <ng-template #body let-order>
+              <tr>
+                <td class="order-id">#{{ order.id }}</td>
+                <td>{{ order.customer }}</td>
+                <td class="muted">{{ order.product }}</td>
+                <td>{{ order.total | currency: 'USD' : 'symbol' : '1.2-2' }}</td>
+                <td>
+                  <p-tag [value]="order.status" [severity]="statusSeverity(order.status)" />
+                </td>
+                <td class="muted">{{ order.date | date: 'MMM d, y' }}</td>
+              </tr>
+            </ng-template>
+            <ng-template #emptymessage>
+              <tr>
+                <td colspan="6" class="muted">No orders yet.</td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+      </div>
+
+      <!-- Inventory health -->
+      <div class="col-12 xl:col-4">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>Inventory health</h3>
+              <small>Stock levels across {{ inventory().total }} SKUs</small>
+            </div>
+          </div>
+
+          <div class="health-score">
+            <span class="health-value">{{ inventory().healthyPercent }}%</span>
+            <span class="muted">healthy stock</span>
+          </div>
+
+          <p-progressbar
+            [value]="inventory().healthyPercent"
+            styleClass="health-bar"
+            [showValue]="false"
+          />
+
+          <ul class="health-list">
+            <li>
+              <span class="dot green"></span>
+              In stock
+              <strong>{{ inventory().total - inventory().low }}</strong>
+            </li>
+            <li>
+              <span class="dot amber"></span>
+              Low stock (≤ 15)
+              <strong>{{ inventory().low }}</strong>
+            </li>
+            <li>
+              <span class="dot red"></span>
+              Out of stock
+              <strong>{{ inventory().out }}</strong>
+            </li>
+          </ul>
+
+          @if (inventory().low > 0) {
+            <div class="health-alert">
+              <i class="pi pi-exclamation-triangle"></i>
+              <span>{{ inventory().low }} products need restocking soon.</span>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  } @else {
+    <div class="panel empty-state">
+      <i class="pi pi-wifi"></i>
+      <p>Could not reach the API. Make sure it is running on <code>localhost:5240</code>.</p>
+    </div>
+  }
+</section>
