@@ -28,14 +28,48 @@ npm install        # first time only
 npm start
 ```
 
-Open http://localhost:4200 — the dev server proxies `/api/*` to the API via
-`frontend/proxy.conf.json`, so no CORS configuration is needed during development.
-CORS is nevertheless enabled on the API for `localhost:4200`–`4201` in case you call it directly.
+Open http://localhost:4200 — you'll be redirected to the **sign-in page**; the dev server
+proxies `/api/*` to the API via `frontend/proxy.conf.json`, so no CORS configuration is needed
+during development. CORS is nevertheless enabled on the API for `localhost:4200`–`4201` in case
+you call it directly.
+
+## Authentication (JWT)
+
+All `/api/dashboard` and `/api/products` endpoints require a bearer token; only
+`POST /api/auth/login` is anonymous. The Angular app handles the flow for you: unauthenticated
+visits redirect to `/login`, the token is attached to every request by an HTTP interceptor, and
+a `401` from the API clears the session and returns to the login page.
+
+**Demo accounts** (also shown on the login page and seeded in `InMemoryStore`):
+
+| Email                      | Password     | Role   |
+| -------------------------- | ------------ | ------ |
+| `admin@marketplace.dev`    | `Admin123!`  | Admin  |
+| `viewer@marketplace.dev`   | `Viewer123!` | Viewer |
+
+```powershell
+# Get a token
+Invoke-RestMethod -Method Post -Uri http://localhost:5240/api/auth/login `
+  -ContentType 'application/json' `
+  -Body '{"email":"admin@marketplace.dev","password":"Admin123!"}'
+
+# Call a protected endpoint with it
+Invoke-RestMethod -Uri http://localhost:5240/api/dashboard `
+  -Headers @{ Authorization = "Bearer $token" }
+```
+
+Configuration lives under the `Jwt` section of `backend/appsettings.json` (issuer, audience,
+secret, 8-hour expiry). **Override `Jwt:Secret` per environment** — the checked-in value is a
+development placeholder. Tokens are HS256-signed; passwords are stored as PBKDF2 hashes
+(`backend/Auth/PasswordHasher.cs`). For role checks use `[Authorize(Roles = "Admin")]` — the
+`role` claim is already present in every token.
 
 ## API endpoints
 
 | Method   | Route                        | Description                                        |
 | -------- | ---------------------------- | -------------------------------------------------- |
+| `POST`   | `/api/auth/login`            | Exchange email + password for a JWT (`200`, `401`, `400`) |
+| `GET`    | `/api/auth/me`               | Profile behind the current token                   |
 | `GET`    | `/api/dashboard`             | Metrics, 12-month revenue trend, category split, recent orders, low-stock count |
 | `GET`    | `/api/dashboard/revenue-trend` | Revenue + order count per month                   |
 | `GET`    | `/api/products`              | List products (`?search=…&category=…`)             |
@@ -45,12 +79,15 @@ CORS is nevertheless enabled on the API for `localhost:4200`–`4201` in case yo
 | `PUT`    | `/api/products/{id}`         | Update                                             |
 | `DELETE` | `/api/products/{id}`         | Delete (`204`, or `404` when missing)              |
 
+All rows except `POST /api/auth/login` return `401` without a valid bearer token.
+
 Sample requests for an IDE client live in `backend/MarketWorkplace.Api.http`.
 
 ## API documentation (Swagger)
 
-- **UI:** http://localhost:5240/swagger — operations grouped into `Dashboard` and `Products`,
-  with Try-it-out enabled by default.
+- **UI:** http://localhost:5240/swagger — operations grouped into `Auth`, `Dashboard` and
+  `Products`, with Try-it-out enabled by default. Click **Authorize** and paste the token from
+  `POST /api/auth/login` (Swagger UI adds the `Bearer ` prefix) to call the protected operations.
 - **Document:** http://localhost:5240/swagger/v1/swagger.json (OpenAPI 3.0.4).
 
 Descriptions come from XML doc comments: `GenerateDocumentationFile` is enabled in
@@ -69,7 +106,10 @@ To hide the docs in an environment, set the kill switch in `backend/appsettings.
   revenue/orders line chart, sales-by-category doughnut, recent orders table, inventory health.
 - **Products** (`/products`) — server-backed CRUD with client-side search, category filter,
   sortable columns, pagination, create/edit dialog, confirm-to-delete, toasts.
-- Sidebar/topbar shell, light **and** dark theme (persisted in `localStorage`).
+- **Sign in** (`/login`) — JWT login with inline errors, guarded routes and a `returnUrl`
+  round-trip; the session survives reloads until the token expires.
+- Sidebar/topbar shell with the signed-in user's name/role and a sign-out button, light **and**
+  dark theme (both persisted in `localStorage`).
 
 ## How the data layer works
 

@@ -207,6 +207,29 @@
   background: var(--app-border);
 }
 
+.topbar-user {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0 0.35rem 0 0.15rem;
+}
+
+.topbar-user-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+
+  strong {
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  small {
+    font-size: 0.68rem;
+    color: var(--app-muted);
+  }
+}
+
 .content {
   flex: 1;
   padding: 1.5rem;

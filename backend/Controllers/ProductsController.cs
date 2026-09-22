@@ -1,12 +1,15 @@
 using MarketWorkplace.Api.Data;
 using MarketWorkplace.Api.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MarketWorkplace.Api.Controllers;
 
 /// <summary>Product catalogue CRUD backing the dashboard's Products page.</summary>
+/// <remarks>Requires a valid bearer token (<c>POST /api/auth/login</c>).</remarks>
 [ApiController]
+[Authorize]
 [Route("api/products")]
 [Tags("Products")]
 [Produces("application/json")]

@@ -56,3 +56,18 @@ export interface ProductInput {
   price: number;
   stock: number;
 }
+
+/** Signed-in user as returned by the auth endpoints. */
+export interface AuthUser {
+  id: number;
+  email: string;
+  name: string;
+  role: string;
+}
+
+/** Response of `POST /api/auth/login`. */
+export interface LoginResponse {
+  token: string;
+  expiresAt: string;
+  user: AuthUser;
+}

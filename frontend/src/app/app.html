@@ -1,74 +1,95 @@
-<div class="app-shell">
-  <aside class="sidebar">
-    <div class="brand">
-      <span class="brand-mark"><i class="pi pi-bolt"></i></span>
-      <span class="brand-text">
-        <strong>Market Workplace</strong>
-        <small>Analytics</small>
-      </span>
-    </div>
-
-    <nav class="nav">
-      <p class="nav-label">Overview</p>
-      @for (item of primaryNav; track item.label) {
-        <a class="nav-link" [routerLink]="item.link" routerLinkActive="active">
-          <i [class]="item.icon"></i>
-          <span>{{ item.label }}</span>
-        </a>
-      }
-
-      <p class="nav-label">Workspace</p>
-      @for (item of workspaceNav; track item.label) {
-        <span class="nav-link is-disabled" pTooltip="Coming soon" tooltipPosition="right">
-          <i [class]="item.icon"></i>
-          <span>{{ item.label }}</span>
-          <span class="badge-soon">Soon</span>
+@if (showShell()) {
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-mark"><i class="pi pi-bolt"></i></span>
+        <span class="brand-text">
+          <strong>Market Workplace</strong>
+          <small>Analytics</small>
         </span>
-      }
-    </nav>
-
-    <div class="sidebar-foot">
-      <i class="pi pi-database"></i>
-      <div>
-        <strong>.NET API</strong>
-        <span>{{ apiUrl }}</span>
       </div>
-      <span class="status-dot"></span>
+
+      <nav class="nav">
+        <p class="nav-label">Overview</p>
+        @for (item of primaryNav; track item.label) {
+          <a class="nav-link" [routerLink]="item.link" routerLinkActive="active">
+            <i [class]="item.icon"></i>
+            <span>{{ item.label }}</span>
+          </a>
+        }
+
+        <p class="nav-label">Workspace</p>
+        @for (item of workspaceNav; track item.label) {
+          <span class="nav-link is-disabled" pTooltip="Coming soon" tooltipPosition="right">
+            <i [class]="item.icon"></i>
+            <span>{{ item.label }}</span>
+            <span class="badge-soon">Soon</span>
+          </span>
+        }
+      </nav>
+
+      <div class="sidebar-foot">
+        <i class="pi pi-database"></i>
+        <div>
+          <strong>.NET API</strong>
+          <span>{{ apiUrl }}</span>
+        </div>
+        <span class="status-dot"></span>
+      </div>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <div class="topbar-title">
+          <h1>{{ pageTitle() }}</h1>
+          <span class="crumbs">Market Workplace / {{ pageTitle() }}</span>
+        </div>
+
+        <div class="topbar-actions">
+          <p-button
+            icon="pi pi-bell"
+            [text]="true"
+            [rounded]="true"
+            severity="secondary"
+            ariaLabel="Notifications"
+            pTooltip="No new notifications"
+          />
+          <p-button
+            [icon]="darkMode() ? 'pi pi-sun' : 'pi pi-moon'"
+            [text]="true"
+            [rounded]="true"
+            severity="secondary"
+            ariaLabel="Toggle dark mode"
+            pTooltip="Toggle dark mode"
+            (onClick)="toggleDarkMode()"
+          />
+          <span class="topbar-divider"></span>
+
+          <div class="topbar-user">
+            <p-avatar [label]="initials()" shape="circle" />
+            <span class="topbar-user-text">
+              <strong>{{ auth.user()?.name }}</strong>
+              <small>{{ auth.user()?.role }}</small>
+            </span>
+          </div>
+
+          <p-button
+            icon="pi pi-sign-out"
+            [text]="true"
+            [rounded]="true"
+            severity="secondary"
+            ariaLabel="Sign out"
+            pTooltip="Sign out"
+            (onClick)="logout()"
+          />
+        </div>
+      </header>
+
+      <main class="content">
+        <router-outlet />
+      </main>
     </div>
-  </aside>
-
-  <div class="main">
-    <header class="topbar">
-      <div class="topbar-title">
-        <h1>{{ pageTitle() }}</h1>
-        <span class="crumbs">Market Workplace / {{ pageTitle() }}</span>
-      </div>
-
-      <div class="topbar-actions">
-        <p-button
-          icon="pi pi-bell"
-          [text]="true"
-          [rounded]="true"
-          severity="secondary"
-          ariaLabel="Notifications"
-          pTooltip="No new notifications"
-        />
-        <p-button
-          [icon]="darkMode() ? 'pi pi-sun' : 'pi pi-moon'"
-          [text]="true"
-          [rounded]="true"
-          severity="secondary"
-          ariaLabel="Toggle dark mode"
-          pTooltip="Toggle dark mode"
-          (onClick)="toggleDarkMode()"
-        />
-        <span class="topbar-divider"></span>
-        <p-avatar label="MW" shape="circle" />
-      </div>
-    </header>
-
-    <main class="content">
-      <router-outlet />
-    </main>
   </div>
-</div>
+} @else {
+  <router-outlet />
+}

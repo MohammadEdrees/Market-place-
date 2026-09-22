@@ -1,0 +1,62 @@
+<div class="login-page">
+  <div class="login-card">
+    <div class="login-brand">
+      <span class="brand-mark"><i class="pi pi-bolt"></i></span>
+      <div>
+        <h1>Market Workplace</h1>
+        <p>Sign in to the analytics dashboard</p>
+      </div>
+    </div>
+
+    <form class="login-form" [formGroup]="form" (ngSubmit)="submit()">
+      <div class="field">
+        <label for="email">Email</label>
+        <input
+          pInputText
+          id="email"
+          type="email"
+          formControlName="email"
+          placeholder="you@example.com"
+          autocomplete="username"
+        />
+        @if (form.controls.email.touched && form.controls.email.invalid) {
+          <small class="field-error">Enter a valid email address.</small>
+        }
+      </div>
+
+      <div class="field">
+        <label for="password">Password</label>
+        <p-password
+          inputId="password"
+          formControlName="password"
+          placeholder="Password"
+          [feedback]="false"
+          [toggleMask]="true"
+          styleClass="login-password"
+        />
+        @if (form.controls.password.touched && form.controls.password.invalid) {
+          <small class="field-error">Password is required.</small>
+        }
+      </div>
+
+      @if (error(); as message) {
+        <p-message severity="error" [text]="message" styleClass="login-error" />
+      }
+
+      <p-button
+        type="submit"
+        label="Sign in"
+        icon="pi pi-sign-in"
+        styleClass="login-submit"
+        [loading]="loading()"
+        (onClick)="submit()"
+      />
+    </form>
+
+    <div class="demo-hint">
+      <p class="demo-hint-title"><i class="pi pi-key"></i> Demo accounts</p>
+      <p><code>admin@marketplace.dev</code> · <code>Admin123!</code></p>
+      <p><code>viewer@marketplace.dev</code> · <code>Viewer123!</code></p>
+    </div>
+  </div>
+</div>

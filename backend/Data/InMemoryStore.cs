@@ -1,3 +1,4 @@
+using MarketWorkplace.Api.Auth;
 using MarketWorkplace.Api.Models;
 
 namespace MarketWorkplace.Api.Data;
@@ -11,6 +12,7 @@ public class InMemoryStore
     private readonly object _gate = new();
     private readonly Dictionary<int, Product> _products = new();
     private readonly List<Order> _orders = [];
+    private readonly List<User> _users = [];
     private int _nextProductId;
     private int _nextOrderId = 1;
 
@@ -18,6 +20,7 @@ public class InMemoryStore
     {
         SeedProducts();
         SeedOrders();
+        SeedUsers();
     }
 
     // --- Products -----------------------------------------------------------
@@ -93,7 +96,34 @@ public class InMemoryStore
 
     public IReadOnlyList<Order> GetAllOrders() => _orders;
 
+    // --- Users ---------------------------------------------------------------
+
+    /// <summary>Finds a user by email (case-insensitive), or <c>null</c> when unknown.</summary>
+    public User? FindUser(string email) =>
+        _users.FirstOrDefault(u => u.Email.Equals(email.Trim(), StringComparison.OrdinalIgnoreCase));
+
     // --- Seed data ----------------------------------------------------------
+
+    private void SeedUsers()
+    {
+        _users.Add(new User
+        {
+            Id = 1,
+            Email = "admin@marketplace.dev",
+            Name = "Ada Admin",
+            Role = "Admin",
+            PasswordHash = PasswordHasher.Hash("Admin123!"),
+        });
+
+        _users.Add(new User
+        {
+            Id = 2,
+            Email = "viewer@marketplace.dev",
+            Name = "Vic Viewer",
+            Role = "Viewer",
+            PasswordHash = PasswordHasher.Hash("Viewer123!"),
+        });
+    }
 
     private void SeedProducts()
     {

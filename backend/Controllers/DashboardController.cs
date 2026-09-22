@@ -1,13 +1,16 @@
 using System.Globalization;
 using MarketWorkplace.Api.Data;
 using MarketWorkplace.Api.Models.Dashboard;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MarketWorkplace.Api.Controllers;
 
 /// <summary>Aggregated figures rendered by the dashboard's Overview page.</summary>
+/// <remarks>Requires a valid bearer token (<c>POST /api/auth/login</c>).</remarks>
 [ApiController]
+[Authorize]
 [Route("api/dashboard")]
 [Tags("Dashboard")]
 [Produces("application/json")]

@@ -41,3 +41,24 @@ Content-Type: application/json
 
 ### Delete a product
 DELETE {{MarketWorkplace.Api}}/api/products/1
+
+### ---------------------------------------------------------------------------
+### Auth: sign in and copy `token` from the response into `Authorization` below
+### ---------------------------------------------------------------------------
+
+### Login (returns the bearer token, its expiry and the user profile)
+POST {{MarketWorkplace.Api}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@marketplace.dev",
+  "password": "Admin123!"
+}
+
+### Current user behind the token
+GET {{MarketWorkplace.Api}}/api/auth/me
+Authorization: Bearer {{token}}
+
+### Protected dashboard call (add the same header to the other requests)
+GET {{MarketWorkplace.Api}}/api/dashboard
+Authorization: Bearer {{token}}
