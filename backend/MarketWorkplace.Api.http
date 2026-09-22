@@ -1,6 +1,43 @@
-@MarketWorkplace.Api_HostAddress = http://localhost:5240
+@MarketWorkplace.Api http://localhost:5240
 
-GET {{MarketWorkplace.Api_HostAddress}}/weatherforecast/
-Accept: application/json
+### Get the full dashboard payload (metrics, trend, categories, recent orders)
+GET {{MarketWorkplace.Api}}/api/dashboard
 
-###
+### Revenue trend only
+GET {{MarketWorkplace.Api}}/api/dashboard/revenue-trend
+
+### List all products
+GET {{MarketWorkplace.Api}}/api/products
+
+### Search products
+GET {{MarketWorkplace.Api}}/api/products?search=audio
+
+### Distinct categories
+GET {{MarketWorkplace.Api}}/api/products/categories
+
+### Create a product
+POST {{MarketWorkplace.Api}}/api/products
+Content-Type: application/json
+
+{
+  "name": "Sample Widget",
+  "sku": "SMP-0001",
+  "category": "Accessories",
+  "price": 24.99,
+  "stock": 50
+}
+
+### Update a product
+PUT {{MarketWorkplace.Api}}/api/products/1
+Content-Type: application/json
+
+{
+  "name": "Aurora Wireless Headset (2nd gen)",
+  "sku": "AUR-1001",
+  "category": "Audio",
+  "price": 159.00,
+  "stock": 90
+}
+
+### Delete a product
+DELETE {{MarketWorkplace.Api}}/api/products/1
