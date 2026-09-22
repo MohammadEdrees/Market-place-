@@ -1,4 +1,5 @@
 using MarketWorkplace.Api.Data;
+using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,13 +20,37 @@ builder.Services.AddCors(options =>
         .AllowAnyHeader()
         .AllowAnyMethod()));
 
-builder.Services.AddOpenApi();
+// Swagger / OpenAPI documentation (UI at /swagger, document at /swagger/v1/swagger.json).
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Market Workplace API",
+        Version = "v1",
+        Description = "Dashboard metrics and product catalogue endpoints consumed by the Angular dashboard.",
+        Contact = new OpenApiContact { Name = "Market Workplace" },
+    });
+
+    // Feed <summary>/<param> comments from the compiled XML docs into the operation descriptions.
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, "MarketWorkplace.Api.xml");
+    if (File.Exists(xmlPath))
+    {
+        options.IncludeXmlComments(xmlPath);
+    }
+});
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
+// Kill switch for environments that should not expose the docs: "Swagger": { "Enabled": false }
+if (app.Configuration.GetValue("Swagger:Enabled", true))
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Market Workplace API v1");
+        options.DocumentTitle = "Market Workplace API";
+        options.EnableTryItOutByDefault();
+    });
 }
 
 app.UseCors("Frontend");

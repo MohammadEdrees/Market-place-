@@ -1,19 +1,28 @@
 using System.Globalization;
 using MarketWorkplace.Api.Data;
 using MarketWorkplace.Api.Models.Dashboard;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MarketWorkplace.Api.Controllers;
 
+/// <summary>Aggregated figures rendered by the dashboard's Overview page.</summary>
 [ApiController]
 [Route("api/dashboard")]
+[Tags("Dashboard")]
+[Produces("application/json")]
 public class DashboardController(InMemoryStore store) : ControllerBase
 {
     /// <summary>Culture used for display strings so output never depends on the host machine's locale.</summary>
     private static readonly CultureInfo DisplayCulture = CultureInfo.GetCultureInfo("en-US");
 
     /// <summary>Everything the dashboard page needs in a single call.</summary>
+    /// <returns>
+    /// Metric cards, the rolling 12-month revenue trend, the sales split by category,
+    /// the six most recent orders and the current low-stock count.
+    /// </returns>
     [HttpGet]
+    [ProducesResponseType(typeof(DashboardResponse), StatusCodes.Status200OK)]
     public ActionResult<DashboardResponse> Get()
     {
         var orders = store.GetAllOrders();
@@ -27,7 +36,7 @@ public class DashboardController(InMemoryStore store) : ControllerBase
         var revenue = monthOrders.Sum(o => o.Total);
         var previousRevenue = previousMonthOrders.Sum(o => o.Total);
 
-        var customers = orders.Select(o => o.Customer).Distinct().Count();
+        var customers = monthOrders.Select(o => o.Customer).Distinct().Count();
         var previousCustomers = previousMonthOrders.Select(o => o.Customer).Distinct().Count();
 
         var revenueDelta = Delta(revenue, previousRevenue);
@@ -55,7 +64,9 @@ public class DashboardController(InMemoryStore store) : ControllerBase
     }
 
     /// <summary>Revenue and order count per month for the last 12 months.</summary>
+    /// <returns>Twelve points ordered from the oldest month to the newest.</returns>
     [HttpGet("revenue-trend")]
+    [ProducesResponseType(typeof(IEnumerable<TrendPointDto>), StatusCodes.Status200OK)]
     public ActionResult<IEnumerable<TrendPointDto>> GetRevenueTrend() =>
         Ok(BuildRevenueTrend(store.GetAllOrders()));
 

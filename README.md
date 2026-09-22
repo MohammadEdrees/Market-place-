@@ -7,6 +7,8 @@ An analytics dashboard built as two independent projects:
 | `frontend/` | Angular 21, PrimeNG 21, Chart.js, PrimeFlex         | http://localhost:4200            |
 | `backend/`  | .NET 9 Web API (controllers), in-memory repository | http://localhost:5240            |
 
+API documentation (Swagger UI): **http://localhost:5240/swagger**
+
 ## Prerequisites
 
 - Node.js 22.12+ (Node 22.14 verified)
@@ -44,6 +46,22 @@ CORS is nevertheless enabled on the API for `localhost:4200`–`4201` in case yo
 | `DELETE` | `/api/products/{id}`         | Delete (`204`, or `404` when missing)              |
 
 Sample requests for an IDE client live in `backend/MarketWorkplace.Api.http`.
+
+## API documentation (Swagger)
+
+- **UI:** http://localhost:5240/swagger — operations grouped into `Dashboard` and `Products`,
+  with Try-it-out enabled by default.
+- **Document:** http://localhost:5240/swagger/v1/swagger.json (OpenAPI 3.0.4).
+
+Descriptions come from XML doc comments: `GenerateDocumentationFile` is enabled in
+`backend/MarketWorkplace.Api.csproj`, and `<summary>`/`<param>` comments plus
+`[ProducesResponseType]` attributes on the controllers feed the operation and schema docs.
+
+To hide the docs in an environment, set the kill switch in `backend/appsettings.json`:
+
+```json
+"Swagger": { "Enabled": false }
+```
 
 ## Dashboard features
 
