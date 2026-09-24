@@ -3,6 +3,7 @@ using MarketWorkplace.Api.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace MarketWorkplace.Api.Controllers;
 
@@ -13,7 +14,7 @@ namespace MarketWorkplace.Api.Controllers;
 [Route("api/products")]
 [Tags("Products")]
 [Produces("application/json")]
-public class ProductsController(InMemoryStore store) : ControllerBase
+public class ProductsController(MarketDbContext db) : ControllerBase
 {
     /// <summary>Lists products, optionally filtered by search text and category.</summary>
     /// <param name="search">Case-insensitive match against name, SKU or category.</param>
@@ -23,7 +24,7 @@ public class ProductsController(InMemoryStore store) : ControllerBase
     [ProducesResponseType(typeof(IEnumerable<Product>), StatusCodes.Status200OK)]
     public ActionResult<IEnumerable<Product>> GetAll([FromQuery] string? search, [FromQuery] string? category)
     {
-        IEnumerable<Product> products = store.GetProducts();
+        IEnumerable<Product> products = db.Products.AsNoTracking().AsEnumerable().OrderBy(p => p.Id);
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -49,7 +50,7 @@ public class ProductsController(InMemoryStore store) : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public ActionResult<Product> GetById(int id)
     {
-        var product = store.GetProduct(id);
+        var product = db.Products.AsNoTracking().FirstOrDefault(p => p.Id == id);
         return product is null ? NotFound() : Ok(product);
     }
 
@@ -58,7 +59,7 @@ public class ProductsController(InMemoryStore store) : ControllerBase
     [HttpGet("categories")]
     [ProducesResponseType(typeof(IEnumerable<string>), StatusCodes.Status200OK)]
     public ActionResult<IEnumerable<string>> GetCategories() =>
-        Ok(store.GetProducts().Select(p => p.Category).Distinct().OrderBy(c => c));
+        Ok(db.Products.AsNoTracking().AsEnumerable().Select(p => p.Category).Distinct().OrderBy(c => c));
 
     /// <summary>Creates a product.</summary>
     /// <param name="input">The product to create; required fields are enforced by data annotations.</param>
@@ -73,14 +74,19 @@ public class ProductsController(InMemoryStore store) : ControllerBase
             return ValidationProblem(ModelState);
         }
 
-        var created = store.CreateProduct(new Product
+        var created = new Product
         {
+            Id = db.Products.Any() ? db.Products.Max(p => p.Id) + 1 : 1,
             Name = input.Name.Trim(),
             Sku = input.Sku.Trim(),
             Category = input.Category.Trim(),
             Price = input.Price,
             Stock = input.Stock,
-        });
+            CreatedAt = DateTime.UtcNow,
+        };
+
+        db.Products.Add(created);
+        db.SaveChanges();
 
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
@@ -100,16 +106,20 @@ public class ProductsController(InMemoryStore store) : ControllerBase
             return ValidationProblem(ModelState);
         }
 
-        var updated = store.UpdateProduct(id, new Product
+        var product = db.Products.FirstOrDefault(p => p.Id == id);
+        if (product is null)
         {
-            Name = input.Name.Trim(),
-            Sku = input.Sku.Trim(),
-            Category = input.Category.Trim(),
-            Price = input.Price,
-            Stock = input.Stock,
-        });
+            return NotFound();
+        }
 
-        return updated is null ? NotFound() : Ok(updated);
+        product.Name = input.Name.Trim();
+        product.Sku = input.Sku.Trim();
+        product.Category = input.Category.Trim();
+        product.Price = input.Price;
+        product.Stock = input.Stock;
+        db.SaveChanges();
+
+        return Ok(product);
     }
 
     /// <summary>Deletes a product.</summary>
@@ -118,5 +128,16 @@ public class ProductsController(InMemoryStore store) : ControllerBase
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public IActionResult Delete(int id) => store.DeleteProduct(id) ? NoContent() : NotFound();
+    public IActionResult Delete(int id)
+    {
+        var product = db.Products.FirstOrDefault(p => p.Id == id);
+        if (product is null)
+        {
+            return NotFound();
+        }
+
+        db.Products.Remove(product);
+        db.SaveChanges();
+        return NoContent();
+    }
 }

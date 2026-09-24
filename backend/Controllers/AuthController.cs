@@ -4,6 +4,7 @@ using MarketWorkplace.Api.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace MarketWorkplace.Api.Controllers;
 
@@ -12,7 +13,7 @@ namespace MarketWorkplace.Api.Controllers;
 [Route("api/auth")]
 [Tags("Auth")]
 [Produces("application/json")]
-public class AuthController(InMemoryStore store, TokenService tokenService) : ControllerBase
+public class AuthController(MarketDbContext db, TokenService tokenService) : ControllerBase
 {
     /// <summary>Exchanges email + password for a bearer token.</summary>
     /// <param name="request">Account email and plain-text password.</param>
@@ -32,7 +33,7 @@ public class AuthController(InMemoryStore store, TokenService tokenService) : Co
             return ValidationProblem(ModelState);
         }
 
-        var user = store.FindUser(request.Email);
+        var user = FindUser(request.Email);
         if (user is null || !PasswordHasher.Verify(request.Password, user.PasswordHash))
         {
             return Problem(
@@ -56,9 +57,16 @@ public class AuthController(InMemoryStore store, TokenService tokenService) : Co
     public ActionResult<UserProfileDto> Me()
     {
         // MapInboundClaims is disabled, so claim types are the short JWT names issued by TokenService.
-        var user = store.FindUser(User.FindFirst("email")?.Value ?? string.Empty);
+        var user = FindUser(User.FindFirst("email")?.Value ?? string.Empty);
         return user is null ? Unauthorized() : Ok(ToProfile(user));
     }
+
+    /// <summary>Finds a user by email (case-insensitive), or <c>null</c> when unknown.</summary>
+    private User? FindUser(string email) =>
+        db.Users
+            .AsNoTracking()
+            .AsEnumerable()
+            .FirstOrDefault(u => u.Email.Equals(email.Trim(), StringComparison.OrdinalIgnoreCase));
 
     private static UserProfileDto ToProfile(User user) => new(user.Id, user.Email, user.Name, user.Role);
 }

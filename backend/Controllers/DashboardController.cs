@@ -4,6 +4,7 @@ using MarketWorkplace.Api.Models.Dashboard;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace MarketWorkplace.Api.Controllers;
 
@@ -14,7 +15,7 @@ namespace MarketWorkplace.Api.Controllers;
 [Route("api/dashboard")]
 [Tags("Dashboard")]
 [Produces("application/json")]
-public class DashboardController(InMemoryStore store) : ControllerBase
+public class DashboardController(MarketDbContext db) : ControllerBase
 {
     /// <summary>Culture used for display strings so output never depends on the host machine's locale.</summary>
     private static readonly CultureInfo DisplayCulture = CultureInfo.GetCultureInfo("en-US");
@@ -28,7 +29,7 @@ public class DashboardController(InMemoryStore store) : ControllerBase
     [ProducesResponseType(typeof(DashboardResponse), StatusCodes.Status200OK)]
     public ActionResult<DashboardResponse> Get()
     {
-        var orders = store.GetAllOrders();
+        var orders = db.Orders.AsNoTracking().ToList();
         var now = DateTime.UtcNow;
 
         var monthOrders = orders.Where(o => o.Date >= now.AddDays(-30)).ToList();
@@ -59,11 +60,15 @@ public class DashboardController(InMemoryStore store) : ControllerBase
 
         var trend = BuildRevenueTrend(orders);
         var categories = BuildSalesByCategory(orders);
-        var recent = store.GetRecentOrders(6)
+        var recent = orders
+            .OrderByDescending(o => o.Date)
+            .Take(6)
             .Select(o => new RecentOrderDto(o.Id, o.Customer, o.Product, o.Total, o.Status, o.Date))
             .ToList();
 
-        return Ok(new DashboardResponse(metrics, trend, categories, recent, store.LowStockCount));
+        var lowStockCount = db.Products.Count(p => p.Stock <= 15);
+
+        return Ok(new DashboardResponse(metrics, trend, categories, recent, lowStockCount));
     }
 
     /// <summary>Revenue and order count per month for the last 12 months.</summary>
@@ -71,7 +76,7 @@ public class DashboardController(InMemoryStore store) : ControllerBase
     [HttpGet("revenue-trend")]
     [ProducesResponseType(typeof(IEnumerable<TrendPointDto>), StatusCodes.Status200OK)]
     public ActionResult<IEnumerable<TrendPointDto>> GetRevenueTrend() =>
-        Ok(BuildRevenueTrend(store.GetAllOrders()));
+        Ok(BuildRevenueTrend(db.Orders.AsNoTracking().ToList()));
 
     private static IReadOnlyList<TrendPointDto> BuildRevenueTrend(IEnumerable<Models.Order> orders)
     {

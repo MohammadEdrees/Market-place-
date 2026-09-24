@@ -40,7 +40,7 @@ All `/api/dashboard` and `/api/products` endpoints require a bearer token; only
 visits redirect to `/login`, the token is attached to every request by an HTTP interceptor, and
 a `401` from the API clears the session and returns to the login page.
 
-**Demo accounts** (also shown on the login page and seeded in `InMemoryStore`):
+**Demo accounts** (also shown on the login page and seeded in `backend/Data/DbInitializer.cs`):
 
 | Email                      | Password     | Role      |
 | -------------------------- | ------------ | --------- |
@@ -116,10 +116,13 @@ To hide the docs in an environment, set the kill switch in `backend/appsettings.
 
 ## How the data layer works
 
-`backend/Data/InMemoryStore.cs` is a singleton seeded with 24 products and ~72 orders across
-the last 12 months, so charts and tables have realistic data immediately. It resets on restart.
-To make it durable, swap the store for EF Core (or another ORM) — controllers only depend on
-the `InMemoryStore` abstraction today, so the endpoint contracts stay the same.
+`backend/Data/MarketDbContext.cs` exposes products, orders and users through EF Core's
+in-memory provider (`UseInMemoryDatabase`) — the full `DbContext`/`DbSet` pipeline without a
+database server. `backend/Data/DbInitializer.cs` seeds 24 products and ~72 orders across the
+last 12 months at startup, so charts and tables have realistic data immediately; data resets
+on restart. To make it durable, add the `Microsoft.EntityFrameworkCore.SqlServer` package
+and swap `UseInMemoryDatabase("MarketWorkplace")` for `UseSqlServer(connectionString)` in
+`Program.cs` — controllers already speak EF Core, so the endpoint contracts stay the same.
 
 Display strings (currency, month names) are formatted with an explicit `en-US` culture in
 `DashboardController`, so output does not depend on the machine's regional settings.

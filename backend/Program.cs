@@ -3,6 +3,7 @@ using MarketWorkplace.Api.Auth;
 using MarketWorkplace.Api.Data;
 using MarketWorkplace.Api.Swagger;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 
@@ -11,8 +12,11 @@ var builder = WebApplication.CreateBuilder(args);
 // Controllers + JSON casing that matches the Angular models (camelCase).
 builder.Services.AddControllers();
 
-// Sample data store; swap for EF Core / a real database when you are ready.
-builder.Services.AddSingleton<InMemoryStore>();
+// EF Core with the in-memory provider: a real DbContext/DbSet pipeline without a database
+// server. To move to SQL Server later: add Microsoft.EntityFrameworkCore.SqlServer and
+// replace UseInMemoryDatabase("MarketWorkplace") with UseSqlServer(connectionString).
+builder.Services.AddDbContext<MarketDbContext>(options =>
+    options.UseInMemoryDatabase("MarketWorkplace"));
 
 // --- JWT authentication ----------------------------------------------------
 // Tokens are minted by TokenService (POST /api/auth/login) and validated here.
@@ -114,5 +118,11 @@ app.UseCors("Frontend");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+// Create the schema and seed sample data (products, orders, users) on startup.
+using (var scope = app.Services.CreateScope())
+{
+    DbInitializer.Initialize(scope.ServiceProvider.GetRequiredService<MarketDbContext>());
+}
 
 app.Run();

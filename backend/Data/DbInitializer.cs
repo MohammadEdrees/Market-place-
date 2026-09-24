@@ -4,156 +4,86 @@ using MarketWorkplace.Api.Models;
 namespace MarketWorkplace.Api.Data;
 
 /// <summary>
-/// In-memory data store seeded with sample data so the dashboard works without a database.
-/// Register as a singleton: <c>builder.Services.AddSingleton&lt;InMemoryStore&gt;();</c>
+/// Creates the schema and loads the sample data (products, orders and users) that used to
+/// live in <c>InMemoryStore</c>. Runs once at startup; each collection is seeded only when
+/// it is empty, so restarts keep whatever is already in the store.
 /// </summary>
-public class InMemoryStore
+public static class DbInitializer
 {
-    private readonly object _gate = new();
-    private readonly Dictionary<int, Product> _products = new();
-    private readonly List<Order> _orders = [];
-    private readonly List<User> _users = [];
-    private int _nextProductId;
-    private int _nextOrderId = 1;
-
-    public InMemoryStore()
+    /// <summary>Ensures the model exists and seeds any missing collections.</summary>
+    public static void Initialize(MarketDbContext db)
     {
-        SeedProducts();
-        SeedOrders();
-        SeedUsers();
-    }
+        db.Database.EnsureCreated();
 
-    // --- Products -----------------------------------------------------------
-
-    public IReadOnlyList<Product> GetProducts()
-    {
-        lock (_gate)
+        if (!db.Users.Any())
         {
-            return _products.Values.OrderBy(p => p.Id).ToList();
+            db.Users.AddRange(BuildUsers());
         }
-    }
 
-    public Product? GetProduct(int id)
-    {
-        lock (_gate)
+        var products = db.Products.OrderBy(p => p.Id).ToList();
+        if (products.Count == 0)
         {
-            return _products.GetValueOrDefault(id);
+            products = BuildProducts();
+            db.Products.AddRange(products);
         }
-    }
 
-    public Product CreateProduct(Product product)
-    {
-        lock (_gate)
+        if (!db.Orders.Any())
         {
-            product.Id = ++_nextProductId;
-            product.CreatedAt = DateTime.UtcNow;
-            _products[product.Id] = product;
-            return product;
+            db.Orders.AddRange(BuildOrders(products));
         }
+
+        db.SaveChanges();
     }
-
-    public Product? UpdateProduct(int id, Product input)
-    {
-        lock (_gate)
-        {
-            if (!_products.TryGetValue(id, out var existing))
-            {
-                return null;
-            }
-
-            existing.Name = input.Name;
-            existing.Sku = input.Sku;
-            existing.Category = input.Category;
-            existing.Price = input.Price;
-            existing.Stock = input.Stock;
-            return existing;
-        }
-    }
-
-    public bool DeleteProduct(int id)
-    {
-        lock (_gate)
-        {
-            return _products.Remove(id);
-        }
-    }
-
-    public int LowStockCount
-    {
-        get
-        {
-            lock (_gate)
-            {
-                return _products.Values.Count(p => p.Stock <= 15);
-            }
-        }
-    }
-
-    // --- Orders -------------------------------------------------------------
-
-    public IReadOnlyList<Order> GetRecentOrders(int count = 6) =>
-        _orders.OrderByDescending(o => o.Date).Take(count).ToList();
-
-    public IReadOnlyList<Order> GetAllOrders() => _orders;
-
-    // --- Users ---------------------------------------------------------------
-
-    /// <summary>Finds a user by email (case-insensitive), or <c>null</c> when unknown.</summary>
-    public User? FindUser(string email) =>
-        _users.FirstOrDefault(u => u.Email.Equals(email.Trim(), StringComparison.OrdinalIgnoreCase));
 
     // --- Seed data ----------------------------------------------------------
 
-    private void SeedUsers()
-    {
-        _users.Add(new User
+    private static List<User> BuildUsers() =>
+    [
+        new User
         {
             Id = 3,
             Email = "superadmin@marketplace.dev",
             Name = "Super Admin",
             Role = "SuperAdmin",
             PasswordHash = PasswordHasher.Hash("123456"),
-        });
-
-        _users.Add(new User
+        },
+        new User
         {
             Id = 1,
             Email = "admin@marketplace.dev",
             Name = "Ada Admin",
             Role = "Admin",
             PasswordHash = PasswordHasher.Hash("Admin123!"),
-        });
-
-        _users.Add(new User
+        },
+        new User
         {
             Id = 4,
             Email = "manager@marketplace.dev",
             Name = "Mia Manager",
             Role = "Manager",
             PasswordHash = PasswordHasher.Hash("Manager123!"),
-        });
-
-        _users.Add(new User
+        },
+        new User
         {
             Id = 5,
             Email = "chief.admin@marketplace.dev",
             Name = "Chief Admin",
             Role = "Admin",
             PasswordHash = PasswordHasher.Hash("Chief123!"),
-        });
-
-        _users.Add(new User
+        },
+        new User
         {
             Id = 2,
             Email = "viewer@marketplace.dev",
             Name = "Vic Viewer",
             Role = "Viewer",
             PasswordHash = PasswordHasher.Hash("Viewer123!"),
-        });
-    }
+        },
+    ];
 
-    private void SeedProducts()
+    private static List<Product> BuildProducts()
     {
+        var createdAt = DateTime.UtcNow;
         var seed = new (string Name, string Sku, string Category, decimal Price, int Stock, int Sold)[]
         {
             ("Aurora Wireless Headset", "AUR-1001", "Audio", 149.00m, 82, 410),
@@ -182,21 +112,27 @@ public class InMemoryStore
             ("Nimbus Smart Plug 4-Pack", "NIM-9753", "Smart Home", 49.00m, 96, 341),
         };
 
-        foreach (var (name, sku, category, price, stock, sold) in seed)
+        var products = new List<Product>(seed.Length);
+        for (var i = 0; i < seed.Length; i++)
         {
-            CreateProduct(new Product
+            var (name, sku, category, price, stock, sold) = seed[i];
+            products.Add(new Product
             {
+                Id = i + 1,
                 Name = name,
                 Sku = sku,
                 Category = category,
                 Price = price,
                 Stock = stock,
                 Sold = sold,
+                CreatedAt = createdAt,
             });
         }
+
+        return products;
     }
 
-    private void SeedOrders()
+    private static List<Order> BuildOrders(IReadOnlyList<Product> products)
     {
         var customers = new[]
         {
@@ -206,7 +142,8 @@ public class InMemoryStore
 
         var statuses = new[] { "Completed", "Completed", "Completed", "Processing", "Refunded" };
         var random = new Random(42);
-        var products = _products.Values.ToList();
+        var orders = new List<Order>(72);
+        var nextOrderId = 1;
 
         // Six orders per month for the last 12 months so the trend chart is populated.
         for (var monthsBack = 11; monthsBack >= 0; monthsBack--)
@@ -219,9 +156,9 @@ public class InMemoryStore
                     .AddDays(-random.Next(0, 26))
                     .AddHours(-random.Next(0, 23));
 
-                _orders.Add(new Order
+                orders.Add(new Order
                 {
-                    Id = _nextOrderId++,
+                    Id = nextOrderId++,
                     Customer = customers[random.Next(customers.Length)],
                     Product = product.Name,
                     Category = product.Category,
@@ -232,6 +169,7 @@ public class InMemoryStore
             }
         }
 
-        _orders.Sort((a, b) => b.Date.CompareTo(a.Date));
+        orders.Sort((a, b) => b.Date.CompareTo(a.Date));
+        return orders;
     }
 }
