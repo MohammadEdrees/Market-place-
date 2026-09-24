@@ -132,7 +132,8 @@ export class DashboardComponent implements OnInit {
       error: () => this.loading.set(false),
     });
 
-    this.productService.list().subscribe((products) => this.products.set(products));
+    // Full catalogue for the inventory widget (unpaginated by nature, capped at the API max of 100).
+    this.productService.list({ pageSize: 100 }).subscribe((res) => this.products.set(res.items));
   }
 
   statusSeverity(status: string): 'success' | 'warn' | 'danger' | 'info' {

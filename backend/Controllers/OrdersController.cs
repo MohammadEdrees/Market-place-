@@ -140,12 +140,29 @@ public class OrdersController(MarketDbContext db) : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = order.Id }, order);
     }
 
-    /// <summary>Lists the orders visible to the caller.</summary>
-    /// <returns>All orders for dashboard admins; otherwise orders the caller placed or received on their listings.</returns>
+    /// <summary>Lists one page of the orders visible to the caller, with filters and sorting.</summary>
+    /// <param name="search">Case-insensitive match against customer, item name or category.</param>
+    /// <param name="kind"><c>Product</c> (purchase) or <c>Service</c> (reservation).</param>
+    /// <param name="status">Exact status match, e.g. <c>Reserved</c>.</param>
+    /// <param name="page">1-based page number (default 1).</param>
+    /// <param name="pageSize">Rows per page, clamped to 1–100 (default 20).</param>
+    /// <param name="sortBy">Sort column: <c>id</c>, <c>date</c>, <c>total</c>, <c>status</c>, <c>product</c> or <c>customer</c>; no value means newest first.</param>
+    /// <param name="sortDir"><c>asc</c> (default) or <c>desc</c>.</param>
+    /// <returns>One page of orders for dashboard admins, or of orders the caller placed/received on their listings.</returns>
     [HttpGet]
-    [ProducesResponseType(typeof(IEnumerable<Order>), StatusCodes.Status200OK)]
-    public ActionResult<IEnumerable<Order>> GetAll()
+    [ProducesResponseType(typeof(PagedResponse<Order>), StatusCodes.Status200OK)]
+    public ActionResult<PagedResponse<Order>> GetAll(
+        [FromQuery] string? search,
+        [FromQuery] string? kind,
+        [FromQuery] string? status,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = Paging.DefaultPageSize,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] string sortDir = "asc")
     {
+        page = Paging.NormalizePage(page);
+        pageSize = Paging.NormalizePageSize(pageSize);
+
         IEnumerable<Order> orders = db.Orders.AsNoTracking().AsEnumerable();
 
         if (!Access.IsAdmin(User))
@@ -166,7 +183,54 @@ public class OrdersController(MarketDbContext db) : ControllerBase
                 (o.ServiceId is int serviceId && serviceIds.Contains(serviceId)));
         }
 
-        return Ok(orders.OrderByDescending(o => o.Date).ToList());
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            orders = orders.Where(o =>
+                o.Customer.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                o.Product.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                o.Category.Contains(search, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(kind))
+        {
+            orders = orders.Where(o => o.Kind.Equals(kind, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            orders = orders.Where(o => o.Status.Equals(status, StringComparison.OrdinalIgnoreCase));
+        }
+
+        var total = orders.Count();
+        var items = ApplySort(orders, sortBy, sortDir.Equals("desc", StringComparison.OrdinalIgnoreCase))
+            .ThenBy(o => o.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        return Ok(new PagedResponse<Order>(items, total, page, pageSize));
+    }
+
+    /// <summary>Whitelisted sort keys for the order list; no key means newest first, unknown keys fall back to the id.</summary>
+    private static IOrderedEnumerable<Order> ApplySort(IEnumerable<Order> orders, string? sortBy, bool desc)
+    {
+        var field = (sortBy ?? string.Empty).Trim().ToLowerInvariant();
+        if (field.Length == 0)
+        {
+            return orders.OrderByDescending(o => o.Date);
+        }
+
+        IComparer<Order> comparer = field switch
+        {
+            "date" => Comparer<Order>.Create((a, b) => a.Date.CompareTo(b.Date)),
+            "total" => Comparer<Order>.Create((a, b) => a.Total.CompareTo(b.Total)),
+            "status" => Comparer<Order>.Create((a, b) => string.Compare(a.Status, b.Status, StringComparison.OrdinalIgnoreCase)),
+            "product" => Comparer<Order>.Create((a, b) => string.Compare(a.Product, b.Product, StringComparison.OrdinalIgnoreCase)),
+            "customer" => Comparer<Order>.Create((a, b) => string.Compare(a.Customer, b.Customer, StringComparison.OrdinalIgnoreCase)),
+            _ => Comparer<Order>.Create((a, b) => a.Id.CompareTo(b.Id)),
+        };
+
+        return desc ? orders.OrderByDescending(o => o, comparer) : orders.OrderBy(o => o, comparer);
     }
 
     /// <summary>Orders the caller placed, newest first.</summary>

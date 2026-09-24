@@ -1,5 +1,5 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
@@ -13,7 +13,10 @@ import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ToastModule } from 'primeng/toast';
 import { TooltipModule } from 'primeng/tooltip';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 import { OrdersService } from '../../core/orders.service';
+import type { TableLazyLoadEvent } from 'primeng/table';
 import type { MarketOrder } from '../../core/models';
 
 const STATUSES = ['Processing', 'Confirmed', 'Completed', 'Cancelled', 'Reserved', 'Refunded'] as const;
@@ -43,13 +46,25 @@ const STATUSES = ['Processing', 'Confirmed', 'Completed', 'Cancelled', 'Reserved
 export class OrdersComponent implements OnInit {
   private readonly ordersService = inject(OrdersService);
   private readonly messageService = inject(MessageService);
+  private readonly destroyRef = inject(DestroyRef);
 
+  /** Keystrokes are debounced before they trigger an API round-trip. */
+  private readonly searchInput$ = new Subject<string>();
+
+  readonly loadedOnce = signal(false);
   readonly loading = signal(true);
   readonly orders = signal<MarketOrder[]>([]);
+  readonly total = signal(0);
 
   readonly search = signal('');
   readonly kind = signal<string | null>(null);
   readonly status = signal<string | null>(null);
+
+  // Server-side pagination/sorting, mirrored from the PrimeNG lazy events.
+  readonly first = signal(0);
+  readonly pageSize = signal(8);
+  readonly sortField = signal<string | null>(null);
+  readonly sortOrder = signal(-1); // orders default to newest first
 
   readonly dialogVisible = signal(false);
   readonly saving = signal(false);
@@ -62,47 +77,82 @@ export class OrdersComponent implements OnInit {
   ];
   readonly statusOptions = STATUSES.map((s) => ({ label: s, value: s }));
 
-  readonly filtered = computed(() => {
-    const term = this.search().trim().toLowerCase();
-    const kind = this.kind();
-    const status = this.status();
-    return this.orders().filter(
-      (o) =>
-        (!term ||
-          o.customer.toLowerCase().includes(term) ||
-          o.product.toLowerCase().includes(term) ||
-          o.category.toLowerCase().includes(term)) &&
-        (!kind || o.kind === kind) &&
-        (!status || o.status === status),
-    );
-  });
-
   ngOnInit(): void {
+    this.reload();
+    this.searchInput$
+      .pipe(debounceTime(300), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.reloadFirstPage());
+  }
+
+  /** Fetches the current page from the API using filters + lazy sort/page state. */
+  reload(): void {
+    this.loading.set(true);
+    const pageSize = this.pageSize();
+    this.ordersService
+      .list({
+        search: this.search() || undefined,
+        kind: this.kind() ?? undefined,
+        status: this.status() ?? undefined,
+        page: Math.floor(this.first() / pageSize) + 1,
+        pageSize,
+        sortBy: this.sortField() ?? undefined,
+        sortDir: this.sortOrder() === -1 ? 'desc' : 'asc',
+      })
+      .subscribe({
+        next: (res) => {
+          this.orders.set(res.items);
+          this.total.set(res.total);
+          this.loadedOnce.set(true);
+          this.loading.set(false);
+        },
+        error: () => {
+          this.loadedOnce.set(true);
+          this.loading.set(false);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'API unreachable',
+            detail: 'Start the .NET API on localhost:5240.',
+          });
+        },
+      });
+  }
+
+  /** Pagination and column sorting arrive as a single PrimeNG lazy event. */
+  onLazyLoad(event: TableLazyLoadEvent): void {
+    this.first.set(event.first ?? 0);
+    if (event.rows != null) {
+      this.pageSize.set(event.rows);
+    }
+    this.sortField.set(event.sortField != null ? String(event.sortField) : null);
+    this.sortOrder.set(event.sortOrder ?? -1);
     this.reload();
   }
 
-  reload(): void {
-    this.loading.set(true);
-    this.ordersService.list().subscribe({
-      next: (orders) => {
-        this.orders.set(orders);
-        this.loading.set(false);
-      },
-      error: () => {
-        this.loading.set(false);
-        this.messageService.add({
-          severity: 'error',
-          summary: 'API unreachable',
-          detail: 'Start the .NET API on localhost:5240.',
-        });
-      },
-    });
+  onSearch(value: string): void {
+    this.search.set(value);
+    this.searchInput$.next(value);
+  }
+
+  onKind(value: string | null): void {
+    this.kind.set(value);
+    this.reloadFirstPage();
+  }
+
+  onStatus(value: string | null): void {
+    this.status.set(value);
+    this.reloadFirstPage();
   }
 
   clearFilters(): void {
     this.search.set('');
     this.kind.set(null);
     this.status.set(null);
+    this.reloadFirstPage();
+  }
+
+  private reloadFirstPage(): void {
+    this.first.set(0);
+    this.reload();
   }
 
   openStatus(order: MarketOrder): void {

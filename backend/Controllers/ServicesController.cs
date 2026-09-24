@@ -21,19 +21,30 @@ namespace MarketWorkplace.Api.Controllers;
 [Produces("application/json")]
 public class ServicesController(MarketDbContext db) : ControllerBase
 {
-    /// <summary>Lists services, optionally filtered by text, category or provider.</summary>
+    /// <summary>Lists one page of services with optional filters and sorting.</summary>
     /// <param name="search">Case-insensitive match against title, description, category or location.</param>
     /// <param name="category">Exact category match, e.g. <c>Repair</c>.</param>
     /// <param name="providerId">Only services offered by this user.</param>
-    /// <returns>The services matching the filters.</returns>
+    /// <param name="page">1-based page number (default 1).</param>
+    /// <param name="pageSize">Rows per page, clamped to 1–100 (default 20).</param>
+    /// <param name="sortBy">Sort column: <c>id</c>, <c>title</c>, <c>category</c>, <c>cost</c>, <c>providerId</c>, <c>location</c> or <c>createdAt</c>; unknown values sort by id.</param>
+    /// <param name="sortDir"><c>asc</c> (default) or <c>desc</c>.</param>
+    /// <returns>One page of services plus the filtered total for the paginator.</returns>
     [HttpGet]
-    [ProducesResponseType(typeof(IEnumerable<Service>), StatusCodes.Status200OK)]
-    public ActionResult<IEnumerable<Service>> GetAll(
+    [ProducesResponseType(typeof(PagedResponse<Service>), StatusCodes.Status200OK)]
+    public ActionResult<PagedResponse<Service>> GetAll(
         [FromQuery] string? search,
         [FromQuery] string? category,
-        [FromQuery] int? providerId)
+        [FromQuery] int? providerId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = Paging.DefaultPageSize,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] string sortDir = "asc")
     {
-        IEnumerable<Service> services = db.Services.AsNoTracking().AsEnumerable().OrderBy(s => s.Id);
+        page = Paging.NormalizePage(page);
+        pageSize = Paging.NormalizePageSize(pageSize);
+
+        IEnumerable<Service> services = db.Services.AsNoTracking().AsEnumerable();
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -54,7 +65,31 @@ public class ServicesController(MarketDbContext db) : ControllerBase
             services = services.Where(s => s.ProviderId == providerId);
         }
 
-        return Ok(services.ToList());
+        var total = services.Count();
+        var items = ApplySort(services, sortBy, sortDir.Equals("desc", StringComparison.OrdinalIgnoreCase))
+            .ThenBy(s => s.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        return Ok(new PagedResponse<Service>(items, total, page, pageSize));
+    }
+
+    /// <summary>Whitelisted sort keys for the service list; unknown values fall back to the id.</summary>
+    private static IOrderedEnumerable<Service> ApplySort(IEnumerable<Service> services, string? sortBy, bool desc)
+    {
+        IComparer<Service> comparer = (sortBy ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "title" => Comparer<Service>.Create((a, b) => string.Compare(a.Title, b.Title, StringComparison.OrdinalIgnoreCase)),
+            "category" => Comparer<Service>.Create((a, b) => string.Compare(a.Category, b.Category, StringComparison.OrdinalIgnoreCase)),
+            "cost" => Comparer<Service>.Create((a, b) => a.Cost.CompareTo(b.Cost)),
+            "providerid" => Comparer<Service>.Create((a, b) => a.ProviderId.CompareTo(b.ProviderId)),
+            "location" => Comparer<Service>.Create((a, b) => string.Compare(a.Location, b.Location, StringComparison.OrdinalIgnoreCase)),
+            "createdat" => Comparer<Service>.Create((a, b) => a.CreatedAt.CompareTo(b.CreatedAt)),
+            _ => Comparer<Service>.Create((a, b) => a.Id.CompareTo(b.Id)),
+        };
+
+        return desc ? services.OrderByDescending(s => s, comparer) : services.OrderBy(s => s, comparer);
     }
 
     /// <summary>Gets a single service by its identifier.</summary>

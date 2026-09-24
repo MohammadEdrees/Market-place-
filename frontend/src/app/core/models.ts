@@ -59,6 +59,58 @@ export interface ProductInput {
   stock: number;
 }
 
+/** Envelope returned by the paginated list endpoints. */
+export interface PagedResponse<T> {
+  /** Rows for the requested page. */
+  items: T[];
+  /** Total rows matching the filters, across all pages. */
+  total: number;
+  /** 1-based page number actually returned. */
+  page: number;
+  /** Rows per page actually applied. */
+  pageSize: number;
+}
+
+/** Paging and sorting query parameters accepted by the list endpoints. */
+export interface PageParams {
+  /** 1-based page number. */
+  page?: number;
+  /** Rows per page (server clamps to 100). */
+  pageSize?: number;
+  /** Whitelisted sort column of the endpoint. */
+  sortBy?: string;
+  /** Sort direction (server default `asc`; orders default to newest-first when `sortBy` is absent). */
+  sortDir?: 'asc' | 'desc';
+}
+
+/** Query accepted by `GET /api/products`. */
+export interface ProductQuery extends PageParams {
+  search?: string;
+  category?: string;
+  sellerId?: number;
+}
+
+/** Query accepted by `GET /api/services`. */
+export interface ServiceQuery extends PageParams {
+  search?: string;
+  category?: string;
+  providerId?: number;
+}
+
+/** Query accepted by `GET /api/orders`. */
+export interface OrderQuery extends PageParams {
+  search?: string;
+  kind?: string;
+  status?: string;
+}
+
+/** Query accepted by `GET /api/users`. */
+export interface UserQuery extends PageParams {
+  search?: string;
+  role?: string;
+  type?: string;
+}
+
 /** Service listing offered by a provider/seller that clients can reserve. */
 export interface ServiceListing {
   id: number;

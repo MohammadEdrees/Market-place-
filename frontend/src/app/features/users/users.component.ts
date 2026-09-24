@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
@@ -13,8 +13,11 @@ import { TagModule } from 'primeng/tag';
 import { Textarea } from 'primeng/textarea';
 import { ToastModule } from 'primeng/toast';
 import { TooltipModule } from 'primeng/tooltip';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 import { AuthService } from '../../core/auth.service';
 import { UsersService } from '../../core/users.service';
+import type { TableLazyLoadEvent } from 'primeng/table';
 import type { UserProfile, UserUpdateInput } from '../../core/models';
 
 const emptyDraft = (): UserUpdateInput => ({ name: '', phone: '', location: '', bio: '' });
@@ -44,13 +47,25 @@ export class UsersComponent implements OnInit {
   private readonly usersService = inject(UsersService);
   private readonly messageService = inject(MessageService);
   private readonly auth = inject(AuthService);
+  private readonly destroyRef = inject(DestroyRef);
 
+  /** Keystrokes are debounced before they trigger an API round-trip. */
+  private readonly searchInput$ = new Subject<string>();
+
+  readonly loadedOnce = signal(false);
   readonly loading = signal(true);
   readonly users = signal<UserProfile[]>([]);
+  readonly total = signal(0);
 
   readonly search = signal('');
   readonly role = signal<string | null>(null);
   readonly type = signal<string | null>(null);
+
+  // Server-side pagination/sorting, mirrored from the PrimeNG lazy events.
+  readonly first = signal(0);
+  readonly pageSize = signal(8);
+  readonly sortField = signal<string | null>(null);
+  readonly sortOrder = signal(1); // 1 = asc, -1 = desc
 
   readonly viewVisible = signal(false);
   readonly viewing = signal<UserProfile | null>(null);
@@ -62,47 +77,82 @@ export class UsersComponent implements OnInit {
   readonly roleOptions = ['SuperAdmin', 'Admin', 'Manager', 'Viewer', 'Provider', 'Client'];
   readonly typeOptions = ['Dashboard', 'Mobile'];
 
-  readonly filtered = computed(() => {
-    const term = this.search().trim().toLowerCase();
-    const role = this.role();
-    const type = this.type();
-    return this.users().filter(
-      (u) =>
-        (!term ||
-          u.name.toLowerCase().includes(term) ||
-          u.email.toLowerCase().includes(term) ||
-          (u.location ?? '').toLowerCase().includes(term)) &&
-        (!role || u.role === role) &&
-        (!type || u.type === type),
-    );
-  });
-
   ngOnInit(): void {
+    this.reload();
+    this.searchInput$
+      .pipe(debounceTime(300), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.reloadFirstPage());
+  }
+
+  /** Fetches the current page from the API using filters + lazy sort/page state. */
+  reload(): void {
+    this.loading.set(true);
+    const pageSize = this.pageSize();
+    this.usersService
+      .list({
+        search: this.search() || undefined,
+        role: this.role() ?? undefined,
+        type: this.type() ?? undefined,
+        page: Math.floor(this.first() / pageSize) + 1,
+        pageSize,
+        sortBy: this.sortField() ?? undefined,
+        sortDir: this.sortOrder() === -1 ? 'desc' : 'asc',
+      })
+      .subscribe({
+        next: (res) => {
+          this.users.set(res.items);
+          this.total.set(res.total);
+          this.loadedOnce.set(true);
+          this.loading.set(false);
+        },
+        error: () => {
+          this.loadedOnce.set(true);
+          this.loading.set(false);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'API unreachable',
+            detail: 'Start the .NET API on localhost:5240.',
+          });
+        },
+      });
+  }
+
+  /** Pagination and column sorting arrive as a single PrimeNG lazy event. */
+  onLazyLoad(event: TableLazyLoadEvent): void {
+    this.first.set(event.first ?? 0);
+    if (event.rows != null) {
+      this.pageSize.set(event.rows);
+    }
+    this.sortField.set(event.sortField != null ? String(event.sortField) : null);
+    this.sortOrder.set(event.sortOrder ?? 1);
     this.reload();
   }
 
-  reload(): void {
-    this.loading.set(true);
-    this.usersService.list().subscribe({
-      next: (users) => {
-        this.users.set(users);
-        this.loading.set(false);
-      },
-      error: () => {
-        this.loading.set(false);
-        this.messageService.add({
-          severity: 'error',
-          summary: 'API unreachable',
-          detail: 'Start the .NET API on localhost:5240.',
-        });
-      },
-    });
+  onSearch(value: string): void {
+    this.search.set(value);
+    this.searchInput$.next(value);
+  }
+
+  onRole(value: string | null): void {
+    this.role.set(value);
+    this.reloadFirstPage();
+  }
+
+  onType(value: string | null): void {
+    this.type.set(value);
+    this.reloadFirstPage();
   }
 
   clearFilters(): void {
     this.search.set('');
     this.role.set(null);
     this.type.set(null);
+    this.reloadFirstPage();
+  }
+
+  private reloadFirstPage(): void {
+    this.first.set(0);
+    this.reload();
   }
 
   /** Only your own profile can be edited (the API only accepts `PUT /api/users/me`). */

@@ -87,14 +87,14 @@ development placeholder. Tokens are HS256-signed; passwords are stored as PBKDF2
 | `GET`    | `/api/auth/me`               | Profile behind the current token                   |
 | `GET`    | `/api/dashboard`             | Metrics, 12-month revenue trend, category split, recent orders, low-stock count |
 | `GET`    | `/api/dashboard/revenue-trend` | Revenue + order count per month                   |
-| `GET`    | `/api/products`              | List products (`?search=…&category=…&sellerId=…`)  |
+| `GET`    | `/api/products`              | Paged products (`?search=…&category=…&sellerId=…&page=…&pageSize=…&sortBy=…&sortDir=…`) |
 | `GET`    | `/api/products/categories`   | Distinct categories                                |
 | `GET`    | `/api/products/mine`         | The caller's own product listings                  |
 | `GET`    | `/api/products/{id}`         | Single product                                     |
 | `POST`   | `/api/products`              | Create (Provider/dashboard admin; validated, `400` with field errors) |
 | `PUT`    | `/api/products/{id}`         | Update (owner or dashboard admin)                  |
 | `DELETE` | `/api/products/{id}`         | Delete (owner or dashboard admin; `204`/`404`)     |
-| `GET`    | `/api/services`              | List services (`?search=…&category=…&providerId=…`) |
+| `GET`    | `/api/services`              | Paged services (`?search=…&category=…&providerId=…&page=…&pageSize=…&sortBy=…&sortDir=…`) |
 | `GET`    | `/api/services/categories`   | Distinct service categories                        |
 | `GET`    | `/api/services/mine`         | The caller's own services                          |
 | `GET`    | `/api/services/{id}`         | Single service                                     |
@@ -102,17 +102,29 @@ development placeholder. Tokens are HS256-signed; passwords are stored as PBKDF2
 | `PUT`    | `/api/services/{id}`         | Update (owner or dashboard admin)                  |
 | `DELETE` | `/api/services/{id}`         | Delete (owner or dashboard admin)                  |
 | `POST`   | `/api/orders`                | Buy a product (`kind=Product`) or reserve a service (`kind=Service`) |
-| `GET`    | `/api/orders`                | Orders visible to the caller (all for dashboard admins) |
+| `GET`    | `/api/orders`                | Paged orders visible to the caller (all for dashboard admins; `?search=…&kind=…&status=…&page=…&pageSize=…&sortBy=…&sortDir=…`) |
 | `GET`    | `/api/orders/mine`           | Orders the caller placed                           |
 | `GET`    | `/api/orders/{id}`           | Single order                                       |
 | `PUT`    | `/api/orders/{id}/status`    | Status transition (Processing/Confirmed/Completed/Cancelled/Reserved/Refunded) |
-| `GET`    | `/api/users`                 | Profiles — admins see everyone, others see providers |
+| `GET`    | `/api/users`                 | Paged profiles — admins see everyone, others see providers (`?search=…&role=…&type=…&page=…&pageSize=…&sortBy=…&sortDir=…`) |
 | `GET`    | `/api/users/{id}`            | One profile incl. contact info (phone/location/bio) |
 | `PUT`    | `/api/users/me`              | Update your own name/contact fields                |
 
 All rows except `POST /api/auth/login` and `POST /api/auth/register` return `401` without a
 valid bearer token; listing and management operations additionally enforce the role rules
 below and return `403` when they do not apply.
+
+The four list endpoints (`/api/products`, `/api/services`, `/api/orders`, `/api/users`) do
+their **pagination, filtering and sorting on the server** and return a paged envelope:
+
+```json
+{ "items": [ … ], "total": 24, "page": 1, "pageSize": 20 }
+```
+
+`page` is 1-based, `pageSize` is clamped to 1–100 (default 20), and `sortBy` accepts only a
+per-endpoint whitelist (e.g. `name`/`price`/`stock` for products, `date`/`total`/`status`
+for orders) with `sortDir=asc|desc`. The dashboard tables drive this via PrimeNG's lazy
+loading, so page, sort and filter changes always round-trip to the API.
 
 ## Marketplace (mobile users)
 
@@ -154,17 +166,20 @@ To hide the docs in an environment, set the kill switch in `backend/appsettings.
 
 - **Overview** (`/dashboard`) — metric cards with period-over-period deltas, dual-axis
   revenue/orders line chart, sales-by-category doughnut, recent orders table, inventory health.
-- **Products** (`/products`) — server-backed CRUD with client-side search, category filter,
-  sortable columns, pagination, create/edit dialog, confirm-to-delete, toasts, plus a **Seller**
+- **Products** (`/products`) — server-backed CRUD with **server-side pagination, search,
+  category filter and column sorting** (PrimeNG lazy loading round-trips page/sort/filter to
+  the API), create/edit dialog, confirm-to-delete, toasts, plus a **Seller**
   column (listing owner) and create/edit actions hidden for roles the API would reject with 403.
-- **Services** (`/services`) — marketplace listings with search/category filter, sortable table
+- **Services** (`/services`) — marketplace listings with server-side search/category filter,
+  paginated, sortable table
   (cost, provider, location, offers) and a full create/edit dialog (title, description,
   category, cost, contact info, location, offers).
 - **Orders & reservations** (`/orders`) — product purchases and service reservations with
-  search + kind/status filters, kind/status tags, and a status-transition dialog
+  server-side search + kind/status filters on a paginated table, kind/status tags, and a
+  status-transition dialog
   (Processing/Confirmed/Completed/Cancelled/Reserved/Refunded).
-- **Users** (`/users`) — profile directory (roles, platform, phone, location) with search and
-  role/platform filters, a profile detail dialog showing contact info, and self-service
+- **Users** (`/users`) — profile directory (roles, platform, phone, location) with
+  server-side search and role/platform filters on a paginated table, a profile detail dialog showing contact info, and self-service
   editing of your own profile (name/phone/location/bio via `PUT /api/users/me`).
 - **Sign in** (`/login`) — JWT login with inline errors, guarded routes and a `returnUrl`
   round-trip; the session survives reloads until the token expires.

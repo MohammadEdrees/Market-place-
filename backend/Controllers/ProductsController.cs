@@ -17,19 +17,30 @@ namespace MarketWorkplace.Api.Controllers;
 [Produces("application/json")]
 public class ProductsController(MarketDbContext db) : ControllerBase
 {
-    /// <summary>Lists products, optionally filtered by search text and category.</summary>
+    /// <summary>Lists one page of products with optional filters and sorting.</summary>
     /// <param name="search">Case-insensitive match against name, SKU or category.</param>
     /// <param name="category">Exact category match, e.g. <c>Audio</c>.</param>
     /// <param name="sellerId">Only products owned by this user.</param>
-    /// <returns>The products matching the filters (all products when no filter is supplied).</returns>
+    /// <param name="page">1-based page number (default 1).</param>
+    /// <param name="pageSize">Rows per page, clamped to 1–100 (default 20).</param>
+    /// <param name="sortBy">Sort column: <c>id</c>, <c>name</c>, <c>sku</c>, <c>category</c>, <c>price</c>, <c>stock</c>, <c>sold</c> or <c>createdAt</c>; unknown values sort by id.</param>
+    /// <param name="sortDir"><c>asc</c> (default) or <c>desc</c>.</param>
+    /// <returns>One page of products plus the filtered total for the paginator.</returns>
     [HttpGet]
-    [ProducesResponseType(typeof(IEnumerable<Product>), StatusCodes.Status200OK)]
-    public ActionResult<IEnumerable<Product>> GetAll(
+    [ProducesResponseType(typeof(PagedResponse<Product>), StatusCodes.Status200OK)]
+    public ActionResult<PagedResponse<Product>> GetAll(
         [FromQuery] string? search,
         [FromQuery] string? category,
-        [FromQuery] int? sellerId)
+        [FromQuery] int? sellerId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = Paging.DefaultPageSize,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] string sortDir = "asc")
     {
-        IEnumerable<Product> products = db.Products.AsNoTracking().AsEnumerable().OrderBy(p => p.Id);
+        page = Paging.NormalizePage(page);
+        pageSize = Paging.NormalizePageSize(pageSize);
+
+        IEnumerable<Product> products = db.Products.AsNoTracking().AsEnumerable();
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -49,7 +60,32 @@ public class ProductsController(MarketDbContext db) : ControllerBase
             products = products.Where(p => p.SellerId == sellerId);
         }
 
-        return Ok(products.ToList());
+        var total = products.Count();
+        var items = ApplySort(products, sortBy, sortDir.Equals("desc", StringComparison.OrdinalIgnoreCase))
+            .ThenBy(p => p.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        return Ok(new PagedResponse<Product>(items, total, page, pageSize));
+    }
+
+    /// <summary>Whitelisted sort keys for the product list; unknown values fall back to the id.</summary>
+    private static IOrderedEnumerable<Product> ApplySort(IEnumerable<Product> products, string? sortBy, bool desc)
+    {
+        IComparer<Product> comparer = (sortBy ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "name" => Comparer<Product>.Create((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase)),
+            "sku" => Comparer<Product>.Create((a, b) => string.Compare(a.Sku, b.Sku, StringComparison.OrdinalIgnoreCase)),
+            "category" => Comparer<Product>.Create((a, b) => string.Compare(a.Category, b.Category, StringComparison.OrdinalIgnoreCase)),
+            "price" => Comparer<Product>.Create((a, b) => a.Price.CompareTo(b.Price)),
+            "stock" => Comparer<Product>.Create((a, b) => a.Stock.CompareTo(b.Stock)),
+            "sold" => Comparer<Product>.Create((a, b) => a.Sold.CompareTo(b.Sold)),
+            "createdat" => Comparer<Product>.Create((a, b) => a.CreatedAt.CompareTo(b.CreatedAt)),
+            _ => Comparer<Product>.Create((a, b) => a.Id.CompareTo(b.Id)),
+        };
+
+        return desc ? products.OrderByDescending(p => p, comparer) : products.OrderBy(p => p, comparer);
     }
 
     /// <summary>The caller's own product listings.</summary>

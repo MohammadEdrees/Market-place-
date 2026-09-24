@@ -2,7 +2,7 @@
   <div class="page-head">
     <div>
       <h2>Orders &amp; reservations</h2>
-      <p>{{ filtered().length }} of {{ orders().length }} orders · product purchases and service bookings</p>
+      <p>{{ total() }} orders · paged, filtered and sorted by the API</p>
     </div>
     <div class="toolbar">
       <p-iconfield>
@@ -12,7 +12,7 @@
           type="search"
           placeholder="Search customer or item"
           [ngModel]="search()"
-          (ngModelChange)="search.set($event)"
+          (ngModelChange)="onSearch($event)"
         />
       </p-iconfield>
 
@@ -22,7 +22,7 @@
         [showClear]="true"
         styleClass="filter-select"
         [ngModel]="kind()"
-        (ngModelChange)="kind.set($event)"
+        (ngModelChange)="onKind($event)"
       />
 
       <p-select
@@ -31,7 +31,7 @@
         [showClear]="true"
         styleClass="filter-select"
         [ngModel]="status()"
-        (ngModelChange)="status.set($event)"
+        (ngModelChange)="onStatus($event)"
       />
 
       <p-button label="Reset" icon="pi pi-filter-slash" [text]="true" severity="secondary" (onClick)="clearFilters()" />
@@ -39,18 +39,17 @@
   </div>
 
   <div class="panel">
-    @if (loading()) {
-      <div class="skeleton-rows">
-        @for (row of [1, 2, 3, 4, 5]; track row) {
-          <p-skeleton height="2.5rem" />
-        }
-      </div>
-    } @else {
+    @if (loadedOnce()) {
       <p-table
-        [value]="filtered()"
+        [value]="orders()"
         styleClass="data-table"
         [paginator]="true"
-        [rows]="8"
+        [lazy]="true"
+        [loading]="loading()"
+        [first]="first()"
+        [rows]="pageSize()"
+        [totalRecords]="total()"
+        (onLazyLoad)="onLazyLoad($event)"
         [showCurrentPageReport]="true"
         currentPageReportTemplate="{first}–{last} of {totalRecords}"
         [rowsPerPageOptions]="[8, 16, 32]"
@@ -110,6 +109,12 @@
           </tr>
         </ng-template>
       </p-table>
+    } @else {
+      <div class="skeleton-rows">
+        @for (row of [1, 2, 3, 4, 5]; track row) {
+          <p-skeleton height="2.5rem" />
+        }
+      </div>
     }
   </div>
 

@@ -1,22 +1,35 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { Product, ProductInput } from './models';
+import { toParams } from './http-params';
+import { PagedResponse, Product, ProductInput, ProductQuery } from './models';
 
 @Injectable({ providedIn: 'root' })
 export class ProductService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = '/api/products';
 
-  list(search?: string, category?: string): Observable<Product[]> {
-    let params: Record<string, string> = {};
-    if (search) params = { ...params, search };
-    if (category) params = { ...params, category };
-    return this.http.get<Product[]>(this.baseUrl, { params });
+  /** One page of products; filtering and sorting are applied by the API. */
+  list(query: ProductQuery = {}): Observable<PagedResponse<Product>> {
+    const params = toParams({
+      search: query.search,
+      category: query.category,
+      sellerId: query.sellerId,
+      page: query.page,
+      pageSize: query.pageSize,
+      sortBy: query.sortBy,
+      sortDir: query.sortDir,
+    });
+    return this.http.get<PagedResponse<Product>>(this.baseUrl, { params });
   }
 
   categories(): Observable<string[]> {
     return this.http.get<string[]>(`${this.baseUrl}/categories`);
+  }
+
+  /** The caller's own listings (small, unpaginated helper). */
+  mine(): Observable<Product[]> {
+    return this.http.get<Product[]>(`${this.baseUrl}/mine`);
   }
 
   create(input: ProductInput): Observable<Product> {

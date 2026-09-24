@@ -2,7 +2,7 @@
   <div class="page-head">
     <div>
       <h2>Services</h2>
-      <p>{{ filtered().length }} of {{ services().length }} listings · cost, contact, location &amp; offers</p>
+      <p>{{ total() }} listings · paged, filtered and sorted by the API</p>
     </div>
     <div class="toolbar">
       <p-iconfield>
@@ -12,7 +12,7 @@
           type="search"
           placeholder="Search title or location"
           [ngModel]="search()"
-          (ngModelChange)="search.set($event)"
+          (ngModelChange)="onSearch($event)"
         />
       </p-iconfield>
 
@@ -22,7 +22,7 @@
         [showClear]="true"
         styleClass="category-select"
         [ngModel]="category()"
-        (ngModelChange)="category.set($event)"
+        (ngModelChange)="onCategory($event)"
       />
 
       <p-button label="Reset" icon="pi pi-filter-slash" [text]="true" severity="secondary" (onClick)="clearFilters()" />
@@ -33,18 +33,17 @@
   </div>
 
   <div class="panel">
-    @if (loading()) {
-      <div class="skeleton-rows">
-        @for (row of [1, 2, 3, 4, 5]; track row) {
-          <p-skeleton height="2.5rem" />
-        }
-      </div>
-    } @else {
+    @if (loadedOnce()) {
       <p-table
-        [value]="filtered()"
+        [value]="services()"
         styleClass="data-table"
         [paginator]="true"
-        [rows]="8"
+        [lazy]="true"
+        [loading]="loading()"
+        [first]="first()"
+        [rows]="pageSize()"
+        [totalRecords]="total()"
+        (onLazyLoad)="onLazyLoad($event)"
         [showCurrentPageReport]="true"
         currentPageReportTemplate="{first}–{last} of {totalRecords}"
         [rowsPerPageOptions]="[8, 16, 32]"
@@ -111,6 +110,12 @@
           </tr>
         </ng-template>
       </p-table>
+    } @else {
+      <div class="skeleton-rows">
+        @for (row of [1, 2, 3, 4, 5]; track row) {
+          <p-skeleton height="2.5rem" />
+        }
+      </div>
     }
   </div>
 

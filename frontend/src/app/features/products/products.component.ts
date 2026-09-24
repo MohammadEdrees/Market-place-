@@ -1,5 +1,5 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
@@ -16,9 +16,12 @@ import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ToastModule } from 'primeng/toast';
 import { TooltipModule } from 'primeng/tooltip';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 import { AuthService } from '../../core/auth.service';
 import { ProductService } from '../../core/product.service';
 import { UsersService } from '../../core/users.service';
+import type { TableLazyLoadEvent } from 'primeng/table';
 import type { Product, ProductInput, UserProfile } from '../../core/models';
 
 const emptyDraft = (): ProductInput => ({ name: '', sku: '', category: '', price: 0, stock: 0 });
@@ -54,14 +57,26 @@ export class ProductsComponent implements OnInit {
   private readonly messageService = inject(MessageService);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly auth = inject(AuthService);
+  private readonly destroyRef = inject(DestroyRef);
 
+  /** Keystrokes are debounced before they trigger an API round-trip. */
+  private readonly searchInput$ = new Subject<string>();
+
+  readonly loadedOnce = signal(false);
   readonly loading = signal(true);
   readonly products = signal<Product[]>([]);
+  readonly total = signal(0);
   readonly categories = signal<string[]>([]);
   readonly sellers = signal<UserProfile[]>([]);
 
   readonly search = signal('');
   readonly category = signal<string | null>(null);
+
+  // Server-side pagination/sorting, mirrored from the PrimeNG lazy events.
+  readonly first = signal(0);
+  readonly pageSize = signal(8);
+  readonly sortField = signal<string | null>(null);
+  readonly sortOrder = signal(1); // 1 = asc, -1 = desc
 
   readonly dialogVisible = signal(false);
   readonly saving = signal(false);
@@ -74,48 +89,85 @@ export class ProductsComponent implements OnInit {
     ['SuperAdmin', 'Admin', 'Manager', 'Provider'].includes(this.auth.user()?.role ?? ''),
   );
 
-  readonly filtered = computed(() => {
-    const term = this.search().trim().toLowerCase();
-    const category = this.category();
-    return this.products().filter(
-      (p) =>
-        (!term || p.name.toLowerCase().includes(term) || p.sku.toLowerCase().includes(term)) &&
-        (!category || p.category === category),
-    );
-  });
-
   readonly title = computed(() =>
     this.editingId() ? 'Edit product' : 'New product',
   );
 
   ngOnInit(): void {
     this.reload();
-    this.productService.categories().subscribe((c) => this.categories.set(c));
+    this.productService.categories().subscribe({ next: (c) => this.categories.set(c), error: () => {} });
     // Owner names for the Seller column; non-admins only receive the public provider directory.
-    this.usersService.list().subscribe({ next: (u) => this.sellers.set(u), error: () => {} });
+    this.usersService.list({ pageSize: 100 }).subscribe({
+      next: (r) => this.sellers.set(r.items),
+      error: () => {},
+    });
+    this.searchInput$
+      .pipe(debounceTime(300), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.reloadFirstPage());
   }
 
+  /** Fetches the current page from the API using filters + lazy sort/page state. */
   reload(): void {
     this.loading.set(true);
-    this.productService.list().subscribe({
-      next: (products) => {
-        this.products.set(products);
-        this.loading.set(false);
-      },
-      error: () => {
-        this.loading.set(false);
-        this.messageService.add({
-          severity: 'error',
-          summary: 'API unreachable',
-          detail: 'Start the .NET API on localhost:5240.',
-        });
-      },
-    });
+    const pageSize = this.pageSize();
+    this.productService
+      .list({
+        search: this.search() || undefined,
+        category: this.category() ?? undefined,
+        page: Math.floor(this.first() / pageSize) + 1,
+        pageSize,
+        sortBy: this.sortField() ?? undefined,
+        sortDir: this.sortOrder() === -1 ? 'desc' : 'asc',
+      })
+      .subscribe({
+        next: (res) => {
+          this.products.set(res.items);
+          this.total.set(res.total);
+          this.loadedOnce.set(true);
+          this.loading.set(false);
+        },
+        error: () => {
+          this.loadedOnce.set(true);
+          this.loading.set(false);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'API unreachable',
+            detail: 'Start the .NET API on localhost:5240.',
+          });
+        },
+      });
+  }
+
+  /** Pagination and column sorting arrive as a single PrimeNG lazy event. */
+  onLazyLoad(event: TableLazyLoadEvent): void {
+    this.first.set(event.first ?? 0);
+    if (event.rows != null) {
+      this.pageSize.set(event.rows);
+    }
+    this.sortField.set(event.sortField != null ? String(event.sortField) : null);
+    this.sortOrder.set(event.sortOrder ?? 1);
+    this.reload();
+  }
+
+  onSearch(value: string): void {
+    this.search.set(value);
+    this.searchInput$.next(value);
+  }
+
+  onCategory(value: string | null): void {
+    this.category.set(value);
+    this.reloadFirstPage();
   }
 
   clearFilters(): void {
     this.search.set('');
     this.category.set(null);
+    this.reloadFirstPage();
+  }
+
+  private reloadFirstPage(): void {
+    this.first.set(0);
+    this.reload();
   }
 
   openNew(): void {

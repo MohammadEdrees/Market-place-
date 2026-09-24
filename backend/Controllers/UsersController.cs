@@ -17,15 +17,29 @@ namespace MarketWorkplace.Api.Controllers;
 [Produces("application/json")]
 public class UsersController(MarketDbContext db) : ControllerBase
 {
-    /// <summary>Lists user profiles (never includes password hashes).</summary>
-    /// <returns>
-    /// Dashboard admins see every user; other callers get the public directory of
-    /// mobile providers/sellers only.
-    /// </returns>
+    /// <summary>Lists one page of user profiles with optional filters and sorting (never includes password hashes).</summary>
+    /// <param name="search">Case-insensitive match against name, email or location.</param>
+    /// <param name="role">Exact role match, e.g. <c>Provider</c>.</param>
+    /// <param name="type"><c>Dashboard</c> or <c>Mobile</c>.</param>
+    /// <param name="page">1-based page number (default 1).</param>
+    /// <param name="pageSize">Rows per page, clamped to 1–100 (default 20).</param>
+    /// <param name="sortBy">Sort column: <c>id</c>, <c>name</c>, <c>email</c>, <c>role</c> or <c>type</c>; unknown values sort by id.</param>
+    /// <param name="sortDir"><c>asc</c> (default) or <c>desc</c>.</param>
+    /// <returns>One page of profiles — dashboard admins see everyone, other callers get the provider directory.</returns>
     [HttpGet]
-    [ProducesResponseType(typeof(IEnumerable<UserProfileDto>), StatusCodes.Status200OK)]
-    public ActionResult<IEnumerable<UserProfileDto>> GetAll()
+    [ProducesResponseType(typeof(PagedResponse<UserProfileDto>), StatusCodes.Status200OK)]
+    public ActionResult<PagedResponse<UserProfileDto>> GetAll(
+        [FromQuery] string? search,
+        [FromQuery] string? role,
+        [FromQuery] string? type,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = Paging.DefaultPageSize,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] string sortDir = "asc")
     {
+        page = Paging.NormalizePage(page);
+        pageSize = Paging.NormalizePageSize(pageSize);
+
         IEnumerable<User> users = db.Users.AsNoTracking().AsEnumerable();
 
         if (!Access.IsAdmin(User))
@@ -33,7 +47,49 @@ public class UsersController(MarketDbContext db) : ControllerBase
             users = users.Where(u => u.Type == "Mobile" && u.Role == "Provider");
         }
 
-        return Ok(users.OrderBy(u => u.Id).Select(ToProfile).ToList());
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            users = users.Where(u =>
+                u.Name.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                u.Email.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                (u.Location ?? string.Empty).Contains(search, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(role))
+        {
+            users = users.Where(u => u.Role.Equals(role, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(type))
+        {
+            users = users.Where(u => u.Type.Equals(type, StringComparison.OrdinalIgnoreCase));
+        }
+
+        var total = users.Count();
+        var items = ApplySort(users, sortBy, sortDir.Equals("desc", StringComparison.OrdinalIgnoreCase))
+            .ThenBy(u => u.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(ToProfile)
+            .ToList();
+
+        return Ok(new PagedResponse<UserProfileDto>(items, total, page, pageSize));
+    }
+
+    /// <summary>Whitelisted sort keys for the user list; unknown values fall back to the id.</summary>
+    private static IOrderedEnumerable<User> ApplySort(IEnumerable<User> users, string? sortBy, bool desc)
+    {
+        IComparer<User> comparer = (sortBy ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "name" => Comparer<User>.Create((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase)),
+            "email" => Comparer<User>.Create((a, b) => string.Compare(a.Email, b.Email, StringComparison.OrdinalIgnoreCase)),
+            "role" => Comparer<User>.Create((a, b) => string.Compare(a.Role, b.Role, StringComparison.OrdinalIgnoreCase)),
+            "type" => Comparer<User>.Create((a, b) => string.Compare(a.Type, b.Type, StringComparison.OrdinalIgnoreCase)),
+            "location" => Comparer<User>.Create((a, b) => string.Compare(a.Location ?? string.Empty, b.Location ?? string.Empty, StringComparison.OrdinalIgnoreCase)),
+            _ => Comparer<User>.Create((a, b) => a.Id.CompareTo(b.Id)),
+        };
+
+        return desc ? users.OrderByDescending(u => u, comparer) : users.OrderBy(u => u, comparer);
     }
 
     /// <summary>Gets one user's profile, including contact info (phone / location / bio).</summary>
