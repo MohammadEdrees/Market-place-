@@ -1,3 +1,4 @@
+using MarketWorkplace.Api.Auth;
 using MarketWorkplace.Api.Data;
 using MarketWorkplace.Api.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -19,10 +20,14 @@ public class ProductsController(MarketDbContext db) : ControllerBase
     /// <summary>Lists products, optionally filtered by search text and category.</summary>
     /// <param name="search">Case-insensitive match against name, SKU or category.</param>
     /// <param name="category">Exact category match, e.g. <c>Audio</c>.</param>
+    /// <param name="sellerId">Only products owned by this user.</param>
     /// <returns>The products matching the filters (all products when no filter is supplied).</returns>
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<Product>), StatusCodes.Status200OK)]
-    public ActionResult<IEnumerable<Product>> GetAll([FromQuery] string? search, [FromQuery] string? category)
+    public ActionResult<IEnumerable<Product>> GetAll(
+        [FromQuery] string? search,
+        [FromQuery] string? category,
+        [FromQuery] int? sellerId)
     {
         IEnumerable<Product> products = db.Products.AsNoTracking().AsEnumerable().OrderBy(p => p.Id);
 
@@ -39,7 +44,25 @@ public class ProductsController(MarketDbContext db) : ControllerBase
             products = products.Where(p => p.Category.Equals(category, StringComparison.OrdinalIgnoreCase));
         }
 
+        if (sellerId is not null)
+        {
+            products = products.Where(p => p.SellerId == sellerId);
+        }
+
         return Ok(products.ToList());
+    }
+
+    /// <summary>The caller's own product listings.</summary>
+    /// <returns>Products owned by the signed-in user (admins see their own too).</returns>
+    [HttpGet("mine")]
+    [ProducesResponseType(typeof(IEnumerable<Product>), StatusCodes.Status200OK)]
+    public ActionResult<IEnumerable<Product>> GetMine()
+    {
+        var userId = Access.UserId(User);
+        return Ok(db.Products.AsNoTracking().AsEnumerable()
+            .Where(p => p.SellerId == userId)
+            .OrderBy(p => p.Id)
+            .ToList());
     }
 
     /// <summary>Gets a single product by its identifier.</summary>
@@ -69,6 +92,11 @@ public class ProductsController(MarketDbContext db) : ControllerBase
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     public ActionResult<Product> Create([FromBody] ProductInput input)
     {
+        if (!Access.CanList(User))
+        {
+            return Forbid();
+        }
+
         if (!ModelState.IsValid)
         {
             return ValidationProblem(ModelState);
@@ -83,6 +111,7 @@ public class ProductsController(MarketDbContext db) : ControllerBase
             Price = input.Price,
             Stock = input.Stock,
             CreatedAt = DateTime.UtcNow,
+            SellerId = Access.UserId(User),
         };
 
         db.Products.Add(created);
@@ -112,6 +141,11 @@ public class ProductsController(MarketDbContext db) : ControllerBase
             return NotFound();
         }
 
+        if (!Access.IsAdmin(User) && product.SellerId != Access.UserId(User))
+        {
+            return Forbid();
+        }
+
         product.Name = input.Name.Trim();
         product.Sku = input.Sku.Trim();
         product.Category = input.Category.Trim();
@@ -134,6 +168,11 @@ public class ProductsController(MarketDbContext db) : ControllerBase
         if (product is null)
         {
             return NotFound();
+        }
+
+        if (!Access.IsAdmin(User) && product.SellerId != Access.UserId(User))
+        {
+            return Forbid();
         }
 
         db.Products.Remove(product);

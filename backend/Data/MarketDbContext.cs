@@ -19,6 +19,9 @@ public class MarketDbContext(DbContextOptions<MarketDbContext> options) : DbCont
     /// <summary>Orders powering the dashboard metrics and charts.</summary>
     public DbSet<Order> Orders => Set<Order>();
 
+    /// <summary>Services offered by providers/sellers.</summary>
+    public DbSet<Service> Services => Set<Service>();
+
     /// <summary>Dashboard users; passwords stored as PBKDF2 hashes.</summary>
     public DbSet<User> Users => Set<User>();
 
@@ -41,6 +44,18 @@ public class MarketDbContext(DbContextOptions<MarketDbContext> options) : DbCont
             entity.Property(o => o.Product).IsRequired().HasMaxLength(120);
             entity.Property(o => o.Category).IsRequired().HasMaxLength(60);
             entity.Property(o => o.Status).IsRequired().HasMaxLength(40);
+        });
+
+        modelBuilder.Entity<Service>(entity =>
+        {
+            entity.HasKey(s => s.Id);
+            entity.Property(s => s.Title).IsRequired().HasMaxLength(120);
+            entity.Property(s => s.Description).HasMaxLength(1000);
+            entity.Property(s => s.Category).IsRequired().HasMaxLength(60);
+            entity.Property(s => s.ContactInfo).IsRequired().HasMaxLength(200);
+            entity.Property(s => s.Location).IsRequired().HasMaxLength(120);
+            entity.Property(s => s.Offers).HasMaxLength(500);
+            entity.HasIndex(s => s.ProviderId);
         });
 
         modelBuilder.Entity<User>(entity =>

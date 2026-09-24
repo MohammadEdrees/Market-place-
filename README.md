@@ -35,8 +35,8 @@ you call it directly.
 
 ## Authentication (JWT)
 
-All `/api/dashboard` and `/api/products` endpoints require a bearer token; only
-`POST /api/auth/login` is anonymous. The Angular app handles the flow for you: unauthenticated
+All endpoints except `POST /api/auth/login` and `POST /api/auth/register` require a bearer
+token. The Angular app handles the flow for you: unauthenticated
 visits redirect to `/login`, the token is attached to every request by an HTTP interceptor, and
 a `401` from the API clears the session and returns to the login page.
 
@@ -49,6 +49,17 @@ a `401` from the API clears the session and returns to the login page.
 | `chief.admin@marketplace.dev` | `Chief123!` | Admin    |
 | `manager@marketplace.dev`  | `Manager123!` | Manager  |
 | `viewer@marketplace.dev`   | `Viewer123!` | Viewer    |
+
+Mobile accounts (`type = Mobile`, used by the marketplace endpoints):
+
+| Email                    | Password     | Role     | Notes                                      |
+| ------------------------ | ------------ | -------- | ------------------------------------------ |
+| `seller@marketplace.dev` | `Seller123!` | Provider | Sam Seller — sells products, offers services |
+| `nova@marketplace.dev`   | `Nova123!`   | Provider | Nova Services — on-site installation/repair |
+| `client@marketplace.dev` | `Client123!` | Client   | Cody Client — buys products, reserves services |
+
+New mobile users sign up with `POST /api/auth/register` (returns a token immediately);
+dashboard accounts are provisioned by an admin.
 
 ```powershell
 # Get a token
@@ -72,24 +83,60 @@ development placeholder. Tokens are HS256-signed; passwords are stored as PBKDF2
 | Method   | Route                        | Description                                        |
 | -------- | ---------------------------- | -------------------------------------------------- |
 | `POST`   | `/api/auth/login`            | Exchange email + password for a JWT (`200`, `401`, `400`) |
+| `POST`   | `/api/auth/register`         | Create a mobile account (Client/Provider) and get a token (`200`, `400`, `409`) |
 | `GET`    | `/api/auth/me`               | Profile behind the current token                   |
 | `GET`    | `/api/dashboard`             | Metrics, 12-month revenue trend, category split, recent orders, low-stock count |
 | `GET`    | `/api/dashboard/revenue-trend` | Revenue + order count per month                   |
-| `GET`    | `/api/products`              | List products (`?search=…&category=…`)             |
+| `GET`    | `/api/products`              | List products (`?search=…&category=…&sellerId=…`)  |
 | `GET`    | `/api/products/categories`   | Distinct categories                                |
+| `GET`    | `/api/products/mine`         | The caller's own product listings                  |
 | `GET`    | `/api/products/{id}`         | Single product                                     |
-| `POST`   | `/api/products`              | Create (validated, returns `400` with field errors) |
-| `PUT`    | `/api/products/{id}`         | Update                                             |
-| `DELETE` | `/api/products/{id}`         | Delete (`204`, or `404` when missing)              |
+| `POST`   | `/api/products`              | Create (Provider/dashboard admin; validated, `400` with field errors) |
+| `PUT`    | `/api/products/{id}`         | Update (owner or dashboard admin)                  |
+| `DELETE` | `/api/products/{id}`         | Delete (owner or dashboard admin; `204`/`404`)     |
+| `GET`    | `/api/services`              | List services (`?search=…&category=…&providerId=…`) |
+| `GET`    | `/api/services/categories`   | Distinct service categories                        |
+| `GET`    | `/api/services/mine`         | The caller's own services                          |
+| `GET`    | `/api/services/{id}`         | Single service                                     |
+| `POST`   | `/api/services`              | Create a service (cost, contact, location, offers) |
+| `PUT`    | `/api/services/{id}`         | Update (owner or dashboard admin)                  |
+| `DELETE` | `/api/services/{id}`         | Delete (owner or dashboard admin)                  |
+| `POST`   | `/api/orders`                | Buy a product (`kind=Product`) or reserve a service (`kind=Service`) |
+| `GET`    | `/api/orders`                | Orders visible to the caller (all for dashboard admins) |
+| `GET`    | `/api/orders/mine`           | Orders the caller placed                           |
+| `GET`    | `/api/orders/{id}`           | Single order                                       |
+| `PUT`    | `/api/orders/{id}/status`    | Status transition (Processing/Confirmed/Completed/Cancelled/Reserved/Refunded) |
+| `GET`    | `/api/users`                 | Profiles — admins see everyone, others see providers |
+| `GET`    | `/api/users/{id}`            | One profile incl. contact info (phone/location/bio) |
+| `PUT`    | `/api/users/me`              | Update your own name/contact fields                |
 
-All rows except `POST /api/auth/login` return `401` without a valid bearer token.
+All rows except `POST /api/auth/login` and `POST /api/auth/register` return `401` without a
+valid bearer token; listing and management operations additionally enforce the role rules
+below and return `403` when they do not apply.
+
+## Marketplace (mobile users)
+
+The API serves two platforms: the **web dashboard** (admin/back-office users, `type = Dashboard`)
+and **mobile clients** (`type = Mobile`) with two roles:
+
+- **Provider** (service provider / seller) — adds products and services (cost, contact info,
+  location, offers), edits their **own** listings, and manages status on orders for their items.
+- **Client** — browses the catalogue, views seller/provider profiles and contact details,
+  **buys products** (`POST /api/orders` with `kind=Product`, decrements stock / increments sold)
+  and **reserves services** (`kind=Service`, order starts as `Reserved`).
+
+Who may **add** products/services: mobile **Providers** and dashboard **SuperAdmin / Admin /
+Manager**. Dashboard **Viewer**s and mobile **Client**s get `403` — they may only browse, buy
+and reserve. The rules live in `backend/Auth/Access.cs`; order visibility is: admins see all,
+everyone else sees orders they placed plus orders for their own listings.
 
 Sample requests for an IDE client live in `backend/MarketWorkplace.Api.http`.
 
 ## API documentation (Swagger)
 
-- **UI:** http://localhost:5240/swagger — operations grouped into `Auth`, `Dashboard` and
-  `Products`, with Try-it-out enabled by default. Click **Authorize** and paste the token from
+- **UI:** http://localhost:5240/swagger — operations grouped into `Auth`, `Dashboard`, `Orders`,
+  `Products`, `Services` and `Users`, with Try-it-out enabled by default. Click **Authorize**
+  and paste the token from
   `POST /api/auth/login` (Swagger UI adds the `Bearer ` prefix) to call the protected operations.
 - **Document:** http://localhost:5240/swagger/v1/swagger.json (OpenAPI 3.0.4).
 

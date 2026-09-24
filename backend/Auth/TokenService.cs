@@ -30,6 +30,7 @@ public class TokenService(IConfiguration configuration)
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
             new Claim(JwtRegisteredClaimNames.Name, user.Name),
             new Claim("role", user.Role),
+            new Claim("type", user.Type),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
         };
 

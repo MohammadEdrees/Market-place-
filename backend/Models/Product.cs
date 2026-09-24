@@ -33,6 +33,9 @@ public class Product
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    /// <summary>Seller / provider / dashboard admin who owns this listing; <c>null</c> for platform demo items.</summary>
+    public int? SellerId { get; set; }
+
     /// <summary>Derived stock status shown in the dashboard table: <c>Active</c>, <c>Low stock</c> (≤ 15) or <c>Out of stock</c>.</summary>
     public string Status => Stock == 0 ? "Out of stock" : Stock <= 15 ? "Low stock" : "Active";
 }

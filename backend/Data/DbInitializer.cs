@@ -27,9 +27,16 @@ public static class DbInitializer
             db.Products.AddRange(products);
         }
 
+        var services = db.Services.OrderBy(s => s.Id).ToList();
+        if (services.Count == 0)
+        {
+            services = BuildServices();
+            db.Services.AddRange(services);
+        }
+
         if (!db.Orders.Any())
         {
-            db.Orders.AddRange(BuildOrders(products));
+            db.Orders.AddRange(BuildOrders(products, services));
         }
 
         db.SaveChanges();
@@ -45,6 +52,7 @@ public static class DbInitializer
             Email = "superadmin@marketplace.dev",
             Name = "Super Admin",
             Role = "SuperAdmin",
+            Type = "Dashboard",
             PasswordHash = PasswordHasher.Hash("123456"),
         },
         new User
@@ -53,6 +61,10 @@ public static class DbInitializer
             Email = "admin@marketplace.dev",
             Name = "Ada Admin",
             Role = "Admin",
+            Type = "Dashboard",
+            Phone = "+1 555 0100",
+            Location = "Chicago, IL",
+            Bio = "Platform administrator — catalogue and marketplace operations.",
             PasswordHash = PasswordHasher.Hash("Admin123!"),
         },
         new User
@@ -61,6 +73,7 @@ public static class DbInitializer
             Email = "manager@marketplace.dev",
             Name = "Mia Manager",
             Role = "Manager",
+            Type = "Dashboard",
             PasswordHash = PasswordHasher.Hash("Manager123!"),
         },
         new User
@@ -69,6 +82,7 @@ public static class DbInitializer
             Email = "chief.admin@marketplace.dev",
             Name = "Chief Admin",
             Role = "Admin",
+            Type = "Dashboard",
             PasswordHash = PasswordHasher.Hash("Chief123!"),
         },
         new User
@@ -77,7 +91,45 @@ public static class DbInitializer
             Email = "viewer@marketplace.dev",
             Name = "Vic Viewer",
             Role = "Viewer",
+            Type = "Dashboard",
             PasswordHash = PasswordHasher.Hash("Viewer123!"),
+        },
+
+        // --- Mobile users ----------------------------------------------------
+        new User
+        {
+            Id = 6,
+            Email = "seller@marketplace.dev",
+            Name = "Sam Seller",
+            Role = "Provider",
+            Type = "Mobile",
+            Phone = "+1 555 0142",
+            Location = "Austin, TX",
+            Bio = "Audio and peripherals specialist — fast shipping, 2-year warranty.",
+            PasswordHash = PasswordHasher.Hash("Seller123!"),
+        },
+        new User
+        {
+            Id = 7,
+            Email = "nova@marketplace.dev",
+            Name = "Nova Services",
+            Role = "Provider",
+            Type = "Mobile",
+            Phone = "+1 555 0177",
+            Location = "Seattle, WA",
+            Bio = "On-site tech support and repairs — same-day appointments.",
+            PasswordHash = PasswordHasher.Hash("Nova123!"),
+        },
+        new User
+        {
+            Id = 8,
+            Email = "client@marketplace.dev",
+            Name = "Cody Client",
+            Role = "Client",
+            Type = "Mobile",
+            Phone = "+1 555 0199",
+            Location = "Denver, CO",
+            PasswordHash = PasswordHasher.Hash("Client123!"),
         },
     ];
 
@@ -129,10 +181,108 @@ public static class DbInitializer
             });
         }
 
+        // Demo ownership: the first third belongs to Sam Seller, the middle to Nova
+        // Services, and the rest to the dashboard admin.
+        for (var i = 0; i < products.Count; i++)
+        {
+            products[i].SellerId = i switch
+            {
+                < 8 => 6,
+                < 16 => 7,
+                _ => 1,
+            };
+        }
+
         return products;
     }
 
-    private static List<Order> BuildOrders(IReadOnlyList<Product> products)
+    private static List<Service> BuildServices()
+    {
+        var now = DateTime.UtcNow;
+        return
+        [
+            new Service
+            {
+                Id = 1,
+                ProviderId = 6,
+                Title = "Headphone Repair & Tuning",
+                Description = "Diagnostics, pad replacement and sound tuning for headphones and headsets.",
+                Category = "Repair",
+                Cost = 59.00m,
+                ContactInfo = "+1 555 0142 · sam@marketplace.dev",
+                Location = "Austin, TX",
+                Offers = "20% off with any product purchase from my shop",
+                CreatedAt = now,
+            },
+            new Service
+            {
+                Id = 2,
+                ProviderId = 6,
+                Title = "Custom Cable Build",
+                Description = "Braided USB-C, audio and HDMI cables made to your length.",
+                Category = "Accessories",
+                Cost = 25.00m,
+                ContactInfo = "+1 555 0142 · sam@marketplace.dev",
+                Location = "Austin, TX",
+                Offers = "Free delivery on orders over $50",
+                CreatedAt = now,
+            },
+            new Service
+            {
+                Id = 3,
+                ProviderId = 7,
+                Title = "Home Wi-Fi Setup",
+                Description = "Router placement, mesh configuration and dead-zone fixes.",
+                Category = "Installation",
+                Cost = 79.00m,
+                ContactInfo = "+1 555 0177 · nova@marketplace.dev",
+                Location = "Seattle, WA",
+                Offers = "Free follow-up visit within 30 days",
+                CreatedAt = now,
+            },
+            new Service
+            {
+                Id = 4,
+                ProviderId = 7,
+                Title = "Laptop Repair (Same Day)",
+                Description = "Screen, battery and keyboard repairs for major brands.",
+                Category = "Repair",
+                Cost = 120.00m,
+                ContactInfo = "+1 555 0177 · nova@marketplace.dev",
+                Location = "Seattle, WA",
+                Offers = "10% off for students",
+                CreatedAt = now,
+            },
+            new Service
+            {
+                Id = 5,
+                ProviderId = 7,
+                Title = "Smart Home Installation",
+                Description = "Setup of lights, plugs, cameras and voice assistants.",
+                Category = "Installation",
+                Cost = 150.00m,
+                ContactInfo = "+1 555 0177 · nova@marketplace.dev",
+                Location = "Seattle, WA",
+                Offers = "Bundle with Wi-Fi Setup for $200",
+                CreatedAt = now,
+            },
+            new Service
+            {
+                Id = 6,
+                ProviderId = 1,
+                Title = "Business Onboarding Consultation",
+                Description = "Walkthrough of catalogue, orders and dashboard reporting.",
+                Category = "Consulting",
+                Cost = 200.00m,
+                ContactInfo = "admin@marketplace.dev",
+                Location = "Remote",
+                Offers = "Free 15-minute intro call",
+                CreatedAt = now,
+            },
+        ];
+    }
+
+    private static List<Order> BuildOrders(IReadOnlyList<Product> products, IReadOnlyList<Service> services)
     {
         var customers = new[]
         {
@@ -159,6 +309,8 @@ public static class DbInitializer
                 orders.Add(new Order
                 {
                     Id = nextOrderId++,
+                    Kind = "Product",
+                    ProductId = product.Id,
                     Customer = customers[random.Next(customers.Length)],
                     Product = product.Name,
                     Category = product.Category,
@@ -168,6 +320,35 @@ public static class DbInitializer
                 });
             }
         }
+
+        // Demo marketplace activity: a client purchase and a service reservation.
+        orders.Add(new Order
+        {
+            Id = nextOrderId++,
+            Kind = "Product",
+            ProductId = products[0].Id,
+            BuyerId = 8,
+            Customer = "Cody Client",
+            Product = products[0].Name,
+            Category = products[0].Category,
+            Total = products[0].Price,
+            Status = "Completed",
+            Date = DateTime.UtcNow.AddDays(-3),
+        });
+
+        orders.Add(new Order
+        {
+            Id = nextOrderId++,
+            Kind = "Service",
+            ServiceId = services[2].Id,
+            BuyerId = 8,
+            Customer = "Cody Client",
+            Product = services[2].Title,
+            Category = services[2].Category,
+            Total = services[2].Cost,
+            Status = "Reserved",
+            Date = DateTime.UtcNow.AddDays(-1),
+        });
 
         orders.Sort((a, b) => b.Date.CompareTo(a.Date));
         return orders;

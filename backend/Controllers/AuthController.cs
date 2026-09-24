@@ -46,6 +46,71 @@ public class AuthController(MarketDbContext db, TokenService tokenService) : Con
         return Ok(new LoginResponse(token, expiresAt, ToProfile(user)));
     }
 
+    /// <summary>Creates a mobile account (Client or Provider) and returns a bearer token.</summary>
+    /// <remarks>Dashboard accounts are provisioned by an admin — only mobile roles are accepted here.</remarks>
+    /// <param name="request">Email, password, display name and the mobile role (Client or Provider).</param>
+    /// <returns>The token, its expiry and the new user's profile.</returns>
+    /// <response code="200">Account created and signed in.</response>
+    /// <response code="400">Missing or malformed fields, or an unsupported role.</response>
+    /// <response code="409">The email is already registered.</response>
+    [HttpPost("register")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public ActionResult<LoginResponse> Register([FromBody] RegisterRequest request)
+    {
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        var email = request.Email.Trim();
+        if (db.Users.AsEnumerable().Any(u => u.Email.Equals(email, StringComparison.OrdinalIgnoreCase)))
+        {
+            return Problem(
+                title: "Email already registered",
+                detail: "Sign in instead or choose another email address.",
+                statusCode: StatusCodes.Status409Conflict);
+        }
+
+        var requestedRole = request.Role?.Trim();
+        var role = string.IsNullOrEmpty(requestedRole)
+            ? "Client"
+            : requestedRole.ToLowerInvariant() switch
+            {
+                "client" => "Client",
+                "provider" => "Provider",
+                _ => string.Empty,
+            };
+
+        if (role.Length == 0)
+        {
+            return Problem(
+                title: "Invalid role",
+                detail: "Role must be Client or Provider.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var user = new User
+        {
+            Id = db.Users.Any() ? db.Users.Max(u => u.Id) + 1 : 1,
+            Email = email,
+            Name = request.Name.Trim(),
+            PasswordHash = PasswordHasher.Hash(request.Password),
+            Role = role,
+            Type = "Mobile",
+            Phone = string.IsNullOrWhiteSpace(request.Phone) ? null : request.Phone.Trim(),
+            Location = string.IsNullOrWhiteSpace(request.Location) ? null : request.Location.Trim(),
+        };
+
+        db.Users.Add(user);
+        db.SaveChanges();
+
+        var (token, expiresAt) = tokenService.CreateToken(user);
+        return Ok(new LoginResponse(token, expiresAt, ToProfile(user)));
+    }
+
     /// <summary>Describes the caller behind the current bearer token.</summary>
     /// <returns>The profile of the authenticated user.</returns>
     /// <response code="200">Valid token.</response>
@@ -68,5 +133,6 @@ public class AuthController(MarketDbContext db, TokenService tokenService) : Con
             .AsEnumerable()
             .FirstOrDefault(u => u.Email.Equals(email.Trim(), StringComparison.OrdinalIgnoreCase));
 
-    private static UserProfileDto ToProfile(User user) => new(user.Id, user.Email, user.Name, user.Role);
+    private static UserProfileDto ToProfile(User user) =>
+        new(user.Id, user.Email, user.Name, user.Role, user.Type, user.Phone, user.Location, user.Bio);
 }
