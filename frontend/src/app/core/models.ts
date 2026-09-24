@@ -49,6 +49,8 @@ export interface Product {
   status: string;
   /** Owner of the listing; `null` for platform demo items. */
   sellerId?: number | null;
+  /** Gallery images served from the API's wwwroot (ordered by `sortOrder`). */
+  images?: ListingImage[];
 }
 
 export interface ProductInput {
@@ -124,6 +126,8 @@ export interface ServiceListing {
   offers: string;
   isActive: boolean;
   createdAt: string;
+  /** Gallery images served from the API's wwwroot (ordered by `sortOrder`). */
+  images?: ListingImage[];
 }
 
 export interface ServiceInput {
@@ -161,6 +165,8 @@ export interface UserProfile {
   phone?: string | null;
   location?: string | null;
   bio?: string | null;
+  /** Profile picture URL (absolute — prefixed with the API's `BackendUrl` from appsettings). */
+  imagePath?: string | null;
 }
 
 /** Contact fields a user may edit about themselves (`PUT /api/users/me`). */
@@ -169,6 +175,31 @@ export interface UserUpdateInput {
   phone?: string | null;
   location?: string | null;
   bio?: string | null;
+}
+
+/**
+ * Payload for `POST /api/users` — an admin creating a dashboard or mobile account.
+ * The platform is derived server-side from the role (Provider/Client → Mobile).
+ */
+export interface UserCreateInput {
+  name: string;
+  email: string;
+  password: string;
+  role: string;
+  phone?: string | null;
+  location?: string | null;
+  bio?: string | null;
+}
+
+/** One image in a listing gallery, stored under the API's `wwwroot/images`. */
+export interface ListingImage {
+  id: number;
+  /** Web path served by the API, e.g. `/images/products/ab12….png`. */
+  path: string;
+  productId?: number | null;
+  serviceId?: number | null;
+  sortOrder: number;
+  createdAt: string;
 }
 
 /** Signed-in user as returned by the auth endpoints. */

@@ -1,6 +1,6 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
@@ -17,12 +17,12 @@ import { Textarea } from 'primeng/textarea';
 import { ToastModule } from 'primeng/toast';
 import { TooltipModule } from 'primeng/tooltip';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
+import { EMPTY, Subject, catchError, debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs';
 import { AuthService } from '../../core/auth.service';
 import { ServicesService } from '../../core/services.service';
 import { UsersService } from '../../core/users.service';
 import type { TableLazyLoadEvent } from 'primeng/table';
-import type { ServiceInput, ServiceListing, UserProfile } from '../../core/models';
+import type { ListingImage, ServiceInput, ServiceListing, UserProfile } from '../../core/models';
 
 const emptyDraft = (): ServiceInput => ({
   title: '',
@@ -34,12 +34,16 @@ const emptyDraft = (): ServiceInput => ({
   offers: '',
 });
 
+/** A file picked in the dialog but not yet uploaded (with its local preview URL). */
+type PendingImage = { file: File; url: string };
+
 @Component({
   selector: 'app-services',
   imports: [
     CurrencyPipe,
     DatePipe,
     FormsModule,
+    ReactiveFormsModule,
     ButtonModule,
     ConfirmDialogModule,
     DialogModule,
@@ -67,8 +71,11 @@ export class ServicesComponent implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly destroyRef = inject(DestroyRef);
 
-  /** Keystrokes are debounced before they trigger an API round-trip. */
-  private readonly searchInput$ = new Subject<string>();
+  /** Search box as a reactive control: valueChanges → debounce → distinct → fetch. */
+  readonly searchControl = new FormControl('', { nonNullable: true });
+
+  /** Every reload funnels through here so switchMap cancels stale in-flight requests. */
+  private readonly reload$ = new Subject<void>();
 
   readonly loadedOnce = signal(false);
   readonly loading = signal(true);
@@ -90,6 +97,11 @@ export class ServicesComponent implements OnInit {
   readonly saving = signal(false);
   readonly editingId = signal<number | null>(null);
 
+  // Gallery: images already stored on the API plus files picked in the dialog.
+  readonly maxImages = 10;
+  readonly existingImages = signal<ListingImage[]>([]);
+  readonly pendingImages = signal<PendingImage[]>([]);
+
   draft: ServiceInput = emptyDraft();
 
   /** Providers and dashboard admins may list/manage services; others get 403 from the API. */
@@ -100,7 +112,58 @@ export class ServicesComponent implements OnInit {
   readonly title = computed(() => (this.editingId() ? 'Edit service' : 'New service'));
 
   ngOnInit(): void {
-    this.reload();
+    // Backend search with RxJS: debounce keystrokes, drop duplicates, refetch page 1.
+    this.searchControl.valueChanges
+      .pipe(
+        debounceTime(300),
+        map((value) => value.trim()),
+        distinctUntilChanged(),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((term) => {
+        this.search.set(term);
+        this.first.set(0);
+        this.reload();
+      });
+
+    // Single fetch pipeline: switchMap cancels the previous request as soon as a newer
+    // page/sort/filter/search trigger arrives, so responses can never arrive out of order.
+    this.reload$
+      .pipe(
+        switchMap(() => {
+          this.loading.set(true);
+          const pageSize = this.pageSize();
+          return this.servicesService
+            .list({
+              search: this.search() || undefined,
+              category: this.category() ?? undefined,
+              page: Math.floor(this.first() / pageSize) + 1,
+              pageSize,
+              sortBy: this.sortField() ?? undefined,
+              sortDir: this.sortOrder() === -1 ? 'desc' : 'asc',
+            })
+            .pipe(
+              catchError(() => {
+                this.loadedOnce.set(true);
+                this.loading.set(false);
+                this.messageService.add({
+                  severity: 'error',
+                  summary: 'API unreachable',
+                  detail: 'Start the .NET API on localhost:5240.',
+                });
+                return EMPTY;
+              }),
+            );
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((res) => {
+        this.services.set(res.items);
+        this.total.set(res.total);
+        this.loadedOnce.set(true);
+        this.loading.set(false);
+      });
+
     this.servicesService.categories().subscribe({
       next: (c) => this.categories.set(c),
       error: () => {},
@@ -110,41 +173,13 @@ export class ServicesComponent implements OnInit {
       next: (r) => this.users.set(r.items),
       error: () => {},
     });
-    this.searchInput$
-      .pipe(debounceTime(300), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => this.reloadFirstPage());
+
+    this.reload();
   }
 
-  /** Fetches the current page from the API using filters + lazy sort/page state. */
+  /** Asks the fetch pipeline for the current page (cancels any in-flight request). */
   reload(): void {
-    this.loading.set(true);
-    const pageSize = this.pageSize();
-    this.servicesService
-      .list({
-        search: this.search() || undefined,
-        category: this.category() ?? undefined,
-        page: Math.floor(this.first() / pageSize) + 1,
-        pageSize,
-        sortBy: this.sortField() ?? undefined,
-        sortDir: this.sortOrder() === -1 ? 'desc' : 'asc',
-      })
-      .subscribe({
-        next: (res) => {
-          this.services.set(res.items);
-          this.total.set(res.total);
-          this.loadedOnce.set(true);
-          this.loading.set(false);
-        },
-        error: () => {
-          this.loadedOnce.set(true);
-          this.loading.set(false);
-          this.messageService.add({
-            severity: 'error',
-            summary: 'API unreachable',
-            detail: 'Start the .NET API on localhost:5240.',
-          });
-        },
-      });
+    this.reload$.next();
   }
 
   /** Pagination and column sorting arrive as a single PrimeNG lazy event. */
@@ -158,19 +193,16 @@ export class ServicesComponent implements OnInit {
     this.reload();
   }
 
-  onSearch(value: string): void {
-    this.search.set(value);
-    this.searchInput$.next(value);
-  }
-
   onCategory(value: string | null): void {
     this.category.set(value);
     this.reloadFirstPage();
   }
 
   clearFilters(): void {
-    this.search.set('');
     this.category.set(null);
+    this.search.set('');
+    // Suppress the valueChanges pipeline — the manual reload below covers it.
+    this.searchControl.setValue('', { emitEvent: false });
     this.reloadFirstPage();
   }
 
@@ -182,6 +214,8 @@ export class ServicesComponent implements OnInit {
   openNew(): void {
     this.editingId.set(null);
     this.draft = emptyDraft();
+    this.existingImages.set([]);
+    this.clearPendingImages();
     this.dialogVisible.set(true);
   }
 
@@ -196,6 +230,8 @@ export class ServicesComponent implements OnInit {
       location: service.location,
       offers: service.offers,
     };
+    this.existingImages.set(service.images ?? []);
+    this.clearPendingImages();
     this.dialogVisible.set(true);
   }
 
@@ -210,21 +246,21 @@ export class ServicesComponent implements OnInit {
       return;
     }
 
+    if (this.existingImages().length + this.pendingImages().length > this.maxImages) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Too many images',
+        detail: `A listing can hold at most ${this.maxImages} images.`,
+      });
+      return;
+    }
+
     this.saving.set(true);
     const id = this.editingId();
     const request$ = id ? this.servicesService.update(id, draft) : this.servicesService.create(draft);
 
     request$.subscribe({
-      next: () => {
-        this.saving.set(false);
-        this.dialogVisible.set(false);
-        this.reload();
-        this.messageService.add({
-          severity: 'success',
-          summary: id ? 'Service updated' : 'Service created',
-          detail: draft.title,
-        });
-      },
+      next: (saved) => this.uploadPendingImages(saved.id, id, draft.title),
       error: (err) => {
         this.saving.set(false);
         this.messageService.add({
@@ -234,6 +270,99 @@ export class ServicesComponent implements OnInit {
         });
       },
     });
+  }
+
+  /** Uploads dialog-picked files once the listing exists (works for create and edit). */
+  private uploadPendingImages(listingId: number, editingId: number | null, label: string): void {
+    const pending = this.pendingImages();
+    if (pending.length === 0) {
+      this.finishSave(editingId, label);
+      return;
+    }
+
+    this.servicesService.uploadImages(listingId, pending.map((item) => item.file)).subscribe({
+      next: () => {
+        this.clearPendingImages();
+        this.finishSave(editingId, label);
+      },
+      error: (err) => {
+        this.saving.set(false);
+        this.reload();
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Image upload failed',
+          detail: this.apiError(err, 'The listing was saved, but its images were not.'),
+        });
+      },
+    });
+  }
+
+  private finishSave(editingId: number | null, label: string): void {
+    this.saving.set(false);
+    this.dialogVisible.set(false);
+    this.reload();
+    this.messageService.add({
+      severity: 'success',
+      summary: editingId ? 'Service updated' : 'Service created',
+      detail: label,
+    });
+  }
+
+  /** Appends chosen files to the pending gallery; they upload when the dialog is saved. */
+  onFilesSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const files = Array.from(input.files ?? []);
+    input.value = '';
+    if (files.length === 0) {
+      return;
+    }
+
+    const room = this.maxImages - this.existingImages().length - this.pendingImages().length;
+    if (files.length > room) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Gallery limit',
+        detail: `A listing can hold at most ${this.maxImages} images.`,
+      });
+    }
+    const accepted = files.slice(0, Math.max(0, room));
+    this.pendingImages.update((list) => [
+      ...list,
+      ...accepted.map((file) => ({ file, url: URL.createObjectURL(file) })),
+    ]);
+  }
+
+  /** Drops a not-yet-uploaded file from the dialog preview. */
+  removePendingImage(item: PendingImage): void {
+    URL.revokeObjectURL(item.url);
+    this.pendingImages.update((list) => list.filter((i) => i !== item));
+  }
+
+  /** Asks the API to remove a stored image row and delete its file. */
+  removeExistingImage(image: ListingImage): void {
+    const id = this.editingId();
+    if (id == null) {
+      return;
+    }
+    this.servicesService.removeImage(id, image.id).subscribe({
+      next: () => this.existingImages.update((list) => list.filter((i) => i.id !== image.id)),
+      error: (err) =>
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Could not remove image',
+          detail: this.apiError(err, 'The API rejected the request.'),
+        }),
+    });
+  }
+
+  /** Previews the full-size image (served by the API) in a new tab. */
+  openImage(path: string): void {
+    window.open(path, '_blank', 'noopener');
+  }
+
+  private clearPendingImages(): void {
+    this.pendingImages().forEach((item) => URL.revokeObjectURL(item.url));
+    this.pendingImages.set([]);
   }
 
   confirmDelete(service: ServiceListing): void {

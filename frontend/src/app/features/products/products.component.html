@@ -11,8 +11,8 @@
           pInputText
           type="search"
           placeholder="Search name or SKU"
-          [ngModel]="search()"
-          (ngModelChange)="onSearch($event)"
+          aria-label="Search products"
+          [formControl]="searchControl"
         />
       </p-iconfield>
 
@@ -66,8 +66,22 @@
         <ng-template #body let-product>
           <tr>
             <td>
-              <span class="cell-title">{{ product.name }}</span>
-              <span class="cell-sub">{{ product.createdAt | date: 'MMM y' }}</span>
+              <div class="name-cell">
+                @if (product.images && product.images.length > 0) {
+                  <img
+                    class="row-thumb"
+                    [src]="product.images[0].path"
+                    [alt]="product.name"
+                    (click)="openImage(product.images[0].path)"
+                  />
+                } @else {
+                  <span class="row-thumb row-thumb-empty" aria-hidden="true"><i class="pi pi-image"></i></span>
+                }
+                <span class="name-meta">
+                  <span class="cell-title">{{ product.name }}</span>
+                  <span class="cell-sub">{{ product.createdAt | date: 'MMM y' }} · {{ product.images?.length ?? 0 }} img</span>
+                </span>
+              </div>
             </td>
             <td class="mono">{{ product.sku }}</td>
             <td>{{ sellerName(product.sellerId) }}</td>
@@ -180,6 +194,52 @@
       <div class="field">
         <label for="p-stock">Stock on hand</label>
         <p-inputnumber id="p-stock" [min]="0" [useGrouping]="false" [(ngModel)]="draft.stock" />
+      </div>
+
+      <div class="field field-full">
+        <label>Images</label>
+        <div class="gallery">
+          @for (image of existingImages(); track image.id) {
+            <div class="gallery-item">
+              <img [src]="image.path" [alt]="'Image ' + (image.sortOrder + 1)" (click)="openImage(image.path)" />
+              <button
+                type="button"
+                class="gallery-remove"
+                aria-label="Remove image"
+                (click)="removeExistingImage(image)"
+              >
+                <i class="pi pi-times"></i>
+              </button>
+            </div>
+          }
+          @for (item of pendingImages(); track item.url) {
+            <div class="gallery-item">
+              <img [src]="item.url" [alt]="item.file.name" />
+              <button
+                type="button"
+                class="gallery-remove"
+                aria-label="Remove image"
+                (click)="removePendingImage(item)"
+              >
+                <i class="pi pi-times"></i>
+              </button>
+            </div>
+          }
+          @if (existingImages().length + pendingImages().length < maxImages) {
+            <label class="gallery-add">
+              <i class="pi pi-image"></i>
+              <span>Add images</span>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                multiple
+                aria-label="Choose images"
+                (change)="onFilesSelected($event)"
+              />
+            </label>
+          }
+        </div>
+        <span class="field-hint">PNG, JPG, WEBP or GIF up to 5 MB each — max {{ maxImages }} images. Files upload when you save; click a thumbnail to preview.</span>
       </div>
     </div>
 

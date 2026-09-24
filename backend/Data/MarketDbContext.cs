@@ -25,6 +25,9 @@ public class MarketDbContext(DbContextOptions<MarketDbContext> options) : DbCont
     /// <summary>Dashboard users; passwords stored as PBKDF2 hashes.</summary>
     public DbSet<User> Users => Set<User>();
 
+    /// <summary>Gallery images attached to products and services (files live in wwwroot).</summary>
+    public DbSet<ListingImage> Images => Set<ListingImage>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Product>(entity =>
@@ -67,5 +70,27 @@ public class MarketDbContext(DbContextOptions<MarketDbContext> options) : DbCont
             entity.Property(u => u.Role).IsRequired().HasMaxLength(60);
             entity.HasIndex(u => u.Email).IsUnique();
         });
+
+        modelBuilder.Entity<ListingImage>(entity =>
+        {
+            entity.HasKey(i => i.Id);
+            entity.Property(i => i.Path).IsRequired().HasMaxLength(300);
+            entity.HasIndex(i => i.ProductId);
+            entity.HasIndex(i => i.ServiceId);
+        });
+
+        // Gallery images hang off one listing each; controllers delete the files explicitly,
+        // the cascade only keeps the table clean if a listing ever disappears another way.
+        modelBuilder.Entity<Product>()
+            .HasMany(p => p.Images)
+            .WithOne()
+            .HasForeignKey(i => i.ProductId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Service>()
+            .HasMany(s => s.Images)
+            .WithOne()
+            .HasForeignKey(i => i.ServiceId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

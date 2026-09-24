@@ -41,6 +41,9 @@ public class Service
     public bool IsActive { get; set; } = true;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>Gallery images stored under <c>wwwroot/images/services</c> (ordered by <c>SortOrder</c>).</summary>
+    public List<ListingImage> Images { get; set; } = [];
 }
 
 /// <summary>Request body for creating or updating a service.</summary>

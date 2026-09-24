@@ -1,6 +1,6 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -14,7 +14,7 @@ import { TagModule } from 'primeng/tag';
 import { ToastModule } from 'primeng/toast';
 import { TooltipModule } from 'primeng/tooltip';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
+import { EMPTY, Subject, catchError, debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs';
 import { OrdersService } from '../../core/orders.service';
 import type { TableLazyLoadEvent } from 'primeng/table';
 import type { MarketOrder } from '../../core/models';
@@ -27,6 +27,7 @@ const STATUSES = ['Processing', 'Confirmed', 'Completed', 'Cancelled', 'Reserved
     CurrencyPipe,
     DatePipe,
     FormsModule,
+    ReactiveFormsModule,
     ButtonModule,
     DialogModule,
     IconFieldModule,
@@ -48,8 +49,11 @@ export class OrdersComponent implements OnInit {
   private readonly messageService = inject(MessageService);
   private readonly destroyRef = inject(DestroyRef);
 
-  /** Keystrokes are debounced before they trigger an API round-trip. */
-  private readonly searchInput$ = new Subject<string>();
+  /** Search box as a reactive control: valueChanges → debounce → distinct → fetch. */
+  readonly searchControl = new FormControl('', { nonNullable: true });
+
+  /** Every reload funnels through here so switchMap cancels stale in-flight requests. */
+  private readonly reload$ = new Subject<void>();
 
   readonly loadedOnce = signal(false);
   readonly loading = signal(true);
@@ -78,43 +82,65 @@ export class OrdersComponent implements OnInit {
   readonly statusOptions = STATUSES.map((s) => ({ label: s, value: s }));
 
   ngOnInit(): void {
+    // Backend search with RxJS: debounce keystrokes, drop duplicates, refetch page 1.
+    this.searchControl.valueChanges
+      .pipe(
+        debounceTime(300),
+        map((value) => value.trim()),
+        distinctUntilChanged(),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((term) => {
+        this.search.set(term);
+        this.first.set(0);
+        this.reload();
+      });
+
+    // Single fetch pipeline: switchMap cancels the previous request as soon as a newer
+    // page/sort/filter/search trigger arrives, so responses can never arrive out of order.
+    this.reload$
+      .pipe(
+        switchMap(() => {
+          this.loading.set(true);
+          const pageSize = this.pageSize();
+          return this.ordersService
+            .list({
+              search: this.search() || undefined,
+              kind: this.kind() ?? undefined,
+              status: this.status() ?? undefined,
+              page: Math.floor(this.first() / pageSize) + 1,
+              pageSize,
+              sortBy: this.sortField() ?? undefined,
+              sortDir: this.sortOrder() === -1 ? 'desc' : 'asc',
+            })
+            .pipe(
+              catchError(() => {
+                this.loadedOnce.set(true);
+                this.loading.set(false);
+                this.messageService.add({
+                  severity: 'error',
+                  summary: 'API unreachable',
+                  detail: 'Start the .NET API on localhost:5240.',
+                });
+                return EMPTY;
+              }),
+            );
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((res) => {
+        this.orders.set(res.items);
+        this.total.set(res.total);
+        this.loadedOnce.set(true);
+        this.loading.set(false);
+      });
+
     this.reload();
-    this.searchInput$
-      .pipe(debounceTime(300), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => this.reloadFirstPage());
   }
 
-  /** Fetches the current page from the API using filters + lazy sort/page state. */
+  /** Asks the fetch pipeline for the current page (cancels any in-flight request). */
   reload(): void {
-    this.loading.set(true);
-    const pageSize = this.pageSize();
-    this.ordersService
-      .list({
-        search: this.search() || undefined,
-        kind: this.kind() ?? undefined,
-        status: this.status() ?? undefined,
-        page: Math.floor(this.first() / pageSize) + 1,
-        pageSize,
-        sortBy: this.sortField() ?? undefined,
-        sortDir: this.sortOrder() === -1 ? 'desc' : 'asc',
-      })
-      .subscribe({
-        next: (res) => {
-          this.orders.set(res.items);
-          this.total.set(res.total);
-          this.loadedOnce.set(true);
-          this.loading.set(false);
-        },
-        error: () => {
-          this.loadedOnce.set(true);
-          this.loading.set(false);
-          this.messageService.add({
-            severity: 'error',
-            summary: 'API unreachable',
-            detail: 'Start the .NET API on localhost:5240.',
-          });
-        },
-      });
+    this.reload$.next();
   }
 
   /** Pagination and column sorting arrive as a single PrimeNG lazy event. */
@@ -128,11 +154,6 @@ export class OrdersComponent implements OnInit {
     this.reload();
   }
 
-  onSearch(value: string): void {
-    this.search.set(value);
-    this.searchInput$.next(value);
-  }
-
   onKind(value: string | null): void {
     this.kind.set(value);
     this.reloadFirstPage();
@@ -144,9 +165,11 @@ export class OrdersComponent implements OnInit {
   }
 
   clearFilters(): void {
-    this.search.set('');
     this.kind.set(null);
     this.status.set(null);
+    this.search.set('');
+    // Suppress the valueChanges pipeline — the manual reload below covers it.
+    this.searchControl.setValue('', { emitEvent: false });
     this.reloadFirstPage();
   }
 

@@ -36,6 +36,9 @@ public class Product
     /// <summary>Seller / provider / dashboard admin who owns this listing; <c>null</c> for platform demo items.</summary>
     public int? SellerId { get; set; }
 
+    /// <summary>Gallery images stored under <c>wwwroot/images/products</c> (ordered by <c>SortOrder</c>).</summary>
+    public List<ListingImage> Images { get; set; } = [];
+
     /// <summary>Derived stock status shown in the dashboard table: <c>Active</c>, <c>Low stock</c> (≤ 15) or <c>Out of stock</c>.</summary>
     public string Status => Stock == 0 ? "Out of stock" : Stock <= 15 ? "Low stock" : "Active";
 }

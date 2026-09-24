@@ -94,6 +94,8 @@ development placeholder. Tokens are HS256-signed; passwords are stored as PBKDF2
 | `POST`   | `/api/products`              | Create (Provider/dashboard admin; validated, `400` with field errors) |
 | `PUT`    | `/api/products/{id}`         | Update (owner or dashboard admin)                  |
 | `DELETE` | `/api/products/{id}`         | Delete (owner or dashboard admin; `204`/`404`)     |
+| `POST`   | `/api/products/{id}/images`  | Upload gallery images (multipart `files`, owner/admin; png/jpg/webp/gif ≤ 5 MB, max 10) |
+| `DELETE` | `/api/products/{id}/images/{imageId}` | Remove one gallery image (`204`/`404`)    |
 | `GET`    | `/api/services`              | Paged services (`?search=…&category=…&providerId=…&page=…&pageSize=…&sortBy=…&sortDir=…`) |
 | `GET`    | `/api/services/categories`   | Distinct service categories                        |
 | `GET`    | `/api/services/mine`         | The caller's own services                          |
@@ -101,6 +103,8 @@ development placeholder. Tokens are HS256-signed; passwords are stored as PBKDF2
 | `POST`   | `/api/services`              | Create a service (cost, contact, location, offers) |
 | `PUT`    | `/api/services/{id}`         | Update (owner or dashboard admin)                  |
 | `DELETE` | `/api/services/{id}`         | Delete (owner or dashboard admin)                  |
+| `POST`   | `/api/services/{id}/images`  | Upload gallery images (multipart `files`, owner/admin; same rules as products) |
+| `DELETE` | `/api/services/{id}/images/{imageId}` | Remove one gallery image (`204`/`404`)    |
 | `POST`   | `/api/orders`                | Buy a product (`kind=Product`) or reserve a service (`kind=Service`) |
 | `GET`    | `/api/orders`                | Paged orders visible to the caller (all for dashboard admins; `?search=…&kind=…&status=…&page=…&pageSize=…&sortBy=…&sortDir=…`) |
 | `GET`    | `/api/orders/mine`           | Orders the caller placed                           |
@@ -109,6 +113,9 @@ development placeholder. Tokens are HS256-signed; passwords are stored as PBKDF2
 | `GET`    | `/api/users`                 | Paged profiles — admins see everyone, others see providers (`?search=…&role=…&type=…&page=…&pageSize=…&sortBy=…&sortDir=…`) |
 | `GET`    | `/api/users/{id}`            | One profile incl. contact info (phone/location/bio) |
 | `PUT`    | `/api/users/me`              | Update your own name/contact fields                |
+| `POST`   | `/api/users`                 | Add a dashboard/mobile account (SuperAdmin/Admin/Manager; `201`/`409`/`400`/`403`) |
+| `POST`   | `/api/users/{id}/image`      | Upload or replace the profile picture (owner or admin; multipart `file`) |
+| `DELETE` | `/api/users/{id}/image`      | Remove the profile picture (`204`/`404`)           |
 
 All rows except `POST /api/auth/login` and `POST /api/auth/register` return `401` without a
 valid bearer token; listing and management operations additionally enforce the role rules
@@ -125,6 +132,30 @@ their **pagination, filtering and sorting on the server** and return a paged env
 per-endpoint whitelist (e.g. `name`/`price`/`stock` for products, `date`/`total`/`status`
 for orders) with `sortDir=asc|desc`. The dashboard tables drive this via PrimeNG's lazy
 loading, so page, sort and filter changes always round-trip to the API.
+
+## Images (galleries & avatars)
+
+Products and services carry a **gallery** (multiple images); every user has a single
+**profile picture**:
+
+- **Storage** — uploads are validated (png/jpg/jpeg/webp/gif, ≤ 5 MB, max 10 images per
+  listing) and written to `backend/wwwroot/images/{products|services|users}` by
+  `backend/Data/ImageStore.cs`; `app.UseStaticFiles()` serves them and the dev proxy also
+  maps `/images/*` (`frontend/proxy.conf.json`).
+- **Absolute URLs (`BackendUrl`)** — the public origin comes from the `BackendUrl` setting
+  in `backend/appsettings.json` (currently `http://localhost:5240`). Every image path the
+  API returns is prefixed with it, e.g. `http://localhost:5240/images/products/a1b2….png`,
+  so links work anywhere (mobile clients, emails), not only behind the dev proxy. Change the
+  setting if the API is exposed elsewhere — the in-memory store reseeds itself on restart,
+  so stored paths pick up the new origin immediately.
+- **Seeding** — at startup `DbInitializer` generates dependency-free placeholder PNGs
+  (`backend/Data/PlaceholderPng.cs`): two per product and per service (linked as
+  `ListingImage` rows) and one avatar per user, so galleries and tables never show broken
+  images.
+- **Endpoints** — `POST`/`DELETE /api/{products|services}/{id}/images[/{imageId}]` for
+  galleries and `POST`/`DELETE /api/users/{id}/image` for avatars (owner or dashboard
+  admin). On the dashboard you manage listing galleries from the create/edit dialogs and
+  your own picture from *Edit my profile* on the Users page.
 
 ## Marketplace (mobile users)
 
@@ -168,19 +199,28 @@ To hide the docs in an environment, set the kill switch in `backend/appsettings.
   revenue/orders line chart, sales-by-category doughnut, recent orders table, inventory health.
 - **Products** (`/products`) — server-backed CRUD with **server-side pagination, search,
   category filter and column sorting** (PrimeNG lazy loading round-trips page/sort/filter to
-  the API), create/edit dialog, confirm-to-delete, toasts, plus a **Seller**
+  the API), row thumbnails, a create/edit dialog with an **image gallery** (multi-upload with
+  local previews, remove, click-to-open), confirm-to-delete, toasts, plus a **Seller**
   column (listing owner) and create/edit actions hidden for roles the API would reject with 403.
 - **Services** (`/services`) — marketplace listings with server-side search/category filter,
-  paginated, sortable table
-  (cost, provider, location, offers) and a full create/edit dialog (title, description,
-  category, cost, contact info, location, offers).
+  a paginated, sortable table with thumbnails (cost, provider, location, offers) and a full
+  create/edit dialog (title, description, category, cost, contact info, location, offers)
+  that manages the listing gallery just like Products.
 - **Orders & reservations** (`/orders`) — product purchases and service reservations with
   server-side search + kind/status filters on a paginated table, kind/status tags, and a
   status-transition dialog
   (Processing/Confirmed/Completed/Cancelled/Reserved/Refunded).
 - **Users** (`/users`) — profile directory (roles, platform, phone, location) with
-  server-side search and role/platform filters on a paginated table, a profile detail dialog showing contact info, and self-service
-  editing of your own profile (name/phone/location/bio via `PUT /api/users/me`).
+  server-side search and role/platform filters on a paginated table, **avatars** in rows and
+  dialogs, a profile detail dialog showing contact info, and self-service editing of your own
+  profile — name/phone/location/bio plus a **profile picture** (upload/replace/remove) via
+  `PUT /api/users/me` and `POST`/`DELETE /api/users/{id}/image`. SuperAdmin/Admin/Manager
+  also get an **Add user** button backed by `POST /api/users` (email + password + role; the
+  platform is derived from the role).
+- **Search** — every list page (Products, Services, Orders, Users) binds its search box to an
+  RxJS pipeline (`valueChanges → debounceTime(300) → map(trim) → distinctUntilChanged →
+  switchMap`): keystrokes coalesce into a single backend request, stale responses are
+  cancelled and a failed request never breaks the stream.
 - **Sign in** (`/login`) — JWT login with inline errors, guarded routes and a `returnUrl`
   round-trip; the session survives reloads until the token expires.
 - Sidebar/topbar shell with the signed-in user's name/role and a sign-out button, light **and**

@@ -15,7 +15,7 @@ namespace MarketWorkplace.Api.Controllers;
 [Route("api/products")]
 [Tags("Products")]
 [Produces("application/json")]
-public class ProductsController(MarketDbContext db) : ControllerBase
+public class ProductsController(MarketDbContext db, ImageStore store) : ControllerBase
 {
     /// <summary>Lists one page of products with optional filters and sorting.</summary>
     /// <param name="search">Case-insensitive match against name, SKU or category.</param>
@@ -40,7 +40,7 @@ public class ProductsController(MarketDbContext db) : ControllerBase
         page = Paging.NormalizePage(page);
         pageSize = Paging.NormalizePageSize(pageSize);
 
-        IEnumerable<Product> products = db.Products.AsNoTracking().AsEnumerable();
+        IEnumerable<Product> products = db.Products.AsNoTracking().Include(p => p.Images).AsEnumerable();
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -95,7 +95,7 @@ public class ProductsController(MarketDbContext db) : ControllerBase
     public ActionResult<IEnumerable<Product>> GetMine()
     {
         var userId = Access.UserId(User);
-        return Ok(db.Products.AsNoTracking().AsEnumerable()
+        return Ok(db.Products.AsNoTracking().Include(p => p.Images).AsEnumerable()
             .Where(p => p.SellerId == userId)
             .OrderBy(p => p.Id)
             .ToList());
@@ -109,7 +109,7 @@ public class ProductsController(MarketDbContext db) : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public ActionResult<Product> GetById(int id)
     {
-        var product = db.Products.AsNoTracking().FirstOrDefault(p => p.Id == id);
+        var product = db.Products.AsNoTracking().Include(p => p.Images).FirstOrDefault(p => p.Id == id);
         return product is null ? NotFound() : Ok(product);
     }
 
@@ -154,6 +154,110 @@ public class ProductsController(MarketDbContext db) : ControllerBase
         db.SaveChanges();
 
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+    }
+
+    /// <summary>Uploads one or more images into the product's gallery (stored under <c>wwwroot/images</c>).</summary>
+    /// <param name="id">The product identifier.</param>
+    /// <param name="files">Multipart <c>files</c> field; png/jpg/webp/gif up to 5 MB each.</param>
+    /// <returns>The created image records with their web paths.</returns>
+    [HttpPost("{id:int}/images")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    [ProducesResponseType(typeof(List<ListingImage>), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<List<ListingImage>>> UploadImages(int id, [FromForm] List<IFormFile>? files)
+    {
+        var product = db.Products.FirstOrDefault(p => p.Id == id);
+        if (product is null)
+        {
+            return NotFound();
+        }
+
+        if (!Access.IsAdmin(User) && product.SellerId != Access.UserId(User))
+        {
+            return Forbid();
+        }
+
+        if (files is null || files.Count == 0)
+        {
+            return Problem(
+                title: "No image uploaded",
+                detail: "Attach at least one file in the 'files' form field.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        // Validate everything before touching disk so a bad file never leaves half a gallery.
+        foreach (var file in files)
+        {
+            var error = ImageStore.Validate(file);
+            if (error is not null)
+            {
+                return Problem(title: "Invalid image", detail: error, statusCode: StatusCodes.Status400BadRequest);
+            }
+        }
+
+        var sortOrder = db.Images.Count(i => i.ProductId == id);
+        if (sortOrder + files.Count > ImageStore.MaxPerListing)
+        {
+            return Problem(
+                title: "Gallery full",
+                detail: $"A listing can hold at most {ImageStore.MaxPerListing} images.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var nextId = db.Images.Any() ? db.Images.Max(i => i.Id) + 1 : 1;
+        var created = new List<ListingImage>(files.Count);
+        foreach (var file in files)
+        {
+            var path = await store.SaveAsync(file, "products");
+            created.Add(new ListingImage
+            {
+                Id = nextId++,
+                ProductId = id,
+                Path = path,
+                SortOrder = sortOrder++,
+                CreatedAt = DateTime.UtcNow,
+            });
+        }
+
+        db.Images.AddRange(created);
+        db.SaveChanges();
+
+        return Created($"/api/products/{id}/images", created);
+    }
+
+    /// <summary>Removes one image from the product's gallery and deletes its file.</summary>
+    /// <param name="id">The product identifier.</param>
+    /// <param name="imageId">The image identifier.</param>
+    /// <returns><c>204 No Content</c>, or <c>404</c> when the image is not part of this product.</returns>
+    [HttpDelete("{id:int}/images/{imageId:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public IActionResult DeleteImage(int id, int imageId)
+    {
+        var product = db.Products.FirstOrDefault(p => p.Id == id);
+        if (product is null)
+        {
+            return NotFound();
+        }
+
+        if (!Access.IsAdmin(User) && product.SellerId != Access.UserId(User))
+        {
+            return Forbid();
+        }
+
+        var image = db.Images.FirstOrDefault(i => i.Id == imageId && i.ProductId == id);
+        if (image is null)
+        {
+            return NotFound();
+        }
+
+        db.Images.Remove(image);
+        db.SaveChanges();
+        store.Delete(image.Path);
+        return NoContent();
     }
 
     /// <summary>Updates an existing product.</summary>
@@ -210,6 +314,14 @@ public class ProductsController(MarketDbContext db) : ControllerBase
         {
             return Forbid();
         }
+
+        // Drop the gallery rows and their files before the listing disappears.
+        var images = db.Images.Where(i => i.ProductId == id).ToList();
+        foreach (var image in images)
+        {
+            store.Delete(image.Path);
+        }
+        db.Images.RemoveRange(images);
 
         db.Products.Remove(product);
         db.SaveChanges();

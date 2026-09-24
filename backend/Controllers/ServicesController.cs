@@ -19,7 +19,7 @@ namespace MarketWorkplace.Api.Controllers;
 [Route("api/services")]
 [Tags("Services")]
 [Produces("application/json")]
-public class ServicesController(MarketDbContext db) : ControllerBase
+public class ServicesController(MarketDbContext db, ImageStore store) : ControllerBase
 {
     /// <summary>Lists one page of services with optional filters and sorting.</summary>
     /// <param name="search">Case-insensitive match against title, description, category or location.</param>
@@ -44,7 +44,7 @@ public class ServicesController(MarketDbContext db) : ControllerBase
         page = Paging.NormalizePage(page);
         pageSize = Paging.NormalizePageSize(pageSize);
 
-        IEnumerable<Service> services = db.Services.AsNoTracking().AsEnumerable();
+        IEnumerable<Service> services = db.Services.AsNoTracking().Include(s => s.Images).AsEnumerable();
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -100,7 +100,7 @@ public class ServicesController(MarketDbContext db) : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public ActionResult<Service> GetById(int id)
     {
-        var service = db.Services.AsNoTracking().FirstOrDefault(s => s.Id == id);
+        var service = db.Services.AsNoTracking().Include(s => s.Images).FirstOrDefault(s => s.Id == id);
         return service is null ? NotFound() : Ok(service);
     }
 
@@ -118,7 +118,7 @@ public class ServicesController(MarketDbContext db) : ControllerBase
     public ActionResult<IEnumerable<Service>> GetMine()
     {
         var userId = Access.UserId(User);
-        return Ok(db.Services.AsNoTracking().AsEnumerable()
+        return Ok(db.Services.AsNoTracking().Include(s => s.Images).AsEnumerable()
             .Where(s => s.ProviderId == userId)
             .OrderBy(s => s.Id)
             .ToList());
@@ -164,6 +164,109 @@ public class ServicesController(MarketDbContext db) : ControllerBase
         db.SaveChanges();
 
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+    }
+
+    /// <summary>Uploads one or more images into the service's gallery (stored under <c>wwwroot/images</c>).</summary>
+    /// <param name="id">The service identifier.</param>
+    /// <param name="files">Multipart <c>files</c> field; png/jpg/webp/gif up to 5 MB each.</param>
+    /// <returns>The created image records with their web paths.</returns>
+    [HttpPost("{id:int}/images")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    [ProducesResponseType(typeof(List<ListingImage>), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<List<ListingImage>>> UploadImages(int id, [FromForm] List<IFormFile>? files)
+    {
+        var service = db.Services.FirstOrDefault(s => s.Id == id);
+        if (service is null)
+        {
+            return NotFound();
+        }
+
+        if (!Access.IsAdmin(User) && service.ProviderId != Access.UserId(User))
+        {
+            return Forbid();
+        }
+
+        if (files is null || files.Count == 0)
+        {
+            return Problem(
+                title: "No image uploaded",
+                detail: "Attach at least one file in the 'files' form field.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        foreach (var file in files)
+        {
+            var error = ImageStore.Validate(file);
+            if (error is not null)
+            {
+                return Problem(title: "Invalid image", detail: error, statusCode: StatusCodes.Status400BadRequest);
+            }
+        }
+
+        var sortOrder = db.Images.Count(i => i.ServiceId == id);
+        if (sortOrder + files.Count > ImageStore.MaxPerListing)
+        {
+            return Problem(
+                title: "Gallery full",
+                detail: $"A listing can hold at most {ImageStore.MaxPerListing} images.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var nextId = db.Images.Any() ? db.Images.Max(i => i.Id) + 1 : 1;
+        var created = new List<ListingImage>(files.Count);
+        foreach (var file in files)
+        {
+            var path = await store.SaveAsync(file, "services");
+            created.Add(new ListingImage
+            {
+                Id = nextId++,
+                ServiceId = id,
+                Path = path,
+                SortOrder = sortOrder++,
+                CreatedAt = DateTime.UtcNow,
+            });
+        }
+
+        db.Images.AddRange(created);
+        db.SaveChanges();
+
+        return Created($"/api/services/{id}/images", created);
+    }
+
+    /// <summary>Removes one image from the service's gallery and deletes its file.</summary>
+    /// <param name="id">The service identifier.</param>
+    /// <param name="imageId">The image identifier.</param>
+    /// <returns><c>204 No Content</c>, or <c>404</c> when the image is not part of this service.</returns>
+    [HttpDelete("{id:int}/images/{imageId:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public IActionResult DeleteImage(int id, int imageId)
+    {
+        var service = db.Services.FirstOrDefault(s => s.Id == id);
+        if (service is null)
+        {
+            return NotFound();
+        }
+
+        if (!Access.IsAdmin(User) && service.ProviderId != Access.UserId(User))
+        {
+            return Forbid();
+        }
+
+        var image = db.Images.FirstOrDefault(i => i.Id == imageId && i.ServiceId == id);
+        if (image is null)
+        {
+            return NotFound();
+        }
+
+        db.Images.Remove(image);
+        db.SaveChanges();
+        store.Delete(image.Path);
+        return NoContent();
     }
 
     /// <summary>Updates an existing service listing.</summary>
@@ -222,6 +325,14 @@ public class ServicesController(MarketDbContext db) : ControllerBase
         {
             return Forbid();
         }
+
+        // Drop the gallery rows and their files before the listing disappears.
+        var images = db.Images.Where(i => i.ServiceId == id).ToList();
+        foreach (var image in images)
+        {
+            store.Delete(image.Path);
+        }
+        db.Images.RemoveRange(images);
 
         db.Services.Remove(service);
         db.SaveChanges();

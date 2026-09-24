@@ -134,5 +134,5 @@ public class AuthController(MarketDbContext db, TokenService tokenService) : Con
             .FirstOrDefault(u => u.Email.Equals(email.Trim(), StringComparison.OrdinalIgnoreCase));
 
     private static UserProfileDto ToProfile(User user) =>
-        new(user.Id, user.Email, user.Name, user.Role, user.Type, user.Phone, user.Location, user.Bio);
+        new(user.Id, user.Email, user.Name, user.Role, user.Type, user.Phone, user.Location, user.Bio, user.ImagePath);
 }

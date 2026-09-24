@@ -46,6 +46,55 @@
   font-size: 1rem;
 }
 
+/* Real picture instead of the initials bubble */
+.avatar-img {
+  object-fit: cover;
+  background: var(--app-border);
+}
+
+/* Profile-picture editor inside "Edit my profile" */
+.avatar-editor {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.avatar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.avatar-upload,
+.avatar-remove-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: transparent;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--app-muted);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.avatar-upload:hover {
+  color: var(--p-primary-color);
+  border-color: var(--p-primary-color);
+}
+
+.avatar-remove-btn:hover {
+  color: #e0393e;
+  border-color: #e0393e;
+}
+
+.avatar-upload input[type='file'] {
+  display: none;
+}
+
 .cell-title {
   display: block;
   font-weight: 600;

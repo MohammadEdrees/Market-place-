@@ -1,6 +1,9 @@
 # .NET
 backend/bin/
 backend/obj/
+# Generated gallery content: seeded placeholder PNGs are rewritten at startup
+# and uploads are runtime data — both live under wwwroot.
+backend/wwwroot/
 .vs/
 *.user
 *.suo

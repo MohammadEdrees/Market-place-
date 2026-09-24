@@ -11,8 +11,8 @@
           pInputText
           type="search"
           placeholder="Search customer or item"
-          [ngModel]="search()"
-          (ngModelChange)="onSearch($event)"
+          aria-label="Search orders"
+          [formControl]="searchControl"
         />
       </p-iconfield>
 

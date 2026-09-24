@@ -30,6 +30,9 @@ public class User
 
     /// <summary>Short bio or contact blurb shown on the public profile.</summary>
     public string? Bio { get; set; }
+
+    /// <summary>Profile picture URL (absolute — prefixed with <c>BackendUrl</c> from appsettings), or <c>null</c>.</summary>
+    public string? ImagePath { get; set; }
 }
 
 /// <summary>Credentials posted to <c>POST /api/auth/login</c>.</summary>
@@ -53,6 +56,7 @@ public record LoginRequest
 /// <param name="Phone">Contact phone, if set.</param>
 /// <param name="Location">Location, if set.</param>
 /// <param name="Bio">Short bio, if set.</param>
+/// <param name="ImagePath">Profile picture URL (absolute, from <c>BackendUrl</c> in appsettings), if set.</param>
 public record UserProfileDto(
     int Id,
     string Email,
@@ -61,7 +65,8 @@ public record UserProfileDto(
     string Type,
     string? Phone,
     string? Location,
-    string? Bio);
+    string? Bio,
+    string? ImagePath);
 
 /// <summary>Payload for <c>POST /api/auth/register</c> — creates a mobile account and returns a token.</summary>
 public record RegisterRequest
@@ -89,6 +94,39 @@ public record RegisterRequest
     /// <summary>Optional location (city / address).</summary>
     [StringLength(120)]
     public string? Location { get; init; }
+}
+
+/// <summary>Payload for <c>POST /api/users</c> — a dashboard admin creating any kind of account.</summary>
+public record UserCreateInput
+{
+    /// <summary>Display name for the new account.</summary>
+    [Required, StringLength(120)]
+    public string Name { get; init; } = string.Empty;
+
+    /// <summary>Email address (must be unique).</summary>
+    [Required, EmailAddress, StringLength(200)]
+    public string Email { get; init; } = string.Empty;
+
+    /// <summary>Plain-text password (stored as a PBKDF2 hash); at least 6 characters.</summary>
+    [Required, MinLength(6), StringLength(100)]
+    public string Password { get; init; } = string.Empty;
+
+    /// <summary>Role: <c>SuperAdmin</c>, <c>Admin</c>, <c>Manager</c>, <c>Viewer</c>, <c>Provider</c> or <c>Client</c>.
+    /// The platform is derived from it — <c>Provider</c>/<c>Client</c> become <c>Mobile</c>, everything else <c>Dashboard</c>.</summary>
+    [Required, StringLength(40)]
+    public string Role { get; init; } = string.Empty;
+
+    /// <summary>Optional contact phone.</summary>
+    [StringLength(40)]
+    public string? Phone { get; init; }
+
+    /// <summary>Optional location (city / address).</summary>
+    [StringLength(120)]
+    public string? Location { get; init; }
+
+    /// <summary>Optional bio.</summary>
+    [StringLength(500)]
+    public string? Bio { get; init; }
 }
 
 /// <summary>Contact/profile fields a user may edit about themselves (<c>PUT /api/users/me</c>).

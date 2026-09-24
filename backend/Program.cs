@@ -9,6 +9,11 @@ using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Gallery images live in wwwroot (seeded placeholders + uploads). Create it before the
+// host resolves WebRootPath — on a fresh clone the folder doesn't exist yet and static
+// file serving would be disabled for the whole run.
+Directory.CreateDirectory(Path.Combine(builder.Environment.ContentRootPath, "wwwroot"));
+
 // Controllers + JSON casing that matches the Angular models (camelCase).
 builder.Services.AddControllers();
 
@@ -27,6 +32,9 @@ var jwtIssuer = jwtSection["Issuer"] ?? "MarketWorkplace.Api";
 var jwtAudience = jwtSection["Audience"] ?? "MarketWorkplace.Client";
 
 builder.Services.AddSingleton<TokenService>();
+
+// Saves product/service gallery uploads under wwwroot/images and deletes them again.
+builder.Services.AddTransient<ImageStore>();
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -102,6 +110,10 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
+// Serves wwwroot — seeded placeholder gallery images and uploaded files
+// (e.g. /images/products/guid.png), as requested by the Angular dashboard.
+app.UseStaticFiles();
+
 // Kill switch for environments that should not expose the docs: "Swagger": { "Enabled": false }
 if (app.Configuration.GetValue("Swagger:Enabled", true))
 {
@@ -122,7 +134,10 @@ app.MapControllers();
 // Create the schema and seed sample data (products, orders, users) on startup.
 using (var scope = app.Services.CreateScope())
 {
-    DbInitializer.Initialize(scope.ServiceProvider.GetRequiredService<MarketDbContext>());
+    DbInitializer.Initialize(
+        scope.ServiceProvider.GetRequiredService<MarketDbContext>(),
+        scope.ServiceProvider.GetRequiredService<ImageStore>(),
+        builder.Environment.WebRootPath ?? Path.Combine(builder.Environment.ContentRootPath, "wwwroot"));
 }
 
 app.Run();

@@ -15,7 +15,7 @@ namespace MarketWorkplace.Api.Controllers;
 [Route("api/users")]
 [Tags("Users")]
 [Produces("application/json")]
-public class UsersController(MarketDbContext db) : ControllerBase
+public class UsersController(MarketDbContext db, ImageStore store) : ControllerBase
 {
     /// <summary>Lists one page of user profiles with optional filters and sorting (never includes password hashes).</summary>
     /// <param name="search">Case-insensitive match against name, email or location.</param>
@@ -104,6 +104,163 @@ public class UsersController(MarketDbContext db) : ControllerBase
         return user is null ? NotFound() : Ok(ToProfile(user));
     }
 
+    /// <summary>Creates a dashboard or mobile user account (<c>SuperAdmin</c>, <c>Admin</c> or <c>Manager</c> only).</summary>
+    /// <remarks>The platform is derived from the role: <c>Provider</c>/<c>Client</c> become <c>Mobile</c> accounts,
+    /// every other role becomes <c>Dashboard</c>.</remarks>
+    /// <param name="input">Name, email, password and role for the new account.</param>
+    /// <returns>The created profile (never the password hash).</returns>
+    [HttpPost]
+    [ProducesResponseType(typeof(UserProfileDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public ActionResult<UserProfileDto> Create([FromBody] UserCreateInput input)
+    {
+        if (!Access.IsAdmin(User))
+        {
+            return Forbid();
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        var email = input.Email.Trim();
+        if (db.Users.AsEnumerable().Any(u => u.Email.Equals(email, StringComparison.OrdinalIgnoreCase)))
+        {
+            return Problem(
+                title: "Email already registered",
+                detail: "An account with this email already exists.",
+                statusCode: StatusCodes.Status409Conflict);
+        }
+
+        var role = input.Role.Trim().ToLowerInvariant() switch
+        {
+            "superadmin" => "SuperAdmin",
+            "admin" => "Admin",
+            "manager" => "Manager",
+            "viewer" => "Viewer",
+            "provider" => "Provider",
+            "client" => "Client",
+            _ => string.Empty,
+        };
+
+        if (role.Length == 0)
+        {
+            return Problem(
+                title: "Invalid role",
+                detail: "Role must be one of SuperAdmin, Admin, Manager, Viewer, Provider or Client.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var created = new User
+        {
+            Id = db.Users.Any() ? db.Users.Max(u => u.Id) + 1 : 1,
+            Email = email,
+            Name = input.Name.Trim(),
+            PasswordHash = PasswordHasher.Hash(input.Password),
+            Role = role,
+            // Provider/Client are mobile accounts; dashboard roles run the web dashboard.
+            Type = role is "Provider" or "Client" ? "Mobile" : "Dashboard",
+            Phone = NullIfBlank(input.Phone),
+            Location = NullIfBlank(input.Location),
+            Bio = NullIfBlank(input.Bio),
+        };
+
+        db.Users.Add(created);
+        db.SaveChanges();
+
+        return CreatedAtAction(nameof(GetById), new { id = created.Id }, ToProfile(created));
+    }
+
+    private static string? NullIfBlank(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    /// <summary>Uploads (or replaces) the user's profile picture — the account owner or a dashboard admin.</summary>
+    /// <remarks>The old image file is deleted. Stored under <c>wwwroot/images/users</c> and returned as an
+    /// absolute URL prefixed with <c>BackendUrl</c> from appsettings.</remarks>
+    /// <param name="id">The user identifier.</param>
+    /// <param name="file">Multipart <c>file</c> field; png/jpg/webp/gif up to 5 MB.
+    /// No <c>[FromForm]</c> attribute — ApiExplorer infers <c>BindingSource.FormFile</c> from
+    /// <see cref="IFormFile"/> itself (the attribute would break Swashbuckle's form description).</param>
+    /// <returns>The updated profile with the new image URL.</returns>
+    [HttpPost("{id:int}/image")]
+    [RequestSizeLimit(6 * 1024 * 1024)]
+    [ProducesResponseType(typeof(UserProfileDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<UserProfileDto>> UploadImage(int id, IFormFile? file)
+    {
+        var user = db.Users.FirstOrDefault(u => u.Id == id);
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        if (Access.UserId(User) != id && !Access.IsAdmin(User))
+        {
+            return Forbid();
+        }
+
+        if (file is null)
+        {
+            return Problem(
+                title: "No image uploaded",
+                detail: "Attach one file in the 'file' form field.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var error = ImageStore.Validate(file);
+        if (error is not null)
+        {
+            return Problem(title: "Invalid image", detail: error, statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var url = await store.SaveAsync(file, "users");
+        if (user.ImagePath is not null)
+        {
+            store.Delete(user.ImagePath);
+        }
+
+        user.ImagePath = url;
+        db.SaveChanges();
+
+        return Ok(ToProfile(user));
+    }
+
+    /// <summary>Removes the user's profile picture and deletes its file — the account owner or a dashboard admin.</summary>
+    /// <param name="id">The user identifier.</param>
+    /// <returns><c>204 No Content</c>, or <c>404</c> when no picture is set.</returns>
+    [HttpDelete("{id:int}/image")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public IActionResult DeleteImage(int id)
+    {
+        var user = db.Users.FirstOrDefault(u => u.Id == id);
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        if (Access.UserId(User) != id && !Access.IsAdmin(User))
+        {
+            return Forbid();
+        }
+
+        if (user.ImagePath is null)
+        {
+            return NotFound();
+        }
+
+        store.Delete(user.ImagePath);
+        user.ImagePath = null;
+        db.SaveChanges();
+        return NoContent();
+    }
+
     /// <summary>Updates the caller's own display name and contact fields.</summary>
     /// <remarks>Null leaves a field unchanged; send an empty string to clear it.
     /// Email, role and type are not editable here.</remarks>
@@ -149,5 +306,5 @@ public class UsersController(MarketDbContext db) : ControllerBase
     }
 
     private static UserProfileDto ToProfile(User user) =>
-        new(user.Id, user.Email, user.Name, user.Role, user.Type, user.Phone, user.Location, user.Bio);
+        new(user.Id, user.Email, user.Name, user.Role, user.Type, user.Phone, user.Location, user.Bio, user.ImagePath);
 }

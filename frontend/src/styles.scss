@@ -157,3 +157,128 @@ body {
     width: 100%;
   }
 }
+
+.field-hint {
+  font-size: 0.72rem;
+  color: var(--app-muted);
+}
+
+/* Listing thumbnails in the Products/Services tables */
+.name-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 14rem;
+}
+
+.name-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.row-thumb {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid var(--app-border);
+  background: var(--p-content-background, #fff);
+  cursor: zoom-in;
+  transition: transform 0.15s ease;
+
+  &:hover {
+    transform: scale(1.06);
+  }
+}
+
+.row-thumb-empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--app-muted);
+  font-size: 1rem;
+  cursor: default;
+  background: color-mix(in srgb, var(--app-muted) 12%, transparent);
+
+  &:hover {
+    transform: none;
+  }
+}
+
+/* Image gallery inside the product/service dialogs */
+.gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.gallery-item {
+  position: relative;
+  width: 84px;
+  height: 84px;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1px solid var(--app-border);
+    cursor: zoom-in;
+    display: block;
+  }
+}
+
+.gallery-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid var(--app-border);
+  background: var(--p-content-background, #fff);
+  color: var(--app-muted);
+  font-size: 0.65rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    color: #e0393e;
+    border-color: #e0393e;
+  }
+}
+
+.gallery-add {
+  width: 84px;
+  height: 84px;
+  border-radius: 10px;
+  border: 1.5px dashed var(--app-border);
+  background: transparent;
+  color: var(--app-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  font-size: 0.68rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+
+  i {
+    font-size: 1.1rem;
+  }
+
+  &:hover {
+    border-color: var(--p-primary-color, #6366f1);
+    color: var(--p-primary-color, #6366f1);
+  }
+
+  input[type='file'] {
+    display: none;
+  }
+}

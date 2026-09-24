@@ -11,8 +11,8 @@
           pInputText
           type="search"
           placeholder="Search name, email or location"
-          [ngModel]="search()"
-          (ngModelChange)="onSearch($event)"
+          aria-label="Search users"
+          [formControl]="searchControl"
         />
       </p-iconfield>
 
@@ -35,6 +35,9 @@
       />
 
       <p-button label="Reset" icon="pi pi-filter-slash" [text]="true" severity="secondary" (onClick)="clearFilters()" />
+      @if (canCreateUsers()) {
+        <p-button label="Add user" icon="pi pi-user-plus" (onClick)="openCreate()" />
+      }
     </div>
   </div>
 
@@ -71,7 +74,11 @@
           <tr>
             <td>
               <div class="user-cell">
-                <span class="avatar">{{ initials(user.name) }}</span>
+                @if (user.imagePath) {
+                  <img class="avatar avatar-img" [src]="user.imagePath" [alt]="user.name" />
+                } @else {
+                  <span class="avatar">{{ initials(user.name) }}</span>
+                }
                 <span>
                   <span class="cell-title">{{ user.name }} @if (isSelf(user)) {<span class="you-tag">you</span>}</span>
                   <span class="cell-sub">{{ user.email }}</span>
@@ -131,7 +138,11 @@
   >
     @if (viewing(); as user) {
       <div class="profile-head">
-        <span class="avatar avatar-lg">{{ initials(user.name) }}</span>
+        @if (user.imagePath) {
+          <img class="avatar avatar-lg avatar-img" [src]="user.imagePath" [alt]="user.name" />
+        } @else {
+          <span class="avatar avatar-lg">{{ initials(user.name) }}</span>
+        }
         <div>
           <strong>{{ user.name }}</strong>
           <span class="cell-sub">{{ user.email }}</span>
@@ -177,6 +188,36 @@
   >
     <div class="form-grid">
       <div class="field field-full">
+        <label>Profile picture</label>
+        <div class="avatar-editor">
+          @if (avatarDisplay(); as url) {
+            <img class="avatar avatar-lg avatar-img" [src]="url" alt="Profile picture preview" />
+          } @else {
+            <span class="avatar avatar-lg">{{ initials(draft.name || '?') }}</span>
+          }
+          <div class="avatar-actions">
+            <label class="avatar-upload">
+              <i class="pi pi-image"></i>
+              <span>{{ avatarDisplay() ? 'Change' : 'Upload' }}</span>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                aria-label="Choose profile picture"
+                (change)="onAvatarSelected($event)"
+              />
+            </label>
+            @if (avatarDisplay()) {
+              <button type="button" class="avatar-remove-btn" (click)="removeAvatarImage()">
+                <i class="pi pi-trash"></i>
+                Remove
+              </button>
+            }
+          </div>
+        </div>
+        <span class="field-hint">PNG, JPG, WEBP or GIF up to 5 MB — applied when you save.</span>
+      </div>
+
+      <div class="field field-full">
         <label for="u-name">Display name</label>
         <input id="u-name" pInputText type="text" [(ngModel)]="draft.name" />
       </div>
@@ -204,6 +245,69 @@
         icon="pi pi-check"
         (onClick)="save()"
         [loading]="saving()"
+      />
+    </ng-template>
+  </p-dialog>
+
+  <p-dialog
+    header="Add user"
+    [(visible)]="createVisible"
+    [modal]="true"
+    styleClass="create-user-dialog"
+    [style]="{ width: '34rem' }"
+  >
+    <div class="form-grid">
+      <div class="field">
+        <label for="cu-name">Name</label>
+        <input id="cu-name" pInputText type="text" [(ngModel)]="createDraft.name" placeholder="Full name" />
+      </div>
+
+      <div class="field">
+        <label for="cu-email">Email</label>
+        <input id="cu-email" pInputText type="email" [(ngModel)]="createDraft.email" placeholder="name@marketplace.dev" />
+      </div>
+
+      <div class="field">
+        <label for="cu-password">Password</label>
+        <input
+          id="cu-password"
+          pInputText
+          type="password"
+          [(ngModel)]="createDraft.password"
+          placeholder="At least 6 characters"
+          autocomplete="new-password"
+        />
+      </div>
+
+      <div class="field">
+        <label for="cu-role">Role</label>
+        <p-select id="cu-role" [options]="roleOptions" [(ngModel)]="createDraft.role" />
+        <span class="field-hint">Platform: {{ derivedType(createDraft.role) }} (derived from role)</span>
+      </div>
+
+      <div class="field">
+        <label for="cu-phone">Phone</label>
+        <input id="cu-phone" pInputText type="text" [(ngModel)]="createDraft.phone" placeholder="+1 555 0100" />
+      </div>
+
+      <div class="field">
+        <label for="cu-location">Location</label>
+        <input id="cu-location" pInputText type="text" [(ngModel)]="createDraft.location" placeholder="City, ST" />
+      </div>
+
+      <div class="field field-full">
+        <label for="cu-bio">Bio</label>
+        <textarea id="cu-bio" pTextarea rows="3" [(ngModel)]="createDraft.bio" placeholder="Short contact blurb"></textarea>
+      </div>
+    </div>
+
+    <ng-template #footer>
+      <p-button label="Cancel" [text]="true" severity="secondary" (onClick)="createVisible.set(false)" />
+      <p-button
+        [label]="creating() ? 'Creating…' : 'Create user'"
+        icon="pi pi-user-plus"
+        (onClick)="saveNew()"
+        [loading]="creating()"
       />
     </ng-template>
   </p-dialog>

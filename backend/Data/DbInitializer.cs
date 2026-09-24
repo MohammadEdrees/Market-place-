@@ -11,7 +11,10 @@ namespace MarketWorkplace.Api.Data;
 public static class DbInitializer
 {
     /// <summary>Ensures the model exists and seeds any missing collections.</summary>
-    public static void Initialize(MarketDbContext db)
+    /// <param name="db">The context to seed.</param>
+    /// <param name="imageStore">Used to prefix seeded image paths with the configured <c>BackendUrl</c>.</param>
+    /// <param name="webRoot">Absolute wwwroot path where placeholder gallery/avatar images are written.</param>
+    public static void Initialize(MarketDbContext db, ImageStore imageStore, string webRoot)
     {
         db.Database.EnsureCreated();
 
@@ -40,6 +43,130 @@ public static class DbInitializer
         }
 
         db.SaveChanges();
+
+        if (!db.Images.Any())
+        {
+            SeedImages(db, imageStore, webRoot);
+        }
+
+        if (db.Users.Any(u => u.ImagePath == null))
+        {
+            SeedUserAvatars(db, imageStore, webRoot);
+        }
+    }
+
+    // --- Gallery placeholders ----------------------------------------------
+
+    /// <summary>Writes two generated PNGs per product and service into wwwroot and links them.</summary>
+    private static void SeedImages(MarketDbContext db, ImageStore store, string webRoot)
+    {
+        var productDir = Path.Combine(webRoot, "images", "products");
+        var serviceDir = Path.Combine(webRoot, "images", "services");
+        Directory.CreateDirectory(productDir);
+        Directory.CreateDirectory(serviceDir);
+
+        var nextId = 1;
+        var images = new List<ListingImage>();
+
+        foreach (var product in db.Products.OrderBy(p => p.Id).ToList())
+        {
+            for (var slot = 1; slot <= 2; slot++)
+            {
+                var file = $"product-{product.Id}-{slot}.png";
+                File.WriteAllBytes(
+                    Path.Combine(productDir, file),
+                    PlaceholderPng.Generate(
+                        480, 360,
+                        Palette(product.Id * 2 + slot),
+                        Palette(product.Id * 2 + slot + 11),
+                        (product.Id + slot) % 3));
+                images.Add(new ListingImage
+                {
+                    Id = nextId++,
+                    ProductId = product.Id,
+                    Path = store.ToUrl($"/images/products/{file}"),
+                    SortOrder = slot - 1,
+                });
+            }
+        }
+
+        foreach (var service in db.Services.OrderBy(s => s.Id).ToList())
+        {
+            for (var slot = 1; slot <= 2; slot++)
+            {
+                var file = $"service-{service.Id}-{slot}.png";
+                File.WriteAllBytes(
+                    Path.Combine(serviceDir, file),
+                    PlaceholderPng.Generate(
+                        480, 360,
+                        Palette(service.Id * 3 + slot),
+                        Palette(service.Id * 3 + slot + 5),
+                        (service.Id + slot + 1) % 3));
+                images.Add(new ListingImage
+                {
+                    Id = nextId++,
+                    ServiceId = service.Id,
+                    Path = store.ToUrl($"/images/services/{file}"),
+                    SortOrder = slot - 1,
+                });
+            }
+        }
+
+        db.Images.AddRange(images);
+        db.SaveChanges();
+    }
+
+    /// <summary>Writes one generated avatar per user into <c>wwwroot/images/users</c> and links it.</summary>
+    private static void SeedUserAvatars(MarketDbContext db, ImageStore store, string webRoot)
+    {
+        var userDir = Path.Combine(webRoot, "images", "users");
+        Directory.CreateDirectory(userDir);
+
+        foreach (var user in db.Users.OrderBy(u => u.Id).ToList())
+        {
+            if (user.ImagePath is not null)
+            {
+                continue;
+            }
+
+            var file = $"user-{user.Id}.png";
+            File.WriteAllBytes(
+                Path.Combine(userDir, file),
+                PlaceholderPng.Generate(
+                    240, 240,
+                    Palette(user.Id * 7 + 3),
+                    Palette(user.Id * 7 + 19),
+                    user.Id % 3));
+            user.ImagePath = store.ToUrl($"/images/users/{file}");
+        }
+
+        db.SaveChanges();
+    }
+
+    /// <summary>Deterministic, pleasant colour for a seed slot (varied hue, medium saturation).</summary>
+    private static byte[] Palette(int seed)
+    {
+        var hue = (seed * 67) % 360;
+        var saturation = 0.45 + ((seed * 13) % 30) / 100.0;
+        var value = 0.75 + ((seed * 7) % 20) / 100.0;
+        return HsvToRgb(hue, saturation, value);
+    }
+
+    private static byte[] HsvToRgb(double h, double s, double v)
+    {
+        var c = v * s;
+        var x = c * (1 - Math.Abs(h / 60 % 2 - 1));
+        var m = v - c;
+        var (r, g, b) = h switch
+        {
+            < 60 => (c, x, 0.0),
+            < 120 => (x, c, 0.0),
+            < 180 => (0.0, c, x),
+            < 240 => (0.0, x, c),
+            < 300 => (x, 0.0, c),
+            _ => (c, 0.0, x),
+        };
+        return [(byte)((r + m) * 255), (byte)((g + m) * 255), (byte)((b + m) * 255)];
     }
 
     // --- Seed data ----------------------------------------------------------
