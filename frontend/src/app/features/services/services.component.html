@@ -1,8 +1,8 @@
 <section class="page">
   <div class="page-head">
     <div>
-      <h2>Products</h2>
-      <p>{{ filtered().length }} of {{ products().length }} items · full CRUD against the API</p>
+      <h2>Services</h2>
+      <p>{{ filtered().length }} of {{ services().length }} listings · cost, contact, location &amp; offers</p>
     </div>
     <div class="toolbar">
       <p-iconfield>
@@ -10,7 +10,7 @@
         <input
           pInputText
           type="search"
-          placeholder="Search name or SKU"
+          placeholder="Search title or location"
           [ngModel]="search()"
           (ngModelChange)="search.set($event)"
         />
@@ -27,7 +27,7 @@
 
       <p-button label="Reset" icon="pi pi-filter-slash" [text]="true" severity="secondary" (onClick)="clearFilters()" />
       @if (canList()) {
-        <p-button label="New product" icon="pi pi-plus" (onClick)="openNew()" />
+        <p-button label="New service" icon="pi pi-plus" (onClick)="openNew()" />
       }
     </div>
   </div>
@@ -48,50 +48,40 @@
         [showCurrentPageReport]="true"
         currentPageReportTemplate="{first}–{last} of {totalRecords}"
         [rowsPerPageOptions]="[8, 16, 32]"
-        [tableStyle]="{ 'min-width': '66rem' }"
+        [tableStyle]="{ 'min-width': '64rem' }"
         paginatorPosition="bottom"
       >
         <ng-template #header>
           <tr>
-            <th pSortableColumn="name">Name <p-sortIcon field="name" /></th>
-            <th pSortableColumn="sku">SKU <p-sortIcon field="sku" /></th>
-            <th>Seller</th>
+            <th pSortableColumn="title">Service <p-sortIcon field="title" /></th>
             <th pSortableColumn="category">Category <p-sortIcon field="category" /></th>
-            <th pSortableColumn="price">Price <p-sortIcon field="price" /></th>
-            <th pSortableColumn="stock">Stock <p-sortIcon field="stock" /></th>
-            <th pSortableColumn="sold">Sold <p-sortIcon field="sold" /></th>
-            <th style="width: 7rem">Actions</th>
+            <th pSortableColumn="cost">Cost <p-sortIcon field="cost" /></th>
+            <th>Provider</th>
+            <th pSortableColumn="location">Location <p-sortIcon field="location" /></th>
+            <th>Offers</th>
+            @if (canList()) {
+              <th style="width: 7rem">Actions</th>
+            }
           </tr>
         </ng-template>
 
-        <ng-template #body let-product>
+        <ng-template #body let-service>
           <tr>
             <td>
-              <span class="cell-title">{{ product.name }}</span>
-              <span class="cell-sub">{{ product.createdAt | date: 'MMM y' }}</span>
+              <span class="cell-title">{{ service.title }}</span>
+              <span class="cell-sub">{{ service.createdAt | date: 'MMM y' }}</span>
             </td>
-            <td class="mono">{{ product.sku }}</td>
-            <td>{{ sellerName(product.sellerId) }}</td>
-            <td>{{ product.category }}</td>
-            <td>{{ product.price | currency: 'USD' : 'symbol' : '1.2-2' }}</td>
+            <td>{{ service.category }}</td>
+            <td class="cost">{{ service.cost | currency: 'USD' : 'symbol' : '1.2-2' }}</td>
+            <td>{{ providerName(service.providerId) }}</td>
+            <td>{{ service.location }}</td>
             <td>
-              <div class="stock-cell">
-                <span>{{ product.stock }}</span>
-                <p-progressbar
-                  [value]="stockPercent(product)"
-                  styleClass="stock-bar"
-                  [showValue]="false"
-                />
-              </div>
+              <span class="offers-clamp" [pTooltip]="service.offers || 'No offers'" tooltipPosition="top">
+                {{ service.offers || '—' }}
+              </span>
             </td>
-            <td>
-              <p-tag
-                [value]="product.status"
-                [severity]="statusSeverity(product.status)"
-              />
-            </td>
-            <td>
-              @if (canList()) {
+            @if (canList()) {
+              <td>
                 <div class="row-actions">
                   <p-button
                     icon="pi pi-pencil"
@@ -99,7 +89,7 @@
                     [rounded]="true"
                     severity="secondary"
                     pTooltip="Edit"
-                    (onClick)="openEdit(product)"
+                    (onClick)="openEdit(service)"
                   />
                   <p-button
                     icon="pi pi-trash"
@@ -107,17 +97,17 @@
                     [rounded]="true"
                     severity="danger"
                     pTooltip="Delete"
-                    (onClick)="confirmDelete(product)"
+                    (onClick)="confirmDelete(service)"
                   />
                 </div>
-              }
-            </td>
+              </td>
+            }
           </tr>
         </ng-template>
 
         <ng-template #emptymessage>
           <tr>
-            <td colspan="8" class="empty-row">No products match your filters.</td>
+            <td [attr.colspan]="canList() ? 7 : 6" class="empty-row">No services match your filters.</td>
           </tr>
         </ng-template>
       </p-table>
@@ -128,30 +118,36 @@
     [header]="title()"
     [(visible)]="dialogVisible"
     [modal]="true"
-    styleClass="product-dialog"
-    [style]="{ width: '34rem' }"
+    styleClass="service-dialog"
+    [style]="{ width: '38rem' }"
   >
     <div class="form-grid">
       <div class="field field-full">
-        <label for="p-name">Name</label>
+        <label for="s-title">Title</label>
         <input
-          id="p-name"
+          id="s-title"
           pInputText
           type="text"
-          [(ngModel)]="draft.name"
-          placeholder="e.g. Aurora Wireless Headset"
+          [(ngModel)]="draft.title"
+          placeholder="e.g. Home Wi-Fi Setup"
         />
       </div>
 
-      <div class="field">
-        <label for="p-sku">SKU</label>
-        <input id="p-sku" pInputText type="text" [(ngModel)]="draft.sku" placeholder="AUR-1001" />
+      <div class="field field-full">
+        <label for="s-desc">Description</label>
+        <textarea
+          id="s-desc"
+          pTextarea
+          rows="3"
+          [(ngModel)]="draft.description"
+          placeholder="What do you offer?"
+        ></textarea>
       </div>
 
       <div class="field">
-        <label for="p-category">Category</label>
+        <label for="s-category">Category</label>
         <p-select
-          id="p-category"
+          id="s-category"
           [options]="categories()"
           [(ngModel)]="draft.category"
           placeholder="Select a category"
@@ -161,27 +157,55 @@
       </div>
 
       <div class="field">
-        <label for="p-price">Price (USD)</label>
+        <label for="s-cost">Cost (USD)</label>
         <p-inputnumber
-          id="p-price"
+          id="s-cost"
           mode="decimal"
           [minFractionDigits]="2"
           [maxFractionDigits]="2"
           [min]="0"
-          [(ngModel)]="draft.price"
+          [(ngModel)]="draft.cost"
         />
       </div>
 
       <div class="field">
-        <label for="p-stock">Stock on hand</label>
-        <p-inputnumber id="p-stock" [min]="0" [useGrouping]="false" [(ngModel)]="draft.stock" />
+        <label for="s-contact">Contact info</label>
+        <input
+          id="s-contact"
+          pInputText
+          type="text"
+          [(ngModel)]="draft.contactInfo"
+          placeholder="Phone / email / WhatsApp"
+        />
+      </div>
+
+      <div class="field">
+        <label for="s-location">Location</label>
+        <input
+          id="s-location"
+          pInputText
+          type="text"
+          [(ngModel)]="draft.location"
+          placeholder="City or service area"
+        />
+      </div>
+
+      <div class="field field-full">
+        <label for="s-offers">Offers</label>
+        <input
+          id="s-offers"
+          pInputText
+          type="text"
+          [(ngModel)]="draft.offers"
+          placeholder="e.g. 20% off the first booking"
+        />
       </div>
     </div>
 
     <ng-template #footer>
       <p-button label="Cancel" [text]="true" severity="secondary" (onClick)="dialogVisible.set(false)" />
       <p-button
-        [label]="saving() ? 'Saving…' : 'Save product'"
+        [label]="saving() ? 'Saving…' : 'Save service'"
         icon="pi pi-check"
         (onClick)="save()"
         [loading]="saving()"

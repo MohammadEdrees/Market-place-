@@ -9,22 +9,30 @@ import { IconFieldModule } from 'primeng/iconfield';
 import { InputIconModule } from 'primeng/inputicon';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
-import { ProgressBarModule } from 'primeng/progressbar';
 import { SelectModule } from 'primeng/select';
 import { SkeletonModule } from 'primeng/skeleton';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
+import { Textarea } from 'primeng/textarea';
 import { ToastModule } from 'primeng/toast';
 import { TooltipModule } from 'primeng/tooltip';
 import { AuthService } from '../../core/auth.service';
-import { ProductService } from '../../core/product.service';
+import { ServicesService } from '../../core/services.service';
 import { UsersService } from '../../core/users.service';
-import type { Product, ProductInput, UserProfile } from '../../core/models';
+import type { ServiceInput, ServiceListing, UserProfile } from '../../core/models';
 
-const emptyDraft = (): ProductInput => ({ name: '', sku: '', category: '', price: 0, stock: 0 });
+const emptyDraft = (): ServiceInput => ({
+  title: '',
+  description: '',
+  category: '',
+  cost: 0,
+  contactInfo: '',
+  location: '',
+  offers: '',
+});
 
 @Component({
-  selector: 'app-products',
+  selector: 'app-services',
   imports: [
     CurrencyPipe,
     DatePipe,
@@ -36,29 +44,29 @@ const emptyDraft = (): ProductInput => ({ name: '', sku: '', category: '', price
     InputIconModule,
     InputNumberModule,
     InputTextModule,
-    ProgressBarModule,
     SelectModule,
     SkeletonModule,
     TableModule,
     TagModule,
+    Textarea,
     ToastModule,
     TooltipModule,
   ],
   providers: [MessageService, ConfirmationService],
-  templateUrl: './products.component.html',
-  styleUrl: './products.component.scss',
+  templateUrl: './services.component.html',
+  styleUrl: './services.component.scss',
 })
-export class ProductsComponent implements OnInit {
-  private readonly productService = inject(ProductService);
+export class ServicesComponent implements OnInit {
+  private readonly servicesService = inject(ServicesService);
   private readonly usersService = inject(UsersService);
   private readonly messageService = inject(MessageService);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly auth = inject(AuthService);
 
   readonly loading = signal(true);
-  readonly products = signal<Product[]>([]);
+  readonly services = signal<ServiceListing[]>([]);
   readonly categories = signal<string[]>([]);
-  readonly sellers = signal<UserProfile[]>([]);
+  readonly users = signal<UserProfile[]>([]);
 
   readonly search = signal('');
   readonly category = signal<string | null>(null);
@@ -67,9 +75,9 @@ export class ProductsComponent implements OnInit {
   readonly saving = signal(false);
   readonly editingId = signal<number | null>(null);
 
-  draft: ProductInput = emptyDraft();
+  draft: ServiceInput = emptyDraft();
 
-  /** Providers and dashboard admins may list/manage products; others get 403 from the API. */
+  /** Providers and dashboard admins may list/manage services; others get 403 from the API. */
   readonly canList = computed(() =>
     ['SuperAdmin', 'Admin', 'Manager', 'Provider'].includes(this.auth.user()?.role ?? ''),
   );
@@ -77,29 +85,36 @@ export class ProductsComponent implements OnInit {
   readonly filtered = computed(() => {
     const term = this.search().trim().toLowerCase();
     const category = this.category();
-    return this.products().filter(
-      (p) =>
-        (!term || p.name.toLowerCase().includes(term) || p.sku.toLowerCase().includes(term)) &&
-        (!category || p.category === category),
+    return this.services().filter(
+      (s) =>
+        (!term ||
+          s.title.toLowerCase().includes(term) ||
+          s.description.toLowerCase().includes(term) ||
+          s.location.toLowerCase().includes(term)) &&
+        (!category || s.category === category),
     );
   });
 
-  readonly title = computed(() =>
-    this.editingId() ? 'Edit product' : 'New product',
-  );
+  readonly title = computed(() => (this.editingId() ? 'Edit service' : 'New service'));
 
   ngOnInit(): void {
     this.reload();
-    this.productService.categories().subscribe((c) => this.categories.set(c));
-    // Owner names for the Seller column; non-admins only receive the public provider directory.
-    this.usersService.list().subscribe({ next: (u) => this.sellers.set(u), error: () => {} });
+    this.servicesService.categories().subscribe({
+      next: (c) => this.categories.set(c),
+      error: () => {},
+    });
+    // Provider names for the table; non-admins only receive the public provider directory.
+    this.usersService.list().subscribe({
+      next: (u) => this.users.set(u),
+      error: () => {},
+    });
   }
 
   reload(): void {
     this.loading.set(true);
-    this.productService.list().subscribe({
-      next: (products) => {
-        this.products.set(products);
+    this.servicesService.list().subscribe({
+      next: (services) => {
+        this.services.set(services);
         this.loading.set(false);
       },
       error: () => {
@@ -124,32 +139,34 @@ export class ProductsComponent implements OnInit {
     this.dialogVisible.set(true);
   }
 
-  openEdit(product: Product): void {
-    this.editingId.set(product.id);
+  openEdit(service: ServiceListing): void {
+    this.editingId.set(service.id);
     this.draft = {
-      name: product.name,
-      sku: product.sku,
-      category: product.category,
-      price: product.price,
-      stock: product.stock,
+      title: service.title,
+      description: service.description,
+      category: service.category,
+      cost: service.cost,
+      contactInfo: service.contactInfo,
+      location: service.location,
+      offers: service.offers,
     };
     this.dialogVisible.set(true);
   }
 
   save(): void {
     const draft = this.draft;
-    if (!draft.name.trim() || !draft.sku.trim() || !draft.category.trim()) {
+    if (!draft.title.trim() || !draft.category.trim() || !draft.contactInfo.trim() || !draft.location.trim()) {
       this.messageService.add({
         severity: 'warn',
         summary: 'Missing fields',
-        detail: 'Name, SKU and category are required.',
+        detail: 'Title, category, contact info and location are required.',
       });
       return;
     }
 
     this.saving.set(true);
     const id = this.editingId();
-    const request$ = id ? this.productService.update(id, draft) : this.productService.create(draft);
+    const request$ = id ? this.servicesService.update(id, draft) : this.servicesService.create(draft);
 
     request$.subscribe({
       next: () => {
@@ -158,8 +175,8 @@ export class ProductsComponent implements OnInit {
         this.reload();
         this.messageService.add({
           severity: 'success',
-          summary: id ? 'Product updated' : 'Product created',
-          detail: draft.name,
+          summary: id ? 'Service updated' : 'Service created',
+          detail: draft.title,
         });
       },
       error: (err) => {
@@ -173,21 +190,21 @@ export class ProductsComponent implements OnInit {
     });
   }
 
-  confirmDelete(product: Product): void {
+  confirmDelete(service: ServiceListing): void {
     this.confirmationService.confirm({
-      header: 'Delete product',
-      message: `Remove <strong>${product.name}</strong> from the catalogue?`,
+      header: 'Delete service',
+      message: `Remove <strong>${service.title}</strong> from the marketplace?`,
       icon: 'pi pi-trash',
       acceptButtonProps: { label: 'Delete', severity: 'danger' },
       rejectButtonProps: { label: 'Cancel', severity: 'secondary', outlined: true },
       accept: () => {
-        this.productService.remove(product.id).subscribe({
+        this.servicesService.remove(service.id).subscribe({
           next: () => {
             this.reload();
             this.messageService.add({
               severity: 'success',
               summary: 'Deleted',
-              detail: product.name,
+              detail: service.title,
             });
           },
           error: () =>
@@ -201,27 +218,8 @@ export class ProductsComponent implements OnInit {
     });
   }
 
-  /** Display name of the listing's owner; `Platform` for unowned demo items. */
-  sellerName(sellerId?: number | null): string {
-    if (sellerId == null) {
-      return 'Platform';
-    }
-    return this.sellers().find((u) => u.id === sellerId)?.name ?? `#${sellerId}`;
-  }
-
-  statusSeverity(status: string): 'success' | 'warn' | 'danger' {
-    switch (status) {
-      case 'Active':
-        return 'success';
-      case 'Low stock':
-        return 'warn';
-      default:
-        return 'danger';
-    }
-  }
-
-  stockPercent(product: Product): number {
-    return Math.min(100, Math.round((product.stock / 200) * 100));
+  providerName(providerId: number): string {
+    return this.users().find((u) => u.id === providerId)?.name ?? `#${providerId}`;
   }
 
   private apiError(err: unknown, fallback: string): string {

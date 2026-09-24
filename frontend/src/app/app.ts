@@ -46,11 +46,14 @@ export class App {
   readonly primaryNav: NavItem[] = [
     { label: 'Dashboard', icon: 'pi pi-home', link: '/dashboard' },
     { label: 'Products', icon: 'pi pi-box', link: '/products' },
+    { label: 'Services', icon: 'pi pi-wrench', link: '/services' },
+    { label: 'Orders', icon: 'pi pi-shopping-cart', link: '/orders' },
+    { label: 'Users', icon: 'pi pi-users', link: '/users' },
   ];
 
   readonly workspaceNav: NavItem[] = [
     { label: 'Reports', icon: 'pi pi-chart-bar', soon: true },
-    { label: 'Team', icon: 'pi pi-users', soon: true },
+    { label: 'Team', icon: 'pi pi-id-card', soon: true },
     { label: 'Settings', icon: 'pi pi-cog', soon: true },
   ];
 
@@ -68,7 +71,15 @@ export class App {
       .subscribe((e) => {
         const url = e.urlAfterRedirects;
         this.showShell.set(!url.startsWith('/login'));
-        this.pageTitle.set(url.includes('products') ? 'Products' : 'Dashboard');
+        const segment = url.split('?')[0].split('/').filter(Boolean)[0] ?? '';
+        const titles: Record<string, string> = {
+          dashboard: 'Dashboard',
+          products: 'Products',
+          services: 'Services',
+          orders: 'Orders',
+          users: 'Users',
+        };
+        this.pageTitle.set(titles[segment] ?? 'Dashboard');
       });
   }
 

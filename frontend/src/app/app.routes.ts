@@ -28,6 +28,27 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/products/products.component').then((m) => m.ProductsComponent),
       },
+      {
+        path: 'services',
+        title: 'Services · Market Workplace',
+        data: { breadcrumb: 'Services' },
+        loadComponent: () =>
+          import('./features/services/services.component').then((m) => m.ServicesComponent),
+      },
+      {
+        path: 'orders',
+        title: 'Orders · Market Workplace',
+        data: { breadcrumb: 'Orders' },
+        loadComponent: () =>
+          import('./features/orders/orders.component').then((m) => m.OrdersComponent),
+      },
+      {
+        path: 'users',
+        title: 'Users · Market Workplace',
+        data: { breadcrumb: 'Users' },
+        loadComponent: () =>
+          import('./features/users/users.component').then((m) => m.UsersComponent),
+      },
       { path: '**', redirectTo: 'dashboard' },
     ],
   },

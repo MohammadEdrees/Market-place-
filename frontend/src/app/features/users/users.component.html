@@ -1,0 +1,207 @@
+<section class="page">
+  <div class="page-head">
+    <div>
+      <h2>Users</h2>
+      <p>{{ filtered().length }} of {{ users().length }} profiles · roles, platform &amp; contact details</p>
+    </div>
+    <div class="toolbar">
+      <p-iconfield>
+        <p-inputicon piSearch />
+        <input
+          pInputText
+          type="search"
+          placeholder="Search name, email or location"
+          [ngModel]="search()"
+          (ngModelChange)="search.set($event)"
+        />
+      </p-iconfield>
+
+      <p-select
+        [options]="roleOptions"
+        placeholder="Any role"
+        [showClear]="true"
+        styleClass="filter-select"
+        [ngModel]="role()"
+        (ngModelChange)="role.set($event)"
+      />
+
+      <p-select
+        [options]="typeOptions"
+        placeholder="Any platform"
+        [showClear]="true"
+        styleClass="filter-select"
+        [ngModel]="type()"
+        (ngModelChange)="type.set($event)"
+      />
+
+      <p-button label="Reset" icon="pi pi-filter-slash" [text]="true" severity="secondary" (onClick)="clearFilters()" />
+    </div>
+  </div>
+
+  <div class="panel">
+    @if (loading()) {
+      <div class="skeleton-rows">
+        @for (row of [1, 2, 3, 4, 5]; track row) {
+          <p-skeleton height="2.5rem" />
+        }
+      </div>
+    } @else {
+      <p-table
+        [value]="filtered()"
+        styleClass="data-table"
+        [paginator]="true"
+        [rows]="8"
+        [showCurrentPageReport]="true"
+        currentPageReportTemplate="{first}–{last} of {totalRecords}"
+        [rowsPerPageOptions]="[8, 16, 32]"
+        [tableStyle]="{ 'min-width': '58rem' }"
+        paginatorPosition="bottom"
+      >
+        <ng-template #header>
+          <tr>
+            <th pSortableColumn="name">User <p-sortIcon field="name" /></th>
+            <th pSortableColumn="role">Role <p-sortIcon field="role" /></th>
+            <th>Platform</th>
+            <th>Phone</th>
+            <th pSortableColumn="location">Location <p-sortIcon field="location" /></th>
+            <th style="width: 7rem">Actions</th>
+          </tr>
+        </ng-template>
+
+        <ng-template #body let-user>
+          <tr>
+            <td>
+              <div class="user-cell">
+                <span class="avatar">{{ initials(user.name) }}</span>
+                <span>
+                  <span class="cell-title">{{ user.name }} @if (isSelf(user)) {<span class="you-tag">you</span>}</span>
+                  <span class="cell-sub">{{ user.email }}</span>
+                </span>
+              </div>
+            </td>
+            <td><p-tag [value]="user.role" [severity]="roleSeverity(user.role)" /></td>
+            <td><p-tag [value]="user.type" [severity]="typeSeverity(user.type)" /></td>
+            <td class="mono">{{ user.phone || '—' }}</td>
+            <td>{{ user.location || '—' }}</td>
+            <td>
+              <div class="row-actions">
+                <p-button
+                  icon="pi pi-eye"
+                  [text]="true"
+                  [rounded]="true"
+                  severity="secondary"
+                  pTooltip="View profile"
+                  (onClick)="openView(user)"
+                />
+                @if (isSelf(user)) {
+                  <p-button
+                    icon="pi pi-pencil"
+                    [text]="true"
+                    [rounded]="true"
+                    severity="secondary"
+                    pTooltip="Edit my profile"
+                    (onClick)="openEdit(user)"
+                  />
+                }
+              </div>
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template #emptymessage>
+          <tr>
+            <td colspan="6" class="empty-row">No users match your filters.</td>
+          </tr>
+        </ng-template>
+      </p-table>
+    }
+  </div>
+
+  <p-dialog
+    header="Profile"
+    [(visible)]="viewVisible"
+    [modal]="true"
+    styleClass="profile-dialog"
+    [style]="{ width: '30rem' }"
+  >
+    @if (viewing(); as user) {
+      <div class="profile-head">
+        <span class="avatar avatar-lg">{{ initials(user.name) }}</span>
+        <div>
+          <strong>{{ user.name }}</strong>
+          <span class="cell-sub">{{ user.email }}</span>
+          <div class="profile-tags">
+            <p-tag [value]="user.role" [severity]="roleSeverity(user.role)" />
+            <p-tag [value]="user.type" [severity]="typeSeverity(user.type)" />
+          </div>
+        </div>
+      </div>
+
+      <div class="profile-grid">
+        <div>
+          <span>Phone</span>
+          <strong>{{ user.phone || '—' }}</strong>
+        </div>
+        <div>
+          <span>Location</span>
+          <strong>{{ user.location || '—' }}</strong>
+        </div>
+        <div class="profile-bio">
+          <span>Bio</span>
+          <strong>{{ user.bio || '—' }}</strong>
+        </div>
+      </div>
+    }
+
+    <ng-template #footer>
+      <p-button label="Close" [text]="true" severity="secondary" (onClick)="viewVisible.set(false)" />
+      @if (viewing(); as user) {
+        @if (isSelf(user)) {
+          <p-button label="Edit profile" icon="pi pi-pencil" (onClick)="openEdit(user)" />
+        }
+      }
+    </ng-template>
+  </p-dialog>
+
+  <p-dialog
+    header="Edit my profile"
+    [(visible)]="editVisible"
+    [modal]="true"
+    styleClass="profile-dialog"
+    [style]="{ width: '30rem' }"
+  >
+    <div class="form-grid">
+      <div class="field field-full">
+        <label for="u-name">Display name</label>
+        <input id="u-name" pInputText type="text" [(ngModel)]="draft.name" />
+      </div>
+
+      <div class="field">
+        <label for="u-phone">Phone</label>
+        <input id="u-phone" pInputText type="text" [(ngModel)]="draft.phone" placeholder="+1 555 0100" />
+      </div>
+
+      <div class="field">
+        <label for="u-location">Location</label>
+        <input id="u-location" pInputText type="text" [(ngModel)]="draft.location" placeholder="City, ST" />
+      </div>
+
+      <div class="field field-full">
+        <label for="u-bio">Bio</label>
+        <textarea id="u-bio" pTextarea rows="3" [(ngModel)]="draft.bio" placeholder="Short contact blurb"></textarea>
+      </div>
+    </div>
+
+    <ng-template #footer>
+      <p-button label="Cancel" [text]="true" severity="secondary" (onClick)="editVisible.set(false)" />
+      <p-button
+        [label]="saving() ? 'Saving…' : 'Save profile'"
+        icon="pi pi-check"
+        (onClick)="save()"
+        [loading]="saving()"
+      />
+    </ng-template>
+  </p-dialog>
+
+  <p-toast />
+</section>

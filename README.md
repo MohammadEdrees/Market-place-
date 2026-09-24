@@ -155,7 +155,17 @@ To hide the docs in an environment, set the kill switch in `backend/appsettings.
 - **Overview** (`/dashboard`) — metric cards with period-over-period deltas, dual-axis
   revenue/orders line chart, sales-by-category doughnut, recent orders table, inventory health.
 - **Products** (`/products`) — server-backed CRUD with client-side search, category filter,
-  sortable columns, pagination, create/edit dialog, confirm-to-delete, toasts.
+  sortable columns, pagination, create/edit dialog, confirm-to-delete, toasts, plus a **Seller**
+  column (listing owner) and create/edit actions hidden for roles the API would reject with 403.
+- **Services** (`/services`) — marketplace listings with search/category filter, sortable table
+  (cost, provider, location, offers) and a full create/edit dialog (title, description,
+  category, cost, contact info, location, offers).
+- **Orders & reservations** (`/orders`) — product purchases and service reservations with
+  search + kind/status filters, kind/status tags, and a status-transition dialog
+  (Processing/Confirmed/Completed/Cancelled/Reserved/Refunded).
+- **Users** (`/users`) — profile directory (roles, platform, phone, location) with search and
+  role/platform filters, a profile detail dialog showing contact info, and self-service
+  editing of your own profile (name/phone/location/bio via `PUT /api/users/me`).
 - **Sign in** (`/login`) — JWT login with inline errors, guarded routes and a `returnUrl`
   round-trip; the session survives reloads until the token expires.
 - Sidebar/topbar shell with the signed-in user's name/role and a sign-out button, light **and**
@@ -163,10 +173,11 @@ To hide the docs in an environment, set the kill switch in `backend/appsettings.
 
 ## How the data layer works
 
-`backend/Data/MarketDbContext.cs` exposes products, orders and users through EF Core's
+`backend/Data/MarketDbContext.cs` exposes products, services, orders and users through EF Core's
 in-memory provider (`UseInMemoryDatabase`) — the full `DbContext`/`DbSet` pipeline without a
-database server. `backend/Data/DbInitializer.cs` seeds 24 products and ~72 orders across the
-last 12 months at startup, so charts and tables have realistic data immediately; data resets
+database server. `backend/Data/DbInitializer.cs` seeds 24 products (owned by the demo
+sellers/admin), 6 services, ~74 orders across the last 12 months and 8 users (5 dashboard,
+3 mobile) at startup, so charts and tables have realistic data immediately; data resets
 on restart. To make it durable, add the `Microsoft.EntityFrameworkCore.SqlServer` package
 and swap `UseInMemoryDatabase("MarketWorkplace")` for `UseSqlServer(connectionString)` in
 `Program.cs` — controllers already speak EF Core, so the endpoint contracts stay the same.
