@@ -46,6 +46,8 @@ a `401` from the API clears the session and returns to the login page.
 | -------------------------- | ------------ | --------- |
 | `superadmin@marketplace.dev` | `123456`   | SuperAdmin |
 | `admin@marketplace.dev`    | `Admin123!`  | Admin     |
+| `chief.admin@marketplace.dev` | `Chief123!` | Admin    |
+| `manager@marketplace.dev`  | `Manager123!` | Manager  |
 | `viewer@marketplace.dev`   | `Viewer123!` | Viewer    |
 
 ```powershell

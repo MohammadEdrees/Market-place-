@@ -126,6 +126,24 @@ public class InMemoryStore
 
         _users.Add(new User
         {
+            Id = 4,
+            Email = "manager@marketplace.dev",
+            Name = "Mia Manager",
+            Role = "Manager",
+            PasswordHash = PasswordHasher.Hash("Manager123!"),
+        });
+
+        _users.Add(new User
+        {
+            Id = 5,
+            Email = "chief.admin@marketplace.dev",
+            Name = "Chief Admin",
+            Role = "Admin",
+            PasswordHash = PasswordHasher.Hash("Chief123!"),
+        });
+
+        _users.Add(new User
+        {
             Id = 2,
             Email = "viewer@marketplace.dev",
             Name = "Vic Viewer",
