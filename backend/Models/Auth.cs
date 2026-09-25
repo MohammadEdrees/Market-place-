@@ -150,6 +150,41 @@ public record UserUpdateInput
     public string? Bio { get; init; }
 }
 
+/// <summary>Payload for <c>PUT /api/users/{id}</c> — a dashboard admin editing any account.
+/// Unlike <see cref="UserUpdateInput"/> (self-service) this may change the email, the role
+/// (platform is re-derived) and optionally reset the password.</summary>
+public record UserEditInput
+{
+    /// <summary>New display name (required).</summary>
+    [Required, StringLength(120)]
+    public string Name { get; init; } = string.Empty;
+
+    /// <summary>New email address (must be unique).</summary>
+    [Required, EmailAddress, StringLength(200)]
+    public string Email { get; init; } = string.Empty;
+
+    /// <summary>New role: <c>SuperAdmin</c>, <c>Admin</c>, <c>Manager</c>, <c>Viewer</c>,
+    /// <c>Provider</c> or <c>Client</c>; the platform (<c>Dashboard</c>/<c>Mobile</c>) is re-derived.</summary>
+    [Required, StringLength(40)]
+    public string Role { get; init; } = string.Empty;
+
+    /// <summary>Optional new password (min 6 chars); null or empty keeps the current one.</summary>
+    [StringLength(100)]
+    public string? Password { get; init; }
+
+    /// <summary>New contact phone.</summary>
+    [StringLength(40)]
+    public string? Phone { get; init; }
+
+    /// <summary>New location.</summary>
+    [StringLength(120)]
+    public string? Location { get; init; }
+
+    /// <summary>New bio.</summary>
+    [StringLength(500)]
+    public string? Bio { get; init; }
+}
+
 /// <summary>Result of a successful login.</summary>
 /// <param name="Token">Bearer token to send as <c>Authorization: Bearer &lt;token&gt;</c>.</param>
 /// <param name="ExpiresAt">UTC timestamp after which the token is rejected.</param>

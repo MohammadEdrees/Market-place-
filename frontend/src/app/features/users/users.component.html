@@ -35,7 +35,7 @@
       />
 
       <p-button label="Reset" icon="pi pi-filter-slash" [text]="true" severity="secondary" (onClick)="clearFilters()" />
-      @if (canCreateUsers()) {
+      @if (canManageUsers()) {
         <p-button label="Add user" icon="pi pi-user-plus" (onClick)="openCreate()" />
       }
     </div>
@@ -99,13 +99,13 @@
                   pTooltip="View profile"
                   (onClick)="openView(user)"
                 />
-                @if (isSelf(user)) {
+                @if (isSelf(user) || canManageUsers()) {
                   <p-button
                     icon="pi pi-pencil"
                     [text]="true"
                     [rounded]="true"
                     severity="secondary"
-                    pTooltip="Edit my profile"
+                    [pTooltip]="isSelf(user) ? 'Edit my profile' : 'Edit user'"
                     (onClick)="openEdit(user)"
                   />
                 }
@@ -167,20 +167,45 @@
           <strong>{{ user.bio || '—' }}</strong>
         </div>
       </div>
+
+      @if (showRelatedProducts()) {
+        <div class="profile-products">
+          <span class="profile-products-head">
+            Products
+            <span class="cell-sub">{{ relatedProducts().length }} listed</span>
+          </span>
+          @if (relatedProducts().length) {
+            <ul class="related-list">
+              @for (product of relatedProducts(); track product.id) {
+                <li>
+                  <span class="cell-title">{{ product.name }}</span>
+                  <span class="mono">{{ product.price | currency: 'USD' : 'symbol' : '1.2-2' }}</span>
+                </li>
+              }
+            </ul>
+          } @else {
+            <span class="cell-sub">No products yet.</span>
+          }
+        </div>
+      }
     }
 
     <ng-template #footer>
       <p-button label="Close" [text]="true" severity="secondary" (onClick)="viewVisible.set(false)" />
       @if (viewing(); as user) {
-        @if (isSelf(user)) {
-          <p-button label="Edit profile" icon="pi pi-pencil" (onClick)="openEdit(user)" />
+        @if (isSelf(user) || canManageUsers()) {
+          <p-button
+            [label]="isSelf(user) ? 'Edit profile' : 'Edit user'"
+            icon="pi pi-pencil"
+            (onClick)="openEdit(user)"
+          />
         }
       }
     </ng-template>
   </p-dialog>
 
   <p-dialog
-    header="Edit my profile"
+    [header]="editingSelf() ? 'Edit my profile' : 'Edit user'"
     [(visible)]="editVisible"
     [modal]="true"
     styleClass="profile-dialog"
@@ -222,6 +247,32 @@
         <input id="u-name" pInputText type="text" [(ngModel)]="draft.name" />
       </div>
 
+      @if (!editingSelf()) {
+        <div class="field">
+          <label for="ue-email">Email</label>
+          <input id="ue-email" pInputText type="email" [(ngModel)]="editEmail" placeholder="name@marketplace.dev" />
+        </div>
+
+        <div class="field">
+          <label for="ue-role">Role</label>
+          <p-select id="ue-role" [options]="roleOptions" [(ngModel)]="editRole" />
+          <span class="field-hint">Platform: {{ derivedType(editRole) }} (derived from role)</span>
+        </div>
+
+        <div class="field field-full">
+          <label for="ue-password">New password</label>
+          <input
+            id="ue-password"
+            pInputText
+            type="password"
+            [(ngModel)]="editPassword"
+            placeholder="Leave blank to keep the current password"
+            autocomplete="new-password"
+          />
+          <span class="field-hint">Optional — at least 6 characters when set.</span>
+        </div>
+      }
+
       <div class="field">
         <label for="u-phone">Phone</label>
         <input id="u-phone" pInputText type="text" [(ngModel)]="draft.phone" placeholder="+1 555 0100" />
@@ -236,12 +287,30 @@
         <label for="u-bio">Bio</label>
         <textarea id="u-bio" pTextarea rows="3" [(ngModel)]="draft.bio" placeholder="Short contact blurb"></textarea>
       </div>
+
+      @if (showRelatedProducts()) {
+        <div class="field field-full">
+          <label>Products</label>
+          @if (relatedProducts().length) {
+            <ul class="related-list">
+              @for (product of relatedProducts(); track product.id) {
+                <li>
+                  <span class="cell-title">{{ product.name }}</span>
+                  <span class="mono">{{ product.price | currency: 'USD' : 'symbol' : '1.2-2' }}</span>
+                </li>
+              }
+            </ul>
+          } @else {
+            <span class="field-hint">No products yet.</span>
+          }
+        </div>
+      }
     </div>
 
     <ng-template #footer>
       <p-button label="Cancel" [text]="true" severity="secondary" (onClick)="editVisible.set(false)" />
       <p-button
-        [label]="saving() ? 'Saving…' : 'Save profile'"
+        [label]="saving() ? 'Saving…' : editingSelf() ? 'Save profile' : 'Save user'"
         icon="pi pi-check"
         (onClick)="save()"
         [loading]="saving()"

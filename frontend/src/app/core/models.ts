@@ -191,6 +191,21 @@ export interface UserCreateInput {
   bio?: string | null;
 }
 
+/**
+ * Payload for `PUT /api/users/{id}` — an admin editing any account (profile fields,
+ * email, role and an optional password reset; platform re-derived from the role).
+ */
+export interface UserAdminUpdateInput {
+  name: string;
+  email: string;
+  role: string;
+  phone?: string | null;
+  location?: string | null;
+  bio?: string | null;
+  /** New password (≥ 6 chars); omit/blank to keep the current one. */
+  password?: string | null;
+}
+
 /** One image in a listing gallery, stored under the API's `wwwroot/images`. */
 export interface ListingImage {
   id: number;

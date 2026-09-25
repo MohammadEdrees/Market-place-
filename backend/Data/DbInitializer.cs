@@ -1,22 +1,24 @@
 using MarketWorkplace.Api.Auth;
 using MarketWorkplace.Api.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace MarketWorkplace.Api.Data;
 
 /// <summary>
-/// Creates the schema and loads the sample data (products, orders and users) that used to
-/// live in <c>InMemoryStore</c>. Runs once at startup; each collection is seeded only when
-/// it is empty, so restarts keep whatever is already in the store.
+/// Creates the schema (EF Core migration — Code First on SQL Server) and loads the sample
+/// data (products, orders, users, gallery images). Runs once at startup; each collection is
+/// seeded only when it is empty, so restarts keep whatever is already in the database.
 /// </summary>
 public static class DbInitializer
 {
-    /// <summary>Ensures the model exists and seeds any missing collections.</summary>
-    /// <param name="db">The context to seed.</param>
+    /// <summary>Applies pending migrations and seeds any missing collections.</summary>
+    /// <param name="db">The context to migrate and seed.</param>
     /// <param name="imageStore">Used to prefix seeded image paths with the configured <c>BackendUrl</c>.</param>
     /// <param name="webRoot">Absolute wwwroot path where placeholder gallery/avatar images are written.</param>
     public static void Initialize(MarketDbContext db, ImageStore imageStore, string webRoot)
     {
-        db.Database.EnsureCreated();
+        // Code First: creates the database on first run and applies any new migrations.
+        db.Database.Migrate();
 
         if (!db.Users.Any())
         {

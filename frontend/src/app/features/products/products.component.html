@@ -25,6 +25,18 @@
         (ngModelChange)="onCategory($event)"
       />
 
+      <p-select
+        [options]="providerOptions()"
+        placeholder="Any provider"
+        optionLabel="label"
+        optionValue="value"
+        [showClear]="true"
+        styleClass="category-select"
+        ariaLabel="Filter by provider"
+        [ngModel]="sellerId()"
+        (ngModelChange)="onSeller($event)"
+      />
+
       <p-button label="Reset" icon="pi pi-filter-slash" [text]="true" severity="secondary" (onClick)="clearFilters()" />
       @if (canList()) {
         <p-button label="New product" icon="pi pi-plus" (onClick)="openNew()" />

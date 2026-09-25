@@ -17,11 +17,13 @@ Directory.CreateDirectory(Path.Combine(builder.Environment.ContentRootPath, "www
 // Controllers + JSON casing that matches the Angular models (camelCase).
 builder.Services.AddControllers();
 
-// EF Core with the in-memory provider: a real DbContext/DbSet pipeline without a database
-// server. To move to SQL Server later: add Microsoft.EntityFrameworkCore.SqlServer and
-// replace UseInMemoryDatabase("MarketWorkplace") with UseSqlServer(connectionString).
+// EF Core Code First with SQL Server: the connection string lives in appsettings.json
+// ("ConnectionStrings:MarketDb") and the migrations under backend/Migrations create the
+// schema (DbInitializer calls Database.Migrate() at startup, then seeds empty tables).
+var connectionString = builder.Configuration.GetConnectionString("MarketDb")
+    ?? throw new InvalidOperationException("ConnectionStrings:MarketDb is missing from configuration.");
 builder.Services.AddDbContext<MarketDbContext>(options =>
-    options.UseInMemoryDatabase("MarketWorkplace"));
+    options.UseSqlServer(connectionString));
 
 // --- JWT authentication ----------------------------------------------------
 // Tokens are minted by TokenService (POST /api/auth/login) and validated here.

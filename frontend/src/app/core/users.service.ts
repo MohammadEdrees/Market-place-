@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { toParams } from './http-params';
-import { PagedResponse, UserCreateInput, UserQuery, UserUpdateInput, UserProfile } from './models';
+import { PagedResponse, UserAdminUpdateInput, UserCreateInput, UserQuery, UserUpdateInput, UserProfile } from './models';
 
 @Injectable({ providedIn: 'root' })
 export class UsersService {
@@ -38,6 +38,11 @@ export class UsersService {
   /** Updates the caller's own display name / contact fields. */
   updateMe(input: UserUpdateInput): Observable<UserProfile> {
     return this.http.put<UserProfile>(`${this.baseUrl}/me`, input);
+  }
+
+  /** Admin edits any user — profile, email, role and an optional password reset. */
+  updateUser(id: number, input: UserAdminUpdateInput): Observable<UserProfile> {
+    return this.http.put<UserProfile>(`${this.baseUrl}/${id}`, input);
   }
 
   /** Uploads (or replaces) the user's profile picture — account owner or dashboard admin. */

@@ -1,4 +1,5 @@
 import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
+import { CurrencyPipe } from '@angular/common';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
@@ -16,9 +17,10 @@ import { TooltipModule } from 'primeng/tooltip';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { EMPTY, Subject, catchError, debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs';
 import { AuthService } from '../../core/auth.service';
+import { ProductService } from '../../core/product.service';
 import { UsersService } from '../../core/users.service';
 import type { TableLazyLoadEvent } from 'primeng/table';
-import type { UserCreateInput, UserProfile, UserUpdateInput } from '../../core/models';
+import type { Product, UserCreateInput, UserProfile, UserUpdateInput } from '../../core/models';
 
 const emptyDraft = (): UserUpdateInput => ({ name: '', phone: '', location: '', bio: '' });
 
@@ -38,6 +40,7 @@ const emptyCreateDraft = (): UserCreateInput => ({
     FormsModule,
     ReactiveFormsModule,
     ButtonModule,
+    CurrencyPipe,
     DialogModule,
     IconFieldModule,
     InputIconModule,
@@ -56,6 +59,7 @@ const emptyCreateDraft = (): UserCreateInput => ({
 })
 export class UsersComponent implements OnInit {
   private readonly usersService = inject(UsersService);
+  private readonly productService = inject(ProductService);
   private readonly messageService = inject(MessageService);
   private readonly auth = inject(AuthService);
   private readonly destroyRef = inject(DestroyRef);
@@ -88,6 +92,22 @@ export class UsersComponent implements OnInit {
   readonly saving = signal(false);
   draft: UserUpdateInput = emptyDraft();
 
+  // Who is being edited: admins may edit anyone, everyone else only themselves
+  // (the API enforces this — PUT /api/users/{id} is admins only).
+  readonly editingSelf = signal(true);
+  private editingId = 0;
+  editEmail = '';
+  editRole = 'Viewer';
+  /** Optional password reset; blank keeps the current password. */
+  editPassword = '';
+
+  // Products owned by the profile being viewed/edited (relevant for providers).
+  readonly relatedProducts = signal<Product[]>([]);
+  readonly relatedIsProvider = signal(false);
+  /** Show the products section for providers (even when they have none yet). */
+  readonly showRelatedProducts = computed(() => this.relatedIsProvider() || this.relatedProducts().length > 0);
+  private relatedFor = 0;
+
   // Staged profile-picture change (applied together with the text fields on save).
   readonly currentAvatar = signal<string | null>(null);
   readonly avatarPreview = signal<string | null>(null);
@@ -104,8 +124,8 @@ export class UsersComponent implements OnInit {
   readonly roleOptions = ['SuperAdmin', 'Admin', 'Manager', 'Viewer', 'Provider', 'Client'];
   readonly typeOptions = ['Dashboard', 'Mobile'];
 
-  /** SuperAdmin, Admin and Manager may create accounts; everyone else gets 403 from the API. */
-  readonly canCreateUsers = computed(() =>
+  /** SuperAdmin, Admin and Manager may create and edit accounts (the API returns 403 otherwise). */
+  readonly canManageUsers = computed(() =>
     ['SuperAdmin', 'Admin', 'Manager'].includes(this.auth.user()?.role ?? ''),
   );
 
@@ -206,17 +226,23 @@ export class UsersComponent implements OnInit {
     this.reload();
   }
 
-  /** Only your own profile can be edited (the API only accepts `PUT /api/users/me`). */
+  /** True for the signed-in user's own row (self-service edits go through `PUT /api/users/me`). */
   isSelf(user: UserProfile): boolean {
     return user.id === this.auth.user()?.id;
   }
 
   openView(user: UserProfile): void {
     this.viewing.set(user);
+    this.loadRelatedProducts(user);
     this.viewVisible.set(true);
   }
 
   openEdit(user: UserProfile): void {
+    this.editingId = user.id;
+    this.editingSelf.set(this.isSelf(user));
+    this.editEmail = user.email;
+    this.editRole = user.role;
+    this.editPassword = '';
     this.draft = {
       name: user.name,
       phone: user.phone ?? '',
@@ -224,7 +250,27 @@ export class UsersComponent implements OnInit {
       bio: user.bio ?? '',
     };
     this.resetAvatarEditor(user.imagePath ?? null);
+    this.loadRelatedProducts(user);
     this.editVisible.set(true);
+  }
+
+  /** Loads the products owned by the profile being viewed (shown in both dialogs). */
+  private loadRelatedProducts(user: UserProfile): void {
+    this.relatedFor = user.id;
+    this.relatedProducts.set([]);
+    this.relatedIsProvider.set(user.role === 'Provider');
+    this.productService.list({ sellerId: user.id, pageSize: 100 }).subscribe({
+      next: (res) => {
+        if (this.relatedFor === user.id) {
+          this.relatedProducts.set(res.items ?? []);
+        }
+      },
+      error: () => {
+        if (this.relatedFor === user.id) {
+          this.relatedProducts.set([]);
+        }
+      },
+    });
   }
 
   private resetAvatarEditor(current: string | null): void {
@@ -286,7 +332,53 @@ export class UsersComponent implements OnInit {
       return;
     }
 
+    const adminEdit = !this.editingSelf();
+    if (adminEdit) {
+      if (!this.editEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.editEmail.trim())) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Missing fields',
+          detail: 'A valid email address is required.',
+        });
+        return;
+      }
+      if (this.editPassword && this.editPassword.length < 6) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Password too short',
+          detail: 'Use at least 6 characters.',
+        });
+        return;
+      }
+    }
+
     this.saving.set(true);
+    if (adminEdit) {
+      // Admin edit of another account: PUT /api/users/{id} (profile + email/role + optional reset).
+      this.usersService
+        .updateUser(this.editingId, {
+          name: draft.name!.trim(),
+          email: this.editEmail.trim(),
+          role: this.editRole,
+          phone: draft.phone,
+          location: draft.location,
+          bio: draft.bio,
+          password: this.editPassword || null,
+        })
+        .subscribe({
+          next: (updated) => this.applyAvatarChange(updated, 'User updated'),
+          error: (err) => {
+            this.saving.set(false);
+            this.messageService.add({
+              severity: 'error',
+              summary: 'Could not edit user',
+              detail: this.apiError(err, 'The API rejected the request.'),
+            });
+          },
+        });
+      return;
+    }
+
     this.usersService.updateMe(draft).subscribe({
       next: (updated) => this.applyAvatarChange(updated),
       error: (err) => {
@@ -301,7 +393,7 @@ export class UsersComponent implements OnInit {
   }
 
   /** Applies the staged picture change (upload / delete) after the text fields saved. */
-  private applyAvatarChange(updated: UserProfile): void {
+  private applyAvatarChange(updated: UserProfile, summary = 'Profile updated'): void {
     const finish = () => {
       this.saving.set(false);
       this.editVisible.set(false);
@@ -310,7 +402,7 @@ export class UsersComponent implements OnInit {
       this.reload();
       this.messageService.add({
         severity: 'success',
-        summary: 'Profile updated',
+        summary,
         detail: updated.name,
       });
     };

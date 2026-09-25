@@ -78,6 +78,8 @@ export class ProductsComponent implements OnInit {
 
   readonly search = signal('');
   readonly category = signal<string | null>(null);
+  /** Provider (seller) whose listings the table is narrowed to. */
+  readonly sellerId = signal<number | null>(null);
 
   // Server-side pagination/sorting, mirrored from the PrimeNG lazy events.
   readonly first = signal(0);
@@ -103,6 +105,13 @@ export class ProductsComponent implements OnInit {
 
   readonly title = computed(() =>
     this.editingId() ? 'Edit product' : 'New product',
+  );
+
+  /** Dropdown of providers (mobile sellers) derived from the loaded user directory. */
+  readonly providerOptions = computed(() =>
+    this.sellers()
+      .filter((user) => user.role === 'Provider')
+      .map((user) => ({ label: user.name, value: user.id })),
   );
 
   ngOnInit(): void {
@@ -131,6 +140,7 @@ export class ProductsComponent implements OnInit {
             .list({
               search: this.search() || undefined,
               category: this.category() ?? undefined,
+              sellerId: this.sellerId() ?? undefined,
               page: Math.floor(this.first() / pageSize) + 1,
               pageSize,
               sortBy: this.sortField() ?? undefined,
@@ -189,8 +199,15 @@ export class ProductsComponent implements OnInit {
     this.reloadFirstPage();
   }
 
+  /** Narrows the table to one provider's listings (`?sellerId=` — server-side). */
+  onSeller(value: number | null): void {
+    this.sellerId.set(value);
+    this.reloadFirstPage();
+  }
+
   clearFilters(): void {
     this.category.set(null);
+    this.sellerId.set(null);
     this.search.set('');
     // Suppress the valueChanges pipeline — the manual reload below covers it.
     this.searchControl.setValue('', { emitEvent: false });

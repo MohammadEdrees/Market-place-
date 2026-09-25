@@ -5,7 +5,7 @@ An analytics dashboard built as two independent projects:
 | Folder     | Stack                                              | Runs on                          |
 | ---------- | -------------------------------------------------- | -------------------------------- |
 | `frontend/` | Angular 21, PrimeNG 21, Chart.js, PrimeFlex         | http://localhost:4200            |
-| `backend/`  | .NET 9 Web API (controllers), in-memory repository | http://localhost:5240            |
+| `backend/`  | .NET 9 Web API (controllers), EF Core Code First + SQL Server | http://localhost:5240            |
 
 API documentation (Swagger UI): **http://localhost:5240/swagger**
 
@@ -13,6 +13,9 @@ API documentation (Swagger UI): **http://localhost:5240/swagger**
 
 - Node.js 22.12+ (Node 22.14 verified)
 - .NET 9 SDK
+- SQL Server (Developer/Express/LocalDB) — the connection string lives in
+  `backend/appsettings.json` (`ConnectionStrings:MarketDb`); the database is created
+  automatically on first run.
 
 ## Running
 
@@ -114,6 +117,7 @@ development placeholder. Tokens are HS256-signed; passwords are stored as PBKDF2
 | `GET`    | `/api/users/{id}`            | One profile incl. contact info (phone/location/bio) |
 | `PUT`    | `/api/users/me`              | Update your own name/contact fields                |
 | `POST`   | `/api/users`                 | Add a dashboard/mobile account (SuperAdmin/Admin/Manager; `201`/`409`/`400`/`403`) |
+| `PUT`    | `/api/users/{id}`            | Edit any account — profile, email, role, optional password reset (SuperAdmin/Admin/Manager; `200`/`409`/`400`/`403`/`404`) |
 | `POST`   | `/api/users/{id}/image`      | Upload or replace the profile picture (owner or admin; multipart `file`) |
 | `DELETE` | `/api/users/{id}/image`      | Remove the profile picture (`204`/`404`)           |
 
@@ -145,9 +149,8 @@ Products and services carry a **gallery** (multiple images); every user has a si
 - **Absolute URLs (`BackendUrl`)** — the public origin comes from the `BackendUrl` setting
   in `backend/appsettings.json` (currently `http://localhost:5240`). Every image path the
   API returns is prefixed with it, e.g. `http://localhost:5240/images/products/a1b2….png`,
-  so links work anywhere (mobile clients, emails), not only behind the dev proxy. Change the
-  setting if the API is exposed elsewhere — the in-memory store reseeds itself on restart,
-  so stored paths pick up the new origin immediately.
+  so links work anywhere (mobile clients, emails), not only behind the dev proxy. Paths are
+  stored absolute in the database, so set the right origin before the first run.
 - **Seeding** — at startup `DbInitializer` generates dependency-free placeholder PNGs
   (`backend/Data/PlaceholderPng.cs`): two per product and per service (linked as
   `ListingImage` rows) and one avatar per user, so galleries and tables never show broken
@@ -198,10 +201,12 @@ To hide the docs in an environment, set the kill switch in `backend/appsettings.
 - **Overview** (`/dashboard`) — metric cards with period-over-period deltas, dual-axis
   revenue/orders line chart, sales-by-category doughnut, recent orders table, inventory health.
 - **Products** (`/products`) — server-backed CRUD with **server-side pagination, search,
-  category filter and column sorting** (PrimeNG lazy loading round-trips page/sort/filter to
-  the API), row thumbnails, a create/edit dialog with an **image gallery** (multi-upload with
-  local previews, remove, click-to-open), confirm-to-delete, toasts, plus a **Seller**
-  column (listing owner) and create/edit actions hidden for roles the API would reject with 403.
+  category filter, provider filter and column sorting** (PrimeNG lazy loading round-trips
+  page/sort/filter to the API), row thumbnails, a create/edit dialog with an **image gallery**
+  (multi-upload with local previews, remove, click-to-open), confirm-to-delete, toasts, plus a
+  **Seller** column (listing owner) and create/edit actions hidden for roles the API would
+  reject with 403. The **provider dropdown** narrows the table to one provider's listings via
+  the API's `?sellerId=` parameter.
 - **Services** (`/services`) — marketplace listings with server-side search/category filter,
   a paginated, sortable table with thumbnails (cost, provider, location, offers) and a full
   create/edit dialog (title, description, category, cost, contact info, location, offers)
@@ -212,11 +217,14 @@ To hide the docs in an environment, set the kill switch in `backend/appsettings.
   (Processing/Confirmed/Completed/Cancelled/Reserved/Refunded).
 - **Users** (`/users`) — profile directory (roles, platform, phone, location) with
   server-side search and role/platform filters on a paginated table, **avatars** in rows and
-  dialogs, a profile detail dialog showing contact info, and self-service editing of your own
-  profile — name/phone/location/bio plus a **profile picture** (upload/replace/remove) via
-  `PUT /api/users/me` and `POST`/`DELETE /api/users/{id}/image`. SuperAdmin/Admin/Manager
-  also get an **Add user** button backed by `POST /api/users` (email + password + role; the
-  platform is derived from the role).
+  dialogs, a profile detail dialog showing contact info plus the **products related to that
+  provider**, and editing via `PUT /api/users/me` — name/phone/location/bio plus a
+  **profile picture** (upload/replace/remove). SuperAdmin/Admin/Manager also get:
+  - an **Add user** button backed by `POST /api/users` (email + password + role; the
+    platform is derived from the role), and
+  - an **edit pencil on every row** opening an *Edit user* dialog with email, role, an
+    **optional password reset** (blank = keep) and the avatar editor, saved through
+    `PUT /api/users/{id}`.
 - **Search** — every list page (Products, Services, Orders, Users) binds its search box to an
   RxJS pipeline (`valueChanges → debounceTime(300) → map(trim) → distinctUntilChanged →
   switchMap`): keystrokes coalesce into a single backend request, stale responses are
@@ -228,17 +236,25 @@ To hide the docs in an environment, set the kill switch in `backend/appsettings.
 
 ## How the data layer works
 
-`backend/Data/MarketDbContext.cs` exposes products, services, orders and users through EF Core's
-in-memory provider (`UseInMemoryDatabase`) — the full `DbContext`/`DbSet` pipeline without a
-database server. `backend/Data/DbInitializer.cs` seeds 24 products (owned by the demo
-sellers/admin), 6 services, ~74 orders across the last 12 months and 8 users (5 dashboard,
-3 mobile) at startup, so charts and tables have realistic data immediately; data resets
-on restart. To make it durable, add the `Microsoft.EntityFrameworkCore.SqlServer` package
-and swap `UseInMemoryDatabase("MarketWorkplace")` for `UseSqlServer(connectionString)` in
-`Program.cs` — controllers already speak EF Core, so the endpoint contracts stay the same.
+`backend/Data/MarketDbContext.cs` maps the model to **SQL Server with EF Core Code First**:
+the connection string lives in `backend/appsettings.json`
+(`ConnectionStrings:MarketDb`, default `Server=localhost;Database=MarketWorkplace`), and the
+schema is generated by the migration under `backend/Migrations/`
+(`DbInitializer` calls `Database.Migrate()` at startup — the database is created on first
+run and updated whenever you add a migration with `dotnet ef migrations add <Name>`).
 
-Display strings (currency, month names) are formatted with an explicit `en-US` culture in
-`DashboardController`, so output does not depend on the machine's regional settings.
+The fluent model defines the real relationships: a **product belongs to its provider**
+(`Products.SellerId → Users.Id`, `SET NULL` so platform demo items stay valid), a **service
+requires its provider** (`Services.ProviderId → Users.Id`, `RESTRICT`), orders reference
+their buyer/product/service (`SET NULL` — history survives deletes) and gallery images
+cascade with their listing. Primary keys are app-assigned (`ValueGeneratedNever`), matching
+the controllers' `Max + 1` pattern, and `Users.Email` carries a unique index.
+
+`backend/Data/DbInitializer.cs` then seeds 24 products (owned by the demo sellers/admin),
+6 services, ~74 orders across the last 12 months and 8 users (5 dashboard, 3 mobile) **only
+when a table is empty** — data persists across restarts. Display strings (currency, month
+names) are formatted with an explicit `en-US` culture in `DashboardController`, so output
+does not depend on the machine's regional settings.
 
 ## Useful scripts
 

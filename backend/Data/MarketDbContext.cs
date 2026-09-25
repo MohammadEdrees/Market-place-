@@ -4,11 +4,10 @@ using Microsoft.EntityFrameworkCore;
 namespace MarketWorkplace.Api.Data;
 
 /// <summary>
-/// Entity Framework Core context for the dashboard, backed by the in-memory provider
-/// (<c>UseInMemoryDatabase</c>) so the API runs without a database server while keeping
-/// the full <c>DbContext</c>/<c>DbSet</c> pipeline. Swapping to SQL Server later is a
-/// one-line change in <c>Program.cs</c> (add <c>Microsoft.EntityFrameworkCore.SqlServer</c>
-/// and call <c>UseSqlServer(connectionString)</c> instead).
+/// Entity Framework Core context for the dashboard, mapped Code First to SQL Server
+/// (<c>UseSqlServer</c> with the <c>ConnectionStrings:MarketDb</c> setting). The schema is
+/// created by the migrations under <c>backend/Migrations</c> (<c>Database.Migrate()</c> in
+/// <c>DbInitializer</c>); add a new migration whenever an entity changes.
 /// </summary>
 /// <remarks>Registered scoped: <c>builder.Services.AddDbContext&lt;MarketDbContext&gt;(…)</c>.</remarks>
 public class MarketDbContext(DbContextOptions<MarketDbContext> options) : DbContext(options)
@@ -33,9 +32,13 @@ public class MarketDbContext(DbContextOptions<MarketDbContext> options) : DbCont
         modelBuilder.Entity<Product>(entity =>
         {
             entity.HasKey(p => p.Id);
+            // Keys are assigned by the app (seed + Max+1 in the controllers), never by the store.
+            entity.Property(p => p.Id).ValueGeneratedNever();
             entity.Property(p => p.Name).IsRequired().HasMaxLength(120);
             entity.Property(p => p.Sku).IsRequired().HasMaxLength(40);
             entity.Property(p => p.Category).IsRequired().HasMaxLength(60);
+            entity.Property(p => p.Price).HasPrecision(18, 2);
+            entity.HasIndex(p => p.SellerId);
             // Status is a derived display value — computed, never stored.
             entity.Ignore(p => p.Status);
         });
@@ -43,18 +46,25 @@ public class MarketDbContext(DbContextOptions<MarketDbContext> options) : DbCont
         modelBuilder.Entity<Order>(entity =>
         {
             entity.HasKey(o => o.Id);
+            entity.Property(o => o.Id).ValueGeneratedNever();
             entity.Property(o => o.Customer).IsRequired().HasMaxLength(200);
             entity.Property(o => o.Product).IsRequired().HasMaxLength(120);
             entity.Property(o => o.Category).IsRequired().HasMaxLength(60);
+            entity.Property(o => o.Total).HasPrecision(18, 2);
             entity.Property(o => o.Status).IsRequired().HasMaxLength(40);
+            entity.HasIndex(o => o.ProductId);
+            entity.HasIndex(o => o.ServiceId);
+            entity.HasIndex(o => o.BuyerId);
         });
 
         modelBuilder.Entity<Service>(entity =>
         {
             entity.HasKey(s => s.Id);
+            entity.Property(s => s.Id).ValueGeneratedNever();
             entity.Property(s => s.Title).IsRequired().HasMaxLength(120);
             entity.Property(s => s.Description).HasMaxLength(1000);
             entity.Property(s => s.Category).IsRequired().HasMaxLength(60);
+            entity.Property(s => s.Cost).HasPrecision(18, 2);
             entity.Property(s => s.ContactInfo).IsRequired().HasMaxLength(200);
             entity.Property(s => s.Location).IsRequired().HasMaxLength(120);
             entity.Property(s => s.Offers).HasMaxLength(500);
@@ -64,6 +74,7 @@ public class MarketDbContext(DbContextOptions<MarketDbContext> options) : DbCont
         modelBuilder.Entity<User>(entity =>
         {
             entity.HasKey(u => u.Id);
+            entity.Property(u => u.Id).ValueGeneratedNever();
             entity.Property(u => u.Email).IsRequired().HasMaxLength(200);
             entity.Property(u => u.Name).IsRequired().HasMaxLength(120);
             entity.Property(u => u.PasswordHash).IsRequired();
@@ -74,10 +85,49 @@ public class MarketDbContext(DbContextOptions<MarketDbContext> options) : DbCont
         modelBuilder.Entity<ListingImage>(entity =>
         {
             entity.HasKey(i => i.Id);
+            entity.Property(i => i.Id).ValueGeneratedNever();
             entity.Property(i => i.Path).IsRequired().HasMaxLength(300);
             entity.HasIndex(i => i.ProductId);
             entity.HasIndex(i => i.ServiceId);
         });
+
+        // --- Relationships (products related to their provider, orders to buyers/listings) ---
+
+        // A product belongs to the provider/seller who listed it; nullable so platform demo
+        // items (SellerId = null) stay valid and deleting an owner keeps the listing.
+        modelBuilder.Entity<Product>()
+            .HasOne<User>()
+            .WithMany()
+            .HasForeignKey(p => p.SellerId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // A service requires its provider (ProviderId is mandatory) — deleting a provider
+        // who still offers services is rejected by the database instead of orphaning rows.
+        modelBuilder.Entity<Service>()
+            .HasOne<User>()
+            .WithMany()
+            .HasForeignKey(s => s.ProviderId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Orders are historical records with denormalized name/category columns: deleting a
+        // buyer, product or service detaches the order rather than destroying its history.
+        modelBuilder.Entity<Order>()
+            .HasOne<User>()
+            .WithMany()
+            .HasForeignKey(o => o.BuyerId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<Order>()
+            .HasOne<Product>()
+            .WithMany()
+            .HasForeignKey(o => o.ProductId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<Order>()
+            .HasOne<Service>()
+            .WithMany()
+            .HasForeignKey(o => o.ServiceId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         // Gallery images hang off one listing each; controllers delete the files explicitly,
         // the cascade only keeps the table clean if a listing ever disappears another way.

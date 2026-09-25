@@ -174,6 +174,69 @@ public class UsersController(MarketDbContext db, ImageStore store) : ControllerB
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, ToProfile(created));
     }
 
+    /// <summary>Edits any user — profile fields, email, role and an optional password reset (dashboard admins only).</summary>
+    /// <remarks>The platform is re-derived from the role (<c>Provider</c>/<c>Client</c> → <c>Mobile</c>).
+    /// Leave <c>password</c> null or empty to keep the current hash.</remarks>
+    /// <param name="id">The user to edit.</param>
+    /// <param name="input">New field values; name/email/role are required.</param>
+    /// <returns>The updated profile.</returns>
+    [HttpPut("{id:int}")]
+    [ProducesResponseType(typeof(UserProfileDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public ActionResult<UserProfileDto> Update(int id, [FromBody] UserEditInput input)
+    {
+        if (!Access.IsAdmin(User)) return Forbid();
+
+        var user = db.Users.FirstOrDefault(u => u.Id == id);
+        if (user is null) return NotFound();
+
+        var name = NullIfBlank(input.Name);
+        if (name is null)
+            return Problem(title: "Invalid user", detail: "Name is required.", statusCode: StatusCodes.Status400BadRequest);
+
+        var email = NullIfBlank(input.Email);
+        if (email is null)
+            return Problem(title: "Invalid user", detail: "Email is required.", statusCode: StatusCodes.Status400BadRequest);
+        if (db.Users.Any(u => u.Id != id && u.Email.ToLower() == email.ToLower()))
+            return Problem(title: "Email in use", detail: "Another account already uses this email.", statusCode: StatusCodes.Status409Conflict);
+
+        var role = NullIfBlank(input.Role);
+        if (role is null)
+            return Problem(title: "Invalid user", detail: "Role is required.", statusCode: StatusCodes.Status400BadRequest);
+        role = role.ToLower() switch
+        {
+            "superadmin" => "SuperAdmin",
+            "admin" => "Admin",
+            "manager" => "Manager",
+            "viewer" => "Viewer",
+            "provider" => "Provider",
+            "client" => "Client",
+            _ => role
+        };
+        if (role is not ("SuperAdmin" or "Admin" or "Manager" or "Viewer" or "Provider" or "Client"))
+            return Problem(title: "Invalid user", detail: "Role must be SuperAdmin, Admin, Manager, Viewer, Provider or Client.", statusCode: StatusCodes.Status400BadRequest);
+
+        var newPassword = NullIfBlank(input.Password);
+        if (newPassword is not null && newPassword.Length < 6)
+            return Problem(title: "Invalid user", detail: "Password must be at least 6 characters.", statusCode: StatusCodes.Status400BadRequest);
+
+        user.Name = name;
+        user.Email = email;
+        user.Role = role;
+        user.Type = role is "Provider" or "Client" ? "Mobile" : "Dashboard";
+        user.Phone = NullIfBlank(input.Phone);
+        user.Location = NullIfBlank(input.Location);
+        user.Bio = NullIfBlank(input.Bio);
+        if (newPassword is not null)
+            user.PasswordHash = PasswordHasher.Hash(newPassword);
+
+        db.SaveChanges();
+        return Ok(ToProfile(user));
+    }
+
     private static string? NullIfBlank(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 

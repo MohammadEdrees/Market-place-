@@ -12,7 +12,12 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.20" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.20" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.20" />
+    <!-- Design-time support for the dotnet-ef CLI (migrations). -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.20">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
   </ItemGroup>
 
