@@ -36,6 +36,9 @@ public class MarketDbContext(DbContextOptions<MarketDbContext> options) : DbCont
     /// <summary>Advertisement slides powering the mobile home slider.</summary>
     public DbSet<Advertisement> Advertisements => Set<Advertisement>();
 
+    /// <summary>Subscription plans purchased by accounts (mobile users primarily).</summary>
+    public DbSet<Subscription> Subscriptions => Set<Subscription>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Product>(entity =>
@@ -134,50 +137,26 @@ public class MarketDbContext(DbContextOptions<MarketDbContext> options) : DbCont
             entity.Ignore(a => a.ActiveNow);
         });
 
+        modelBuilder.Entity<Subscription>(entity =>
+        {
+            entity.HasKey(s => s.Id);
+            entity.Property(s => s.Id).ValueGeneratedNever();
+            entity.Property(s => s.Plan).IsRequired().HasMaxLength(30);
+            entity.Property(s => s.BillingCycle).IsRequired().HasMaxLength(10);
+            entity.Property(s => s.Status).IsRequired().HasMaxLength(10);
+            entity.Property(s => s.Price).HasPrecision(18, 2);
+            entity.HasIndex(s => s.UserId);
+        });
+
         // --- Relationships (products related to their provider, orders to buyers/listings) ---
 
-        // A product belongs to the provider/seller who listed it; nullable so platform demo
-        // items (SellerId = null) stay valid and deleting an owner keeps the listing.
-        modelBuilder.Entity<Product>()
-            .HasOne<User>()
-            .WithMany()
-            .HasForeignKey(p => p.SellerId)
-            .OnDelete(DeleteBehavior.SetNull);
-
-        // A service requires its provider (ProviderId is mandatory) — deleting a provider
-        // who still offers services is rejected by the database instead of orphaning rows.
-        modelBuilder.Entity<Service>()
-            .HasOne<User>()
-            .WithMany()
-            .HasForeignKey(s => s.ProviderId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        // Orders are historical records with denormalized name/category columns: deleting a
-        // buyer, product or service detaches the order rather than destroying its history.
-        modelBuilder.Entity<Order>()
-            .HasOne<User>()
-            .WithMany()
-            .HasForeignKey(o => o.BuyerId)
-            .OnDelete(DeleteBehavior.SetNull);
-
-        modelBuilder.Entity<Order>()
-            .HasOne<Product>()
-            .WithMany()
-            .HasForeignKey(o => o.ProductId)
-            .OnDelete(DeleteBehavior.SetNull);
-
-        modelBuilder.Entity<Order>()
-            .HasOne<Service>()
-            .WithMany()
-            .HasForeignKey(o => o.ServiceId)
-            .OnDelete(DeleteBehavior.SetNull);
-
-        // Every account holds exactly one role; Restrict is the database-level backstop that
-        // keeps a role with members from disappearing (the API returns 409 before that).
-        modelBuilder.Entity<User>()
-            .HasOne(u => u.Role)
-            .WithMany(r => r.Users)
-            .HasForeignKey(u => u.RoleId)
+        // A subscription belongs to one account; deleting a user keeps their
+        // history, so the subscriber reference is left as-is (SetNull is not
+        // meaningful here — the subscription is a record about the user).
+        modelBuilder.Entity<Subscription>()
+            .HasOne(s => s.User)
+            .WithMany(u => u.Subscriptions)
+            .HasForeignKey(s => s.UserId)
             .OnDelete(DeleteBehavior.Restrict);
 
         // Gallery images hang off one listing each; controllers delete the files explicitly,

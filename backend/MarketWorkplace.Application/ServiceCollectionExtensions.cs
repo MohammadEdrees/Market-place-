@@ -19,6 +19,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<CategoriesService>();
         services.AddScoped<AdvertisementsService>();
         services.AddScoped<BackupService>();
+        services.AddScoped<SubscriptionsService>();
         return services;
     }
 }

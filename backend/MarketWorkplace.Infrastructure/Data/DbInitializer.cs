@@ -64,6 +64,8 @@ public static class DbInitializer
         {
             SeedUserAvatars(db, imageStore, webRoot);
         }
+
+        EnsureSubscriptions(db);
     }
 
     /// <summary>Seeds the built-in roles when the table is empty and returns them keyed by name.</summary>
@@ -165,6 +167,45 @@ public static class DbInitializer
         }
 
         db.Advertisements.AddRange(advertisements);
+        db.SaveChanges();
+    }
+
+    /// <summary>Binds a starter plan to each mobile account so the Subscriptions page is
+    /// populated on first boot (dashboard admins can change these from the UI).</summary>
+    private static void EnsureSubscriptions(MarketDbContext db)
+    {
+        if (db.Subscriptions.Any())
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        var mobileUserIds = db.Users
+            .Where(u => u.Type == "Mobile")
+            .Select(u => u.Id)
+            .ToList();
+
+        var starters = new[]
+        {
+            (userId: 6, plan: Subscription.PremiumPlan, price: 29.99m, cycle: Subscription.Monthly, status: Subscription.Active),
+            (userId: 7, plan: Subscription.BasicPlan, price: 9.99m, cycle: Subscription.Monthly, status: Subscription.Active),
+            (userId: 8, plan: Subscription.BasicPlan, price: 9.99m, cycle: Subscription.Monthly, status: Subscription.Active),
+        };
+
+        var subscriptions = starters.Select(s => new Subscription
+        {
+            UserId = s.userId,
+            Plan = s.plan,
+            Price = s.price,
+            BillingCycle = s.cycle,
+            Status = s.status,
+            StartsAt = now.AddDays(-30),
+            EndsAt = now.AddDays(335),
+            AutoRenew = true,
+            CreatedAt = now.AddDays(-30),
+        }).ToList();
+
+        db.Subscriptions.AddRange(subscriptions);
         db.SaveChanges();
     }
 

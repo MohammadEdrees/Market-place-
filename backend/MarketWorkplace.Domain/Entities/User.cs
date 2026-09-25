@@ -39,4 +39,7 @@ public class User
 
     /// <summary>When the account was created (UTC) — powers the dashboard's user statistics.</summary>
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>Subscriptions purchased by this account.</summary>
+    public ICollection<Subscription> Subscriptions { get; set; } = new List<Subscription>();
 }

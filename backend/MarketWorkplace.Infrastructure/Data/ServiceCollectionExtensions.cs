@@ -28,6 +28,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IServiceRepository, ServiceRepository>();
         services.AddScoped<IRoleRepository, RoleRepository>();
+        services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
 
         // Image file storage (wwwroot); IImageStore is what the application services consume.
         services.AddTransient<ImageStore>();
