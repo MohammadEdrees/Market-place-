@@ -16,6 +16,7 @@ API documentation (Swagger UI): **http://localhost:5240/swagger**
 - SQL Server (Developer/Express/LocalDB) — the connection string lives in
   `backend/MarketWorkplace.Api/appsettings.json` (`ConnectionStrings:MarketDb`); the database
   is created automatically on first run.
+- Flutter stable (3.47.5 verified) — only needed for the mobile app in `mobile/`.
 
 ## Running
 
@@ -29,12 +30,18 @@ dotnet run --project backend/MarketWorkplace.Api/MarketWorkplace.Api.csproj
 cd frontend
 npm install        # first time only
 npm start
+
+# Terminal 3 — mobile app (optional)
+cd mobile
+flutter pub get    # first time only
+flutter run        # with an emulator/device connected
 ```
 
 Open http://localhost:4200 — you'll be redirected to the **sign-in page**; the dev server
 proxies `/api/*` to the API via `frontend/proxy.conf.json`, so no CORS configuration is needed
 during development. CORS is nevertheless enabled on the API for `localhost:4200`–`4201` in case
-you call it directly.
+you call it directly. The mobile app talks to the API directly (see
+[Mobile app (Flutter)](#mobile-app-flutter) for the base-URL switch).
 
 ## Authentication (JWT)
 
@@ -264,6 +271,63 @@ To hide the docs in an environment, set the kill switch in `backend/MarketWorkpl
   round-trip; the session survives reloads until the token expires.
 - Sidebar/topbar shell with the signed-in user's name/role and a sign-out button, light **and**
   dark theme (both persisted in `localStorage`).
+
+## Mobile app (Flutter)
+
+`mobile/` is a Flutter app (Android + iOS, Material 3) for the marketplace journey:
+**browse → buy/reserve → track orders**, plus everything a provider needs to run their
+listings from a phone. It talks to the same .NET API as the dashboard.
+
+- **Stack** — Flutter 3.47 / Dart 3.13, **Riverpod** (state), **go_router** (navigation +
+  auth/role redirects), **dio** (HTTP), `shared_preferences` (session persistence),
+  `image_picker` (avatars & gallery uploads), `intl` (en-US money/date formatting).
+- **Code layout** — `lib/core/` (API client with bearer/401 interceptor and problem-details
+  error mapping, session store, router, shell, theme, shared widgets) and
+  `lib/features/` (`auth`, `catalog`, `orders`, `listings`, `profile`).
+
+### Features
+
+- **Sign in / register** — JWT session restored on launch and persisted across restarts;
+  register as **Client** or **Provider** (dashboard roles are refused with a clear message);
+  a `401` anywhere drops the session and returns to the sign-in screen.
+- **Browse** — paged product and service lists with search, category chips, infinite scroll,
+  pull-to-refresh, and detail pages with a swipeable **image gallery**, en-US prices
+  (`$1,234.50`) and stock/status badges.
+- **Buy / reserve** — confirmation dialog → `POST /api/orders`; out-of-stock products and
+  inactive services are disabled, and a provider sees *Edit listing* instead of *Buy* on
+  their own items.
+- **Orders** — history with search, kind chips and a status filter; providers open an order
+  sheet that offers the allowed status transitions (`Processing/Confirmed/Completed/Cancelled/
+  Reserved/Refunded`) for incoming orders they manage.
+- **My listings** (providers only, hidden from clients in both the nav and the router) —
+  tabbed products/services with create/edit/delete forms that mirror the API's validation
+  rules, plus a **gallery editor**: pick photos → `multipart` upload → remove.
+- **Profile** — view/edit name, phone, location and bio (`PUT /api/users/me`, empty =
+  clear), avatar upload/replace/remove, sign out.
+
+### Configuration
+
+The API base URL is a compile-time define, default `http://localhost:5240`:
+
+```powershell
+cd mobile
+flutter run                                          # simulator/emulator on this machine
+flutter run --dart-define=API_BASE=http://10.0.2.2:5240        # Android emulator → host
+flutter run --dart-define=API_BASE=http://192.168.1.50:5240     # physical device → host LAN IP
+```
+
+Android is configured for plain-HTTP dev traffic (`usesCleartextTraffic`) and iOS allows
+local networking in `ios/Runner/Info.plist` — swap both for ATS/HTTPS before a production
+release.
+
+### Verification
+
+```powershell
+cd mobile
+flutter analyze    # 0 issues
+flutter test       # 46 tests: repositories (mocked Dio), session store, formatters,
+                   # router role tabs, login flow and catalogue widget tests
+```
 
 ## Architecture (n-tier)
 
