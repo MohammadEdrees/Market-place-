@@ -100,7 +100,7 @@ shared `Access` rules keep working as before.
 | `GET`    | `/api/dashboard`             | Metrics, 12-month revenue trend, category split, recent orders, low-stock count |
 | `GET`    | `/api/dashboard/revenue-trend` | Revenue + order count per month                   |
 | `GET`    | `/api/products`              | Paged products (`?search=…&category=…&sellerId=…&page=…&pageSize=…&sortBy=…&sortDir=…`) |
-| `GET`    | `/api/products/categories`   | Distinct categories                                |
+| `GET`    | `/api/products/categories`   | Managed product category names (filter chips/forms) |
 | `GET`    | `/api/products/mine`         | The caller's own product listings                  |
 | `GET`    | `/api/products/{id}`         | Single product                                     |
 | `POST`   | `/api/products`              | Create (Provider/dashboard admin; validated, `400` with field errors) |
@@ -109,7 +109,7 @@ shared `Access` rules keep working as before.
 | `POST`   | `/api/products/{id}/images`  | Upload gallery images (multipart `files`, owner/admin; png/jpg/webp/gif ≤ 5 MB, max 10) |
 | `DELETE` | `/api/products/{id}/images/{imageId}` | Remove one gallery image (`204`/`404`)    |
 | `GET`    | `/api/services`              | Paged services (`?search=…&category=…&providerId=…&page=…&pageSize=…&sortBy=…&sortDir=…`) |
-| `GET`    | `/api/services/categories`   | Distinct service categories                        |
+| `GET`    | `/api/services/categories`   | Managed service category names                     |
 | `GET`    | `/api/services/mine`         | The caller's own services                          |
 | `GET`    | `/api/services/{id}`         | Single service                                     |
 | `POST`   | `/api/services`              | Create a service (cost, contact, location, offers) |
@@ -134,6 +134,18 @@ shared `Access` rules keep working as before.
 | `POST`   | `/api/roles`                 | Create a role (SuperAdmin/Admin/Manager; `201`/`400`/`409`/`403`) |
 | `PUT`    | `/api/roles/{id}`            | Rename/re-describe a role (SuperAdmin/Admin/Manager; `200`/`400`/`404`/`409`/`403`) |
 | `DELETE` | `/api/roles/{id}`            | Delete an unused role (`204`/`404`; `409` while accounts still hold it; `403`) |
+| `GET`    | `/api/categories`            | Managed categories with live listing counts (`?kind=Product|Service`; Product kind first, then name) |
+| `GET`    | `/api/categories/{id}`       | One category (`200`/`404`)                         |
+| `POST`   | `/api/categories`            | Create a category (admin; `201`/`400`/`409` duplicate per kind/`403`) |
+| `PUT`    | `/api/categories/{id}`       | Rename a category — cascades to existing listings (admin; `200`/`400`/`404`/`409`/`403`) |
+| `DELETE` | `/api/categories/{id}`       | Delete an unused category (`204`/`404`; `409` while listings still use it; `403`) |
+| `GET`    | `/api/advertisements`        | Every slide in display order (`sortOrder`, then id) — the dashboard table |
+| `GET`    | `/api/advertisements/active` | Slides live in the mobile slider (enabled and inside their schedule window) |
+| `GET`    | `/api/advertisements/{id}`   | One slide (`200`/`404`)                            |
+| `POST`   | `/api/advertisements`        | Create a slide (admin; `201`/`400` title + schedule validation/`403`) |
+| `PUT`    | `/api/advertisements/{id}`   | Update title/subtitle/target/schedule/order (admin; `200`/`400`/`404`/`403`) |
+| `DELETE` | `/api/advertisements/{id}`   | Delete a slide and its banner file (`204`/`404`/`403`) |
+| `POST`   | `/api/advertisements/{id}/image` | Upload/replace the banner (admin; multipart `file`, png/jpg/webp/gif ≤ 5 MB; the old file is removed) |
 
 All rows except `POST /api/auth/login` and `POST /api/auth/register` return `401` without a
 valid bearer token; listing and management operations additionally enforce the role rules
@@ -263,6 +275,18 @@ To hide the docs in an environment, set the kill switch in `backend/MarketWorkpl
   to: a table of name, description and account count backed by `GET /api/roles`, with a shared
   create/edit dialog and confirm-to-delete. A role still held by accounts is refused by the
   API (`409`), and the page surfaces the returned message so you can reassign first.
+- **Categories** (`/categories`) — the managed category list behind every filter chip and
+  form dropdown: a Products/Services switcher (`?kind=`) over a table of name, kind, live
+  listing count and creation date, with add/rename dialogs and confirm-to-delete. Renames
+  cascade to existing listings server-side; a category still in use is refused (`409`) with
+  the returned message shown as a toast. Write actions are shown to admins only.
+- **Advertisements** (`/advertisements`) — the slides behind the mobile home slider:
+  a table with thumbnail, title, a computed status chip (Live/Scheduled/Expired/Off),
+  schedule window and display order, plus create/edit dialog (title, subtitle, target
+  `product/{id}`/`service/{id}`/URL, sort order, active flag, start/end with time), inline
+  enable/disable toggle, **image upload with local preview** (multipart `file`, replaces the
+  previous banner) and confirm-to-delete. `GET /api/advertisements/active` is what the
+  Flutter app renders.
 - **Search** — every list page (Products, Services, Orders, Users) binds its search box to an
   RxJS pipeline (`valueChanges → debounceTime(300) → map(trim) → distinctUntilChanged →
   switchMap`): keystrokes coalesce into a single backend request, stale responses are
@@ -293,6 +317,11 @@ listings from a phone. It talks to the same .NET API as the dashboard.
 - **Browse** — paged product and service lists with search, category chips, infinite scroll,
   pull-to-refresh, and detail pages with a swipeable **image gallery**, en-US prices
   (`$1,234.50`) and stock/status badges.
+- **Advertisement slider** — the Products page opens with an auto-rotating, swipeable banner
+  carousel fed by `GET /api/advertisements/active` (page dots; `product/{id}` / `service/{id}`
+  targets open the matching detail page). It hides itself while loading, when no slide is
+  active and on request failures, and falls back to a themed gradient card when a slide has
+  no image or its image fails to load.
 - **Buy / reserve** — confirmation dialog → `POST /api/orders`; out-of-stock products and
   inactive services are disabled, and a provider sees *Edit listing* instead of *Buy* on
   their own items.
@@ -301,7 +330,8 @@ listings from a phone. It talks to the same .NET API as the dashboard.
   Reserved/Refunded`) for incoming orders they manage.
 - **My listings** (providers only, hidden from clients in both the nav and the router) —
   tabbed products/services with create/edit/delete forms that mirror the API's validation
-  rules, plus a **gallery editor**: pick photos → `multipart` upload → remove.
+  rules — including a **category dropdown fed by the managed category list** — plus a
+  **gallery editor**: pick photos → `multipart` upload → remove.
 - **Profile** — view/edit name, phone, location and bio (`PUT /api/users/me`, empty =
   clear), avatar upload/replace/remove, sign out.
 
@@ -325,8 +355,8 @@ release.
 ```powershell
 cd mobile
 flutter analyze    # 0 issues
-flutter test       # 46 tests: repositories (mocked Dio), session store, formatters,
-                   # router role tabs, login flow and catalogue widget tests
+flutter test       # 57 tests: repositories (mocked Dio), session store, formatters,
+                   # router role tabs, login flow, catalogue + advertisement slider widgets
 ```
 
 ## Architecture (n-tier)
@@ -335,7 +365,7 @@ flutter test       # 46 tests: repositories (mocked Dio), session store, formatt
 
 | Project            | Contains                                                                                                                                                                            |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `MarketWorkplace.Domain`         | Entities only (`User`, `Product`, `Service`, `Order`, `ListingImage`, `Role`) — no dependencies.                                                                    |
+| `MarketWorkplace.Domain`         | Entities only (`User`, `Product`, `Service`, `Order`, `ListingImage`, `Role`, `Category`, `Advertisement`) — no dependencies.                                    |
 | `MarketWorkplace.Application`    | DTOs, application services (`AuthService`, `UsersService`, `ProductsService`, `ServicesService`, `OrdersService`, `DashboardService`, `RolesService`) that return the exact HTTP results the controllers delegate to, repository interfaces, `Access` rules, `PasswordHasher`, `ITokenService`, `IImageStore`. |
 | `MarketWorkplace.Infrastructure` | `MarketDbContext`, `DbInitializer` + migrations, repository implementations (`EfRepository<T>`, `UserRepository`, `RoleRepository`, …), `ImageStore`, `PlaceholderPng`, and the `AddInfrastructure()` DI wiring. |
 | `MarketWorkplace.Api`           | Thin controllers (attributes, XML docs, ModelState checks, delegation), `TokenService`, Swagger setup, `Program.cs` — the composition root calling `AddApplication()` + `AddInfrastructure()`. |

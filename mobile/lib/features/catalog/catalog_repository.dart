@@ -208,6 +208,18 @@ class CatalogRepository {
   Future<void> deleteService(int id) =>
       guardApi(() => _dio.delete<void>('/api/services/$id'));
 
+  // ----------------------------------------------------------- advertisements
+
+  /// Active advertisement slides, ordered by `sortOrder`.
+  Future<List<Advertisement>> activeAdvertisements() => guardApi(() async {
+        final response =
+            await _dio.get<List<dynamic>>('/api/advertisements/active');
+        return (response.data ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .map(Advertisement.fromJson)
+            .toList();
+      });
+
   // ----------------------------------------------------------------- galleries
 
   /// Uploads one gallery image (`multipart/form-data`, field `file`).

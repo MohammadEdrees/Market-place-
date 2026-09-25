@@ -1,0 +1,132 @@
+<section class="page">
+  <div class="page-head">
+    <div>
+      <h2>Categories</h2>
+      <p>
+        {{ categories().length }} {{ kind() === 'Product' ? 'product' : 'service' }} categories ·
+        shared with the listing forms and the mobile app
+      </p>
+    </div>
+    <div class="toolbar">
+      <p-selectbutton
+        [options]="kindOptions"
+        [allowEmpty]="false"
+        [ngModel]="kind()"
+        (ngModelChange)="onKind($event)"
+      />
+      @if (canManage()) {
+        <p-button label="Add category" icon="pi pi-plus" (onClick)="openCreate()" />
+      }
+    </div>
+  </div>
+
+  <div class="panel">
+    @if (loadedOnce()) {
+      <p-table
+        [value]="categories()"
+        styleClass="data-table"
+        [loading]="loading()"
+        [tableStyle]="{ 'min-width': '46rem' }"
+      >
+        <ng-template #header>
+          <tr>
+            <th pSortableColumn="name">Name <p-sortIcon field="name" /></th>
+            <th>Kind</th>
+            <th pSortableColumn="listingCount">Listings <p-sortIcon field="listingCount" /></th>
+            <th pSortableColumn="createdAt">Added <p-sortIcon field="createdAt" /></th>
+            <th style="width: 7rem">Actions</th>
+          </tr>
+        </ng-template>
+
+        <ng-template #body let-category>
+          <tr>
+            <td><span class="cell-title">{{ category.name }}</span></td>
+            <td>
+              <p-tag
+                [value]="category.kind"
+                [severity]="kindSeverity(category.kind)"
+              />
+            </td>
+            <td class="mono">{{ category.listingCount }}</td>
+            <td class="muted">{{ category.createdAt | date: 'MMM d, y' }}</td>
+            <td>
+              @if (canManage()) {
+                <div class="row-actions">
+                  <p-button
+                    icon="pi pi-pencil"
+                    [text]="true"
+                    [rounded]="true"
+                    severity="secondary"
+                    pTooltip="Rename category"
+                    (onClick)="openEdit(category)"
+                  />
+                  <p-button
+                    icon="pi pi-trash"
+                    [text]="true"
+                    [rounded]="true"
+                    severity="danger"
+                    pTooltip="Delete category"
+                    (onClick)="confirmDelete(category)"
+                  />
+                </div>
+              }
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template #emptymessage>
+          <tr>
+            <td colspan="5" class="empty-row">
+              No {{ kind() === 'Product' ? 'product' : 'service' }} categories yet.
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    } @else {
+      <div class="skeleton-rows">
+        @for (row of [1, 2, 3, 4, 5]; track row) {
+          <p-skeleton height="2.5rem" />
+        }
+      </div>
+    }
+  </div>
+
+  <p-dialog
+    [header]="title()"
+    [(visible)]="dialogVisible"
+    [modal]="true"
+    styleClass="category-dialog"
+    [style]="{ width: '30rem' }"
+  >
+    <div class="form-grid">
+      <div class="field field-full">
+        <label for="c-name">Name</label>
+        <input id="c-name" pInputText type="text" [(ngModel)]="draft.name" placeholder="e.g. Electronics" />
+        @if (editingId()) {
+          <span class="field-hint">
+            Renaming updates every product and service already using this category — including the
+            names shown in the mobile app.
+          </span>
+        } @else {
+          <span class="field-hint">
+            Names are shared with the product/service forms and the mobile app — pick one customers
+            will recognize.
+          </span>
+        }
+      </div>
+    </div>
+
+    <ng-template #footer>
+      <p-button label="Cancel" [text]="true" severity="secondary" (onClick)="dialogVisible.set(false)" />
+      <p-button
+        [label]="saving() ? 'Saving…' : editingId() ? 'Save name' : 'Create category'"
+        icon="pi pi-check"
+        (onClick)="save()"
+        [loading]="saving()"
+      />
+    </ng-template>
+  </p-dialog>
+
+  <p-toast />
+  <p-confirmDialog />
+</section>

@@ -1,0 +1,269 @@
+<section class="page">
+  <div class="page-head">
+    <div>
+      <h2>Advertisements</h2>
+      <p>{{ ads().length }} banners · ordered by sort order, shown in the mobile app</p>
+    </div>
+    <div class="toolbar">
+      @if (canManage()) {
+        <p-button label="New advertisement" icon="pi pi-plus" (onClick)="openCreate()" />
+      }
+    </div>
+  </div>
+
+  <div class="panel">
+    @if (loadedOnce()) {
+      <p-table
+        [value]="ads()"
+        styleClass="data-table"
+        [loading]="loading()"
+        [tableStyle]="{ 'min-width': '62rem' }"
+      >
+        <ng-template #header>
+          <tr>
+            <th pSortableColumn="title">Advertisement <p-sortIcon field="title" /></th>
+            <th>Status</th>
+            <th>Schedule</th>
+            <th pSortableColumn="sortOrder">Order <p-sortIcon field="sortOrder" /></th>
+            <th style="width: 11rem">Actions</th>
+          </tr>
+        </ng-template>
+
+        <ng-template #body let-ad>
+          <tr>
+            <td>
+              <div class="name-cell">
+                @if (imageSrc(ad); as src) {
+                  <img class="row-thumb" [src]="src" [alt]="ad.title" (click)="openImage(src)" />
+                } @else {
+                  <span class="row-thumb row-thumb-empty" aria-hidden="true"><i class="pi pi-image"></i></span>
+                }
+                <span class="name-meta">
+                  <span class="cell-title">{{ ad.title }}</span>
+                  <span class="cell-sub">{{ ad.subtitle || ad.targetUrl || '—' }}</span>
+                </span>
+              </div>
+            </td>
+            <td>
+              <p-tag [value]="statusLabel(ad)" [severity]="statusSeverity(ad)" />
+            </td>
+            <td class="muted">
+              @if (!ad.startsAt && !ad.endsAt) {
+                <span>Always</span>
+              } @else {
+                <div class="schedule">
+                  @if (ad.startsAt) {
+                    <span>From <strong>{{ ad.startsAt | date: 'MMM d, y, h:mm a' }}</strong></span>
+                  }
+                  @if (ad.endsAt) {
+                    <span>Until <strong>{{ ad.endsAt | date: 'MMM d, y, h:mm a' }}</strong></span>
+                  }
+                </div>
+              }
+            </td>
+            <td class="mono">{{ ad.sortOrder }}</td>
+            <td>
+              @if (canManage()) {
+                <div class="row-actions">
+                  <p-button
+                    icon="pi pi-pencil"
+                    [text]="true"
+                    [rounded]="true"
+                    severity="secondary"
+                    pTooltip="Edit advertisement"
+                    (onClick)="openEdit(ad)"
+                  />
+                  <p-button
+                    [icon]="uploadingId() === ad.id ? 'pi pi-spin pi-spinner' : 'pi pi-image'"
+                    [text]="true"
+                    [rounded]="true"
+                    severity="secondary"
+                    [disabled]="uploadingId() !== null"
+                    pTooltip="Replace image"
+                    (onClick)="replaceImage(ad)"
+                  />
+                  <p-toggleswitch
+                    [ngModel]="ad.isActive"
+                    (ngModelChange)="toggleActive(ad, $event)"
+                    [readonly]="togglingId() !== null"
+                    ariaLabel="Enable or disable advertisement"
+                    pTooltip="Enable / disable"
+                  />
+                  <p-button
+                    icon="pi pi-trash"
+                    [text]="true"
+                    [rounded]="true"
+                    severity="danger"
+                    pTooltip="Delete advertisement"
+                    (onClick)="confirmDelete(ad)"
+                  />
+                </div>
+              }
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template #emptymessage>
+          <tr>
+            <td colspan="5" class="empty-row">No advertisements yet.</td>
+          </tr>
+        </ng-template>
+      </p-table>
+    } @else {
+      <div class="skeleton-rows">
+        @for (row of [1, 2, 3, 4, 5]; track row) {
+          <p-skeleton height="2.5rem" />
+        }
+      </div>
+    }
+
+    <input
+      type="file"
+      #replaceInput
+      hidden
+      accept="image/png,image/jpeg,image/webp,image/gif"
+      (change)="onRowFileSelected($event)"
+    />
+  </div>
+
+  <p-dialog
+    [header]="title()"
+    [(visible)]="dialogVisible"
+    [modal]="true"
+    styleClass="ad-dialog"
+    [style]="{ width: '36rem' }"
+  >
+    <div class="form-grid">
+      <div class="field field-full">
+        <label for="a-title">Title</label>
+        <input
+          id="a-title"
+          pInputText
+          type="text"
+          [(ngModel)]="draft.title"
+          placeholder="e.g. Summer sale — up to 40% off"
+        />
+      </div>
+
+      <div class="field field-full">
+        <label for="a-subtitle">Subtitle</label>
+        <input
+          id="a-subtitle"
+          pInputText
+          type="text"
+          [(ngModel)]="draft.subtitle"
+          placeholder="Short line under the title (optional)"
+        />
+      </div>
+
+      <div class="field field-full">
+        <label for="a-target">Target</label>
+        <input
+          id="a-target"
+          pInputText
+          type="text"
+          [(ngModel)]="draft.targetUrl"
+          placeholder="product/{id} · service/{id} · https://…"
+        />
+        <span class="field-hint">
+          In-app targets (product/12, service/3) open a listing; absolute https:// URLs open
+          outside the app. Leave empty for no link.
+        </span>
+      </div>
+
+      <div class="field">
+        <label for="a-order">Sort order</label>
+        <p-inputnumber id="a-order" [min]="0" [useGrouping]="false" [(ngModel)]="draft.sortOrder" />
+      </div>
+
+      <div class="field">
+        <label for="a-active">Active</label>
+        <div class="switch-row">
+          <p-toggleswitch id="a-active" [(ngModel)]="draft.isActive" ariaLabel="Advertisement active" />
+          <span class="field-hint">
+            {{ draft.isActive ? 'Visible when the schedule allows' : 'Hidden regardless of schedule' }}
+          </span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="a-starts">Starts</label>
+        <p-datepicker
+          id="a-starts"
+          [(ngModel)]="draft.startsAt"
+          placeholder="Immediately"
+          [showTime]="true"
+          [hourFormat]="'12'"
+          [showClear]="true"
+          [readonlyInput]="true"
+          appendTo="body"
+        />
+      </div>
+
+      <div class="field">
+        <label for="a-ends">Ends</label>
+        <p-datepicker
+          id="a-ends"
+          [(ngModel)]="draft.endsAt"
+          placeholder="No end"
+          [showTime]="true"
+          [hourFormat]="'12'"
+          [showClear]="true"
+          [readonlyInput]="true"
+          appendTo="body"
+        />
+        <span class="field-hint">Must be after Starts — clear the field to remove the bound.</span>
+      </div>
+
+      <div class="field field-full">
+        <label>Image</label>
+        <div class="gallery">
+          @if (pendingImage(); as pending) {
+            <div class="gallery-item">
+              <img [src]="pending.url" [alt]="pending.file.name" />
+              <button
+                type="button"
+                class="gallery-remove"
+                aria-label="Remove image"
+                (click)="clearPendingImage()"
+              >
+                <i class="pi pi-times"></i>
+              </button>
+            </div>
+          }
+          @if (existingImage(); as current) {
+            <div class="gallery-item">
+              <img [src]="current" alt="Current image" (click)="openImage(current)" />
+            </div>
+          }
+          <label class="gallery-add">
+            <i class="pi pi-image"></i>
+            <span>Choose image</span>
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              aria-label="Choose image"
+              (change)="onDialogFileSelected($event)"
+            />
+          </label>
+        </div>
+        <span class="field-hint">
+          PNG, JPG, WEBP or GIF up to 5 MB — on save it replaces the current image.
+        </span>
+      </div>
+    </div>
+
+    <ng-template #footer>
+      <p-button label="Cancel" [text]="true" severity="secondary" (onClick)="dialogVisible.set(false)" />
+      <p-button
+        [label]="saving() ? 'Saving…' : editingId() ? 'Save advertisement' : 'Create advertisement'"
+        icon="pi pi-check"
+        (onClick)="save()"
+        [loading]="saving()"
+      />
+    </ng-template>
+  </p-dialog>
+
+  <p-toast />
+  <p-confirmDialog />
+</section>

@@ -7,6 +7,7 @@ import '../../core/format/formatters.dart';
 import '../../core/widgets/listing_image.dart';
 import '../../core/widgets/state_views.dart';
 import '../../core/widgets/status_badge.dart';
+import 'advertisement_slider.dart';
 import 'catalog_repository.dart';
 import 'models.dart';
 
@@ -134,6 +135,10 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                 ),
               ),
             ),
+          ),
+          const Padding(
+            padding: EdgeInsets.only(top: 4),
+            child: AdvertisementSlider(),
           ),
           if (_categories.isNotEmpty)
             SizedBox(

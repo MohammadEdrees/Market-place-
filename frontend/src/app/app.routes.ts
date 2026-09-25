@@ -43,6 +43,20 @@ export const routes: Routes = [
           import('./features/orders/orders.component').then((m) => m.OrdersComponent),
       },
       {
+        path: 'categories',
+        title: 'Categories · Market Workplace',
+        data: { breadcrumb: 'Categories' },
+        loadComponent: () =>
+          import('./features/categories/categories.component').then((m) => m.CategoriesComponent),
+      },
+      {
+        path: 'advertisements',
+        title: 'Advertisements · Market Workplace',
+        data: { breadcrumb: 'Advertisements' },
+        loadComponent: () =>
+          import('./features/advertisements/advertisements.component').then((m) => m.AdvertisementsComponent),
+      },
+      {
         path: 'users',
         title: 'Users · Market Workplace',
         data: { breadcrumb: 'Users' },

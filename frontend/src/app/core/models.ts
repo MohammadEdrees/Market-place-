@@ -221,6 +221,30 @@ export interface RoleInput {
   description?: string | null;
 }
 
+/** The kind a managed category belongs to — product and service names live in separate pools. */
+export type CategoryKind = 'Product' | 'Service';
+
+/** A managed category as returned by `GET /api/categories` (Product-kind first, then name A→Z). */
+export interface Category {
+  id: number;
+  name: string;
+  kind: CategoryKind;
+  /** Products/services currently using the category — deletes are rejected while > 0. */
+  listingCount: number;
+  createdAt: string;
+}
+
+/** Payload for `POST /api/categories` — name unique per kind (case-insensitive, 409 otherwise). */
+export interface CategoryInput {
+  name: string;
+  kind: CategoryKind;
+}
+
+/** Payload for `PUT /api/categories/{id}` — rename only; the kind is immutable. */
+export interface CategoryRenameInput {
+  name: string;
+}
+
 /** One image in a listing gallery, stored under the API's `wwwroot/images`. */
 export interface ListingImage {
   id: number;
@@ -249,4 +273,41 @@ export interface LoginResponse {
   token: string;
   expiresAt: string;
   user: AuthUser;
+}
+
+/**
+ * A homepage/promo advertisement as returned by `GET /api/advertisements`
+ * (ordered by `sortOrder` then id).
+ */
+export interface Advertisement {
+  id: number;
+  title: string;
+  subtitle: string | null;
+  /** Absolute URL of the image served by the API (`null` when the ad has no image). */
+  imagePath: string | null;
+  /** `product/{id}` · `service/{id}` (in-app) · an absolute `https://…` URL · or empty. */
+  targetUrl: string | null;
+  isActive: boolean;
+  /** ISO 8601 schedule bounds; `null` means unbounded on that side. */
+  startsAt: string | null;
+  endsAt: string | null;
+  sortOrder: number;
+  createdAt: string;
+  /** Server-computed: `isActive` and inside the schedule window. */
+  activeNow: boolean;
+}
+
+/**
+ * Payload for `POST /api/advertisements` / `PUT /api/advertisements/{id}`.
+ * `endsAt` must be after `startsAt` when both are set (400 otherwise).
+ */
+export interface AdvertisementInput {
+  title: string;
+  subtitle: string | null;
+  targetUrl: string | null;
+  isActive: boolean;
+  /** ISO 8601 timestamps; `null` clears the bound. */
+  startsAt: string | null;
+  endsAt: string | null;
+  sortOrder: number;
 }

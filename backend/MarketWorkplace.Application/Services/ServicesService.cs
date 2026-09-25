@@ -10,7 +10,7 @@ using static MarketWorkplace.Application.Common.ServiceResults;
 namespace MarketWorkplace.Application.Services;
 
 /// <summary>Service listing CRUD (backs <c>ServicesController</c>).</summary>
-public class ServicesService(IServiceRepository serviceList, IImageStore images, IRepository<ListingImage> listingImages)
+public class ServicesService(IServiceRepository serviceList, IImageStore images, IRepository<ListingImage> listingImages, IRepository<Category> categories)
 {
     /// <summary>Lists one page of services with optional filters and sorting.</summary>
     public ActionResult<PagedResponse<Service>> GetAll(
@@ -80,9 +80,16 @@ public class ServicesService(IServiceRepository serviceList, IImageStore images,
         return service is null ? NotFound() : Ok(service);
     }
 
-    /// <summary>Distinct categories across all services, used to populate filter dropdowns.</summary>
+    /// <summary>Managed service categories, used to populate filter dropdowns and the forms.</summary>
+    /// <remarks>Served from the category list (kept in sync with listings at startup), so a
+    /// category added from the dashboard appears even before any service carries it.</remarks>
     public ActionResult<IEnumerable<string>> GetCategories() =>
-        Ok(serviceList.QueryReadOnly().AsEnumerable().Select(s => s.Category).Distinct().OrderBy(c => c));
+        Ok(categories.QueryReadOnly()
+            .Where(c => c.Kind == Category.ServiceKind)
+            .AsEnumerable()
+            .Select(c => c.Name)
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .ToList());
 
     /// <summary>The caller's own service listings.</summary>
     public ActionResult<IEnumerable<Service>> GetMine(ClaimsPrincipal caller)
@@ -119,6 +126,9 @@ public class ServicesService(IServiceRepository serviceList, IImageStore images,
 
         serviceList.Add(created);
         serviceList.SaveChanges();
+
+        // A category typed straight into the form joins the managed list immediately.
+        CategorySync.EnsureExists(categories, created.Category, Category.ServiceKind);
 
         return CreatedAtAction("GetById", new { id = created.Id }, created);
     }
@@ -232,6 +242,7 @@ public class ServicesService(IServiceRepository serviceList, IImageStore images,
         service.Location = input.Location.Trim();
         service.Offers = input.Offers.Trim();
         serviceList.SaveChanges();
+        CategorySync.EnsureExists(categories, service.Category, Category.ServiceKind);
 
         return Ok(service);
     }

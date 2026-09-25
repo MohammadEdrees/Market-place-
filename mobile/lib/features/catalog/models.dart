@@ -115,6 +115,55 @@ class Service {
       );
 }
 
+/// One promotional slide from `/api/advertisements/active`.
+class Advertisement {
+  const Advertisement({
+    required this.id,
+    required this.title,
+    this.subtitle = '',
+    this.imagePath,
+    this.targetUrl,
+    this.isActive = true,
+    this.startsAt,
+    this.endsAt,
+    this.sortOrder = 0,
+    this.createdAt,
+    this.activeNow = true,
+  });
+
+  final int id;
+  final String title;
+  final String subtitle;
+
+  /// Absolute URL or a path starting with `/`; `null` when the slide is
+  /// text-only and the app draws its own gradient background.
+  final String? imagePath;
+
+  /// `product/{id}`, `service/{id}`, an absolute https URL, or `null`.
+  final String? targetUrl;
+
+  final bool isActive;
+  final DateTime? startsAt;
+  final DateTime? endsAt;
+  final int sortOrder;
+  final DateTime? createdAt;
+  final bool activeNow;
+
+  factory Advertisement.fromJson(Map<String, dynamic> json) => Advertisement(
+        id: (json['id'] as num?)?.toInt() ?? 0,
+        title: json['title'] as String? ?? '',
+        subtitle: json['subtitle'] as String? ?? '',
+        imagePath: json['imagePath'] as String?,
+        targetUrl: json['targetUrl'] as String?,
+        isActive: json['isActive'] as bool? ?? true,
+        startsAt: DateTime.tryParse(json['startsAt'] as String? ?? ''),
+        endsAt: DateTime.tryParse(json['endsAt'] as String? ?? ''),
+        sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 0,
+        createdAt: DateTime.tryParse(json['createdAt'] as String? ?? ''),
+        activeNow: json['activeNow'] as bool? ?? true,
+      );
+}
+
 /// Envelope returned by every paged list endpoint.
 class PagedResponse<T> {
   const PagedResponse({

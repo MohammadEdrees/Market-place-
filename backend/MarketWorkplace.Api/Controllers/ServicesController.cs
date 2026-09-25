@@ -50,8 +50,8 @@ public class ServicesController(ServicesService servicesService) : ControllerBas
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public ActionResult<Service> GetById(int id) => servicesService.GetById(id);
 
-    /// <summary>Distinct categories across all services, used to populate filter dropdowns.</summary>
-    /// <returns>Category names in alphabetical order.</returns>
+    /// <summary>Managed service category names, used to populate filter dropdowns.</summary>
+    /// <returns>Category names in alphabetical order (from the managed category list).</returns>
     [HttpGet("categories")]
     [ProducesResponseType(typeof(IEnumerable<string>), StatusCodes.Status200OK)]
     public ActionResult<IEnumerable<string>> GetCategories() => servicesService.GetCategories();

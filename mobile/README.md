@@ -1,8 +1,8 @@
 # Market Workplace — mobile app
 
 Flutter client (Android + iOS) for the Market Workplace marketplace: browse products and
-services, buy/reserve, track orders — and for providers, manage listings, galleries and
-order statuses from the phone.
+services behind the home **advertisement slider**, buy/reserve, track orders — and for
+providers, manage listings, galleries and order statuses from the phone.
 
 Built with **Riverpod** (state), **go_router** (navigation + auth/role redirects), **dio**
 (HTTP), **Material 3**.
@@ -40,7 +40,8 @@ lib/
                router (redirects/guards), app shell, theme, shared widgets
   features/
     auth/      login, register, session controller
-    catalog/   products & services: lists, detail pages, gallery, repository
+    catalog/   products & services: lists, detail pages, gallery,
+               advertisement slider, repository
     orders/    order history + provider status management
     listings/  provider CRUD forms + gallery upload
     profile/   profile edit, avatar, sign out

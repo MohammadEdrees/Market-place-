@@ -7,12 +7,21 @@ import 'package:market_workplace/features/catalog/models.dart';
 import 'package:market_workplace/features/catalog/products_page.dart';
 
 class FakeCatalogRepository implements CatalogRepository {
-  FakeCatalogRepository({this.items, this.error, this.categories = const []});
+  FakeCatalogRepository({
+    this.items,
+    this.error,
+    this.categories = const [],
+    this.advertisements = const [],
+  });
 
   /// Products to return; when null the call fails with [error].
   final List<Product>? items;
   final Object? error;
   final List<String> categories;
+
+  /// Advertisement slides to return. Empty by default: the slider stays
+  /// hidden and no `Timer.periodic` can hang `pumpAndSettle`.
+  final List<Advertisement> advertisements;
 
   int productsCalls = 0;
   Map<String, Object?> lastQuery = const {};
@@ -44,6 +53,9 @@ class FakeCatalogRepository implements CatalogRepository {
 
   @override
   Future<List<String>> productCategories() async => categories;
+
+  @override
+  Future<List<Advertisement>> activeAdvertisements() async => advertisements;
 
   @override
   Future<Product> getProduct(int id) => throw UnimplementedError();

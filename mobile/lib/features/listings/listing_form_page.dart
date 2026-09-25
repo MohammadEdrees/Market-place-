@@ -42,7 +42,9 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
   final _location = TextEditingController();
   final _offers = TextEditingController();
 
-  final _category = TextEditingController();
+  /// Selected category; kept in state so the dropdown can stay controlled.
+  String? _category;
+  List<String> _categories = const [];
 
   List<GalleryImage> _images = const [];
   bool _loading = false;
@@ -56,6 +58,7 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
   @override
   void initState() {
     super.initState();
+    _loadCategories();
     if (widget.id != null) _loadExisting();
   }
 
@@ -71,8 +74,32 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
     _contactInfo.dispose();
     _location.dispose();
     _offers.dispose();
-    _category.dispose();
     super.dispose();
+  }
+
+  /// Fills the category dropdown from the managed list — product categories
+  /// for a product, service categories for a service.
+  Future<void> _loadCategories() async {
+    try {
+      final repo = ref.read(catalogRepositoryProvider);
+      final categories = _isProduct
+          ? await repo.productCategories()
+          : await repo.serviceCategories();
+      if (mounted) setState(() => _categories = categories);
+    } catch (_) {
+      // Suggestions only; the dropdown still offers the current value.
+    }
+  }
+
+  /// Fetched categories plus the current value, so an existing listing keeps
+  /// its category selectable even when the API list omits it.
+  List<String> get _categoryOptions {
+    final options = [..._categories];
+    final current = _category;
+    if (current != null && current.isNotEmpty && !options.contains(current)) {
+      options.add(current);
+    }
+    return options;
   }
 
   Future<void> _loadExisting() async {
@@ -86,7 +113,7 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
             await ref.read(catalogRepositoryProvider).getProduct(widget.id!);
         _name.text = product.name;
         _sku.text = product.sku;
-        _category.text = product.category;
+        _category = product.category;
         _price.text = product.price.toString();
         _stock.text = product.stock.toString();
         _images = product.images;
@@ -95,7 +122,7 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
             await ref.read(catalogRepositoryProvider).getService(widget.id!);
         _title.text = service.title;
         _description.text = service.description;
-        _category.text = service.category;
+        _category = service.category;
         _cost.text = service.cost.toString();
         _contactInfo.text = service.contactInfo;
         _location.text = service.location;
@@ -131,7 +158,7 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
           final created = await repo.createProduct(
             name: _name.text.trim(),
             sku: _sku.text.trim(),
-            category: _category.text.trim(),
+            category: _category ?? '',
             price: price,
             stock: stock,
           );
@@ -145,7 +172,7 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
             widget.id!,
             name: _name.text.trim(),
             sku: _sku.text.trim(),
-            category: _category.text.trim(),
+            category: _category ?? '',
             price: price,
             stock: stock,
           );
@@ -162,7 +189,7 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
           final created = await repo.createService(
             title: _title.text.trim(),
             description: _description.text.trim(),
-            category: _category.text.trim(),
+            category: _category ?? '',
             cost: cost,
             contactInfo: _contactInfo.text.trim(),
             location: _location.text.trim(),
@@ -178,7 +205,7 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
             widget.id!,
             title: _title.text.trim(),
             description: _description.text.trim(),
-            category: _category.text.trim(),
+            category: _category ?? '',
             cost: cost,
             contactInfo: _contactInfo.text.trim(),
             location: _location.text.trim(),
@@ -308,6 +335,24 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
     return null;
   }
 
+  /// Category picker populated from the managed list; the current value is
+  /// always among the items so an edit never loses the selection.
+  Widget _categoryField(String hintText) => DropdownButtonFormField<String>(
+        initialValue: _category,
+        isExpanded: true,
+        decoration: InputDecoration(
+          labelText: 'Category',
+          hintText: hintText,
+          border: const OutlineInputBorder(),
+        ),
+        items: [
+          for (final category in _categoryOptions)
+            DropdownMenuItem(value: category, child: Text(category)),
+        ],
+        onChanged: (value) => setState(() => _category = value),
+        validator: (v) => _required(v),
+      );
+
   @override
   Widget build(BuildContext context) {
     final noun = _isProduct ? 'product' : 'service';
@@ -375,20 +420,7 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: _category,
-                    textInputAction: TextInputAction.next,
-                    maxLength: 60,
-                    decoration: const InputDecoration(
-                      labelText: 'Category',
-                      hintText: 'e.g. Electronics',
-                      border: OutlineInputBorder(),
-                      counterText: '',
-                    ),
-                    validator: (v) => _required(v, 60),
-                  ),
-                ),
+                Expanded(child: _categoryField('e.g. Electronics')),
               ],
             ),
             const SizedBox(height: 16),
@@ -452,20 +484,7 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
             const SizedBox(height: 16),
             Row(
               children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _category,
-                    textInputAction: TextInputAction.next,
-                    maxLength: 60,
-                    decoration: const InputDecoration(
-                      labelText: 'Category',
-                      hintText: 'e.g. Repairs',
-                      border: OutlineInputBorder(),
-                      counterText: '',
-                    ),
-                    validator: (v) => _required(v, 60),
-                  ),
-                ),
+                Expanded(child: _categoryField('e.g. Repairs')),
                 const SizedBox(width: 12),
                 Expanded(
                   child: TextFormField(

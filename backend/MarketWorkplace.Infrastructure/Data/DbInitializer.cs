@@ -50,6 +50,11 @@ public static class DbInitializer
 
         db.SaveChanges();
 
+        // The managed category list must exist before the chips/forms read it: it absorbs
+        // every category already typed onto a listing, then the ads can be seeded below.
+        EnsureCategories(db);
+        EnsureAdvertisements(db, imageStore, webRoot);
+
         if (!db.Images.Any())
         {
             SeedImages(db, imageStore, webRoot);
@@ -79,6 +84,88 @@ public static class DbInitializer
         }
 
         return db.Roles.ToDictionary(r => r.Name, r => r, StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Adds every category used by a listing that is missing from the managed list.</summary>
+    /// <remarks>Runs on every startup: it backfills existing databases after an upgrade and
+    /// repairs drift, but never deletes — removal is an explicit dashboard action (and is
+    /// blocked there while listings still use the name).</remarks>
+    private static void EnsureCategories(MarketDbContext db)
+    {
+        var known = db.Categories.AsEnumerable()
+            .Select(c => $"{c.Kind}|{c.Name.ToLowerInvariant()}")
+            .ToHashSet();
+
+        var nextId = db.Categories.Any() ? db.Categories.Max(c => c.Id) + 1 : 1;
+        var added = false;
+
+        foreach (var name in db.Products.AsEnumerable().Select(p => p.Category).Where(n => n.Length > 0).Distinct())
+        {
+            if (known.Add($"{Category.ProductKind}|{name.ToLowerInvariant()}"))
+            {
+                db.Categories.Add(new Category { Id = nextId++, Name = name, Kind = Category.ProductKind });
+                added = true;
+            }
+        }
+
+        foreach (var name in db.Services.AsEnumerable().Select(s => s.Category).Where(n => n.Length > 0).Distinct())
+        {
+            if (known.Add($"{Category.ServiceKind}|{name.ToLowerInvariant()}"))
+            {
+                db.Categories.Add(new Category { Id = nextId++, Name = name, Kind = Category.ServiceKind });
+                added = true;
+            }
+        }
+
+        if (added)
+        {
+            db.SaveChanges();
+        }
+    }
+
+    /// <summary>Seeds three promotional slides (with generated banner art) when the table is empty.</summary>
+    private static void EnsureAdvertisements(MarketDbContext db, ImageStore store, string webRoot)
+    {
+        if (db.Advertisements.Any())
+        {
+            return;
+        }
+
+        var adsDir = Path.Combine(webRoot, "images", "ads");
+        Directory.CreateDirectory(adsDir);
+
+        var now = DateTime.UtcNow;
+        var seed = new (string Title, string Subtitle, string? TargetUrl, int SortOrder)[]
+        {
+            ("Weekend Audio Sale", "Up to 30% off headsets, earbuds and speakers", "product/1", 1),
+            ("Free delivery this month", "On every marketplace order over $50", null, 2),
+            ("Book a consulting session", "Free 15-minute intro call for new businesses", "service/6", 3),
+        };
+
+        var advertisements = new List<Advertisement>(seed.Length);
+        for (var i = 0; i < seed.Length; i++)
+        {
+            var (title, subtitle, targetUrl, sortOrder) = seed[i];
+            var file = $"ad-{i + 1}.png";
+            File.WriteAllBytes(
+                Path.Combine(adsDir, file),
+                PlaceholderPng.Generate(1200, 400, Palette(i * 9 + 5), Palette(i * 9 + 21), i % 3));
+
+            advertisements.Add(new Advertisement
+            {
+                Id = i + 1,
+                Title = title,
+                Subtitle = subtitle,
+                ImagePath = store.ToUrl($"/images/ads/{file}"),
+                TargetUrl = targetUrl,
+                IsActive = true,
+                SortOrder = sortOrder,
+                CreatedAt = now,
+            });
+        }
+
+        db.Advertisements.AddRange(advertisements);
+        db.SaveChanges();
     }
 
     // --- Gallery placeholders ----------------------------------------------

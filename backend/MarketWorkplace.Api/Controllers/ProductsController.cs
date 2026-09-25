@@ -51,8 +51,8 @@ public class ProductsController(ProductsService productsService) : ControllerBas
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public ActionResult<Product> GetById(int id) => productsService.GetById(id);
 
-    /// <summary>Distinct categories across the catalogue, used to populate the table filter.</summary>
-    /// <returns>Category names in alphabetical order.</returns>
+    /// <summary>Managed product category names, used to populate the table filter.</summary>
+    /// <returns>Category names in alphabetical order (from the managed category list).</returns>
     [HttpGet("categories")]
     [ProducesResponseType(typeof(IEnumerable<string>), StatusCodes.Status200OK)]
     public ActionResult<IEnumerable<string>> GetCategories() => productsService.GetCategories();

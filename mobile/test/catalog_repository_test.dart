@@ -190,6 +190,72 @@ void main() {
     });
   });
 
+  group('CatalogRepository.advertisements', () {
+    test('activeAdvertisements hits the active endpoint and parses slides',
+        () async {
+      late RequestOptions captured;
+      final container = containerWith((options, stream) async {
+        captured = options;
+        return jsonResponse([
+          {
+            'id': 1,
+            'title': 'Weekend Audio Sale',
+            'subtitle': 'Up to 30% off headsets, earbuds and speakers',
+            'imagePath': 'http://localhost:5240/images/ads/ad-1.png',
+            'targetUrl': 'product/1',
+            'isActive': true,
+            'startsAt': null,
+            'endsAt': null,
+            'sortOrder': 1,
+            'createdAt': '2026-09-01T00:00:00.000Z',
+            'activeNow': true,
+          },
+          {
+            'id': 2,
+            'title': 'Services Week',
+            'subtitle': null,
+            'imagePath': null,
+            'targetUrl': 'service/7',
+            'isActive': true,
+            'startsAt': null,
+            'endsAt': null,
+            'sortOrder': 2,
+            'createdAt': null,
+            'activeNow': true,
+          },
+        ]);
+      });
+
+      final ads = await container
+          .read(catalogRepositoryProvider)
+          .activeAdvertisements();
+
+      expect(captured.path, '/api/advertisements/active');
+      expect(captured.method, 'GET');
+      expect(ads, hasLength(2));
+
+      final first = ads.first;
+      expect(first.title, 'Weekend Audio Sale');
+      expect(first.subtitle, 'Up to 30% off headsets, earbuds and speakers');
+      expect(first.imagePath, 'http://localhost:5240/images/ads/ad-1.png');
+      expect(first.targetUrl, 'product/1');
+      expect(first.sortOrder, 1);
+      expect(first.isActive, isTrue);
+      expect(first.activeNow, isTrue);
+      expect(first.startsAt, isNull);
+      expect(first.endsAt, isNull);
+      expect(first.createdAt, DateTime.utc(2026, 9, 1));
+
+      // Null-tolerant parsing: absent strings become empty, absent URLs null.
+      final second = ads[1];
+      expect(second.subtitle, '');
+      expect(second.imagePath, isNull);
+      expect(second.targetUrl, 'service/7');
+      expect(second.createdAt, isNull);
+      expect(second.sortOrder, 2);
+    });
+  });
+
   group('CatalogRepository galleries', () {
     test('addListingImage uploads multipart to /api/products/{id}/images',
         () async {

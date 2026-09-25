@@ -48,6 +48,8 @@ export class App {
     { label: 'Products', icon: 'pi pi-box', link: '/products' },
     { label: 'Services', icon: 'pi pi-wrench', link: '/services' },
     { label: 'Orders', icon: 'pi pi-shopping-cart', link: '/orders' },
+    { label: 'Categories', icon: 'pi pi-tags', link: '/categories' },
+    { label: 'Advertisements', icon: 'pi pi-megaphone', link: '/advertisements' },
     { label: 'Users', icon: 'pi pi-users', link: '/users' },
     { label: 'Roles', icon: 'pi pi-key', link: '/roles' },
   ];
@@ -78,6 +80,8 @@ export class App {
           products: 'Products',
           services: 'Services',
           orders: 'Orders',
+          categories: 'Categories',
+          advertisements: 'Advertisements',
           users: 'Users',
           roles: 'Roles',
         };

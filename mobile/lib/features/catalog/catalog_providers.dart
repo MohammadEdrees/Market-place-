@@ -21,3 +21,8 @@ final myProductsProvider = FutureProvider.autoDispose<List<Product>>(
 final myServicesProvider = FutureProvider.autoDispose<List<Service>>(
   (ref) => ref.watch(catalogRepositoryProvider).myServices(),
 );
+
+/// Advertisement slides shown above the category chips on the Products page.
+final activeAdvertisementsProvider = FutureProvider<List<Advertisement>>(
+  (ref) => ref.watch(catalogRepositoryProvider).activeAdvertisements(),
+);

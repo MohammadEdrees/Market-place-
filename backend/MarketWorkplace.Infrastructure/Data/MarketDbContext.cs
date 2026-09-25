@@ -30,6 +30,12 @@ public class MarketDbContext(DbContextOptions<MarketDbContext> options) : DbCont
     /// <summary>Roles assigned to users; managed by the roles CRUD.</summary>
     public DbSet<Role> Roles => Set<Role>();
 
+    /// <summary>Managed category names for product and service listings; managed by the categories CRUD.</summary>
+    public DbSet<Category> Categories => Set<Category>();
+
+    /// <summary>Advertisement slides powering the mobile home slider.</summary>
+    public DbSet<Advertisement> Advertisements => Set<Advertisement>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Product>(entity =>
@@ -100,6 +106,29 @@ public class MarketDbContext(DbContextOptions<MarketDbContext> options) : DbCont
             entity.Property(i => i.Path).IsRequired().HasMaxLength(300);
             entity.HasIndex(i => i.ProductId);
             entity.HasIndex(i => i.ServiceId);
+        });
+
+        modelBuilder.Entity<Category>(entity =>
+        {
+            entity.HasKey(c => c.Id);
+            entity.Property(c => c.Id).ValueGeneratedNever();
+            entity.Property(c => c.Name).IsRequired().HasMaxLength(60);
+            entity.Property(c => c.Kind).IsRequired().HasMaxLength(20);
+            // "Audio" may exist as both a product and a service category — uniqueness is per kind.
+            entity.HasIndex(c => new { c.Name, c.Kind }).IsUnique();
+        });
+
+        modelBuilder.Entity<Advertisement>(entity =>
+        {
+            entity.HasKey(a => a.Id);
+            entity.Property(a => a.Id).ValueGeneratedNever();
+            entity.Property(a => a.Title).IsRequired().HasMaxLength(120);
+            entity.Property(a => a.Subtitle).HasMaxLength(240);
+            entity.Property(a => a.ImagePath).HasMaxLength(300);
+            entity.Property(a => a.TargetUrl).HasMaxLength(300);
+            entity.HasIndex(a => a.IsActive);
+            // ActiveNow is a derived schedule check — computed, never stored.
+            entity.Ignore(a => a.ActiveNow);
         });
 
         // --- Relationships (products related to their provider, orders to buyers/listings) ---

@@ -10,7 +10,7 @@ using static MarketWorkplace.Application.Common.ServiceResults;
 namespace MarketWorkplace.Application.Services;
 
 /// <summary>Product catalogue CRUD (backs <c>ProductsController</c>).</summary>
-public class ProductsService(IProductRepository products, IImageStore images, IRepository<ListingImage> listingImages)
+public class ProductsService(IProductRepository products, IImageStore images, IRepository<ListingImage> listingImages, IRepository<Category> categories)
 {
     /// <summary>Lists one page of products with optional filters and sorting.</summary>
     public ActionResult<PagedResponse<Product>> GetAll(
@@ -90,9 +90,16 @@ public class ProductsService(IProductRepository products, IImageStore images, IR
         return product is null ? NotFound() : Ok(product);
     }
 
-    /// <summary>Distinct categories across the catalogue, used to populate the table filter.</summary>
+    /// <summary>Managed product categories, used to populate the table filter and the forms.</summary>
+    /// <remarks>Served from the category list (kept in sync with listings at startup), so a
+    /// category added from the dashboard appears even before any product carries it.</remarks>
     public ActionResult<IEnumerable<string>> GetCategories() =>
-        Ok(products.QueryReadOnly().AsEnumerable().Select(p => p.Category).Distinct().OrderBy(c => c));
+        Ok(categories.QueryReadOnly()
+            .Where(c => c.Kind == Category.ProductKind)
+            .AsEnumerable()
+            .Select(c => c.Name)
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .ToList());
 
     /// <summary>Creates a product.</summary>
     public ActionResult<Product> Create(ClaimsPrincipal caller, ProductInput input)
@@ -116,6 +123,9 @@ public class ProductsService(IProductRepository products, IImageStore images, IR
 
         products.Add(created);
         products.SaveChanges();
+
+        // A category typed straight into the form joins the managed list immediately.
+        CategorySync.EnsureExists(categories, created.Category, Category.ProductKind);
 
         return CreatedAtAction("GetById", new { id = created.Id }, created);
     }
@@ -228,6 +238,7 @@ public class ProductsService(IProductRepository products, IImageStore images, IR
         product.Price = input.Price;
         product.Stock = input.Stock;
         products.SaveChanges();
+        CategorySync.EnsureExists(categories, product.Category, Category.ProductKind);
 
         return Ok(product);
     }
