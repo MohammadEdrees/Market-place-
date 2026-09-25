@@ -1,0 +1,165 @@
+using MarketWorkplace.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace MarketWorkplace.Infrastructure.Data;
+
+/// <summary>
+/// Entity Framework Core context for the dashboard, mapped Code First to SQL Server
+/// (<c>UseSqlServer</c> with the <c>ConnectionStrings:MarketDb</c> setting). The schema is
+/// created by the migrations under <c>backend/Migrations</c> (<c>Database.Migrate()</c> in
+/// <c>DbInitializer</c>); add a new migration whenever an entity changes.
+/// </summary>
+/// <remarks>Registered scoped: <c>builder.Services.AddDbContext&lt;MarketDbContext&gt;(…)</c>.</remarks>
+public class MarketDbContext(DbContextOptions<MarketDbContext> options) : DbContext(options)
+{
+    /// <summary>Catalogue items shown on the Products page.</summary>
+    public DbSet<Product> Products => Set<Product>();
+
+    /// <summary>Orders powering the dashboard metrics and charts.</summary>
+    public DbSet<Order> Orders => Set<Order>();
+
+    /// <summary>Services offered by providers/sellers.</summary>
+    public DbSet<Service> Services => Set<Service>();
+
+    /// <summary>Dashboard users; passwords stored as PBKDF2 hashes.</summary>
+    public DbSet<User> Users => Set<User>();
+
+    /// <summary>Gallery images attached to products and services (files live in wwwroot).</summary>
+    public DbSet<ListingImage> Images => Set<ListingImage>();
+
+    /// <summary>Roles assigned to users; managed by the roles CRUD.</summary>
+    public DbSet<Role> Roles => Set<Role>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Product>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+            // Keys are assigned by the app (seed + Max+1 in the controllers), never by the store.
+            entity.Property(p => p.Id).ValueGeneratedNever();
+            entity.Property(p => p.Name).IsRequired().HasMaxLength(120);
+            entity.Property(p => p.Sku).IsRequired().HasMaxLength(40);
+            entity.Property(p => p.Category).IsRequired().HasMaxLength(60);
+            entity.Property(p => p.Price).HasPrecision(18, 2);
+            entity.HasIndex(p => p.SellerId);
+            // Status is a derived display value — computed, never stored.
+            entity.Ignore(p => p.Status);
+        });
+
+        modelBuilder.Entity<Order>(entity =>
+        {
+            entity.HasKey(o => o.Id);
+            entity.Property(o => o.Id).ValueGeneratedNever();
+            entity.Property(o => o.Customer).IsRequired().HasMaxLength(200);
+            entity.Property(o => o.Product).IsRequired().HasMaxLength(120);
+            entity.Property(o => o.Category).IsRequired().HasMaxLength(60);
+            entity.Property(o => o.Total).HasPrecision(18, 2);
+            entity.Property(o => o.Status).IsRequired().HasMaxLength(40);
+            entity.HasIndex(o => o.ProductId);
+            entity.HasIndex(o => o.ServiceId);
+            entity.HasIndex(o => o.BuyerId);
+        });
+
+        modelBuilder.Entity<Service>(entity =>
+        {
+            entity.HasKey(s => s.Id);
+            entity.Property(s => s.Id).ValueGeneratedNever();
+            entity.Property(s => s.Title).IsRequired().HasMaxLength(120);
+            entity.Property(s => s.Description).HasMaxLength(1000);
+            entity.Property(s => s.Category).IsRequired().HasMaxLength(60);
+            entity.Property(s => s.Cost).HasPrecision(18, 2);
+            entity.Property(s => s.ContactInfo).IsRequired().HasMaxLength(200);
+            entity.Property(s => s.Location).IsRequired().HasMaxLength(120);
+            entity.Property(s => s.Offers).HasMaxLength(500);
+            entity.HasIndex(s => s.ProviderId);
+        });
+
+        modelBuilder.Entity<User>(entity =>
+        {
+            entity.HasKey(u => u.Id);
+            entity.Property(u => u.Id).ValueGeneratedNever();
+            entity.Property(u => u.Email).IsRequired().HasMaxLength(200);
+            entity.Property(u => u.Name).IsRequired().HasMaxLength(120);
+            entity.Property(u => u.PasswordHash).IsRequired();
+            entity.HasIndex(u => u.Email).IsUnique();
+        });
+
+        modelBuilder.Entity<Role>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+            entity.Property(r => r.Id).ValueGeneratedNever();
+            entity.Property(r => r.Name).IsRequired().HasMaxLength(40);
+            entity.Property(r => r.Description).HasMaxLength(300);
+            entity.HasIndex(r => r.Name).IsUnique();
+        });
+
+        modelBuilder.Entity<ListingImage>(entity =>
+        {
+            entity.HasKey(i => i.Id);
+            entity.Property(i => i.Id).ValueGeneratedNever();
+            entity.Property(i => i.Path).IsRequired().HasMaxLength(300);
+            entity.HasIndex(i => i.ProductId);
+            entity.HasIndex(i => i.ServiceId);
+        });
+
+        // --- Relationships (products related to their provider, orders to buyers/listings) ---
+
+        // A product belongs to the provider/seller who listed it; nullable so platform demo
+        // items (SellerId = null) stay valid and deleting an owner keeps the listing.
+        modelBuilder.Entity<Product>()
+            .HasOne<User>()
+            .WithMany()
+            .HasForeignKey(p => p.SellerId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // A service requires its provider (ProviderId is mandatory) — deleting a provider
+        // who still offers services is rejected by the database instead of orphaning rows.
+        modelBuilder.Entity<Service>()
+            .HasOne<User>()
+            .WithMany()
+            .HasForeignKey(s => s.ProviderId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Orders are historical records with denormalized name/category columns: deleting a
+        // buyer, product or service detaches the order rather than destroying its history.
+        modelBuilder.Entity<Order>()
+            .HasOne<User>()
+            .WithMany()
+            .HasForeignKey(o => o.BuyerId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<Order>()
+            .HasOne<Product>()
+            .WithMany()
+            .HasForeignKey(o => o.ProductId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<Order>()
+            .HasOne<Service>()
+            .WithMany()
+            .HasForeignKey(o => o.ServiceId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // Every account holds exactly one role; Restrict is the database-level backstop that
+        // keeps a role with members from disappearing (the API returns 409 before that).
+        modelBuilder.Entity<User>()
+            .HasOne(u => u.Role)
+            .WithMany(r => r.Users)
+            .HasForeignKey(u => u.RoleId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Gallery images hang off one listing each; controllers delete the files explicitly,
+        // the cascade only keeps the table clean if a listing ever disappears another way.
+        modelBuilder.Entity<Product>()
+            .HasMany(p => p.Images)
+            .WithOne()
+            .HasForeignKey(i => i.ProductId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Service>()
+            .HasMany(s => s.Images)
+            .WithOne()
+            .HasForeignKey(i => i.ServiceId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}

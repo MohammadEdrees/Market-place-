@@ -49,6 +49,7 @@ export class App {
     { label: 'Services', icon: 'pi pi-wrench', link: '/services' },
     { label: 'Orders', icon: 'pi pi-shopping-cart', link: '/orders' },
     { label: 'Users', icon: 'pi pi-users', link: '/users' },
+    { label: 'Roles', icon: 'pi pi-key', link: '/roles' },
   ];
 
   readonly workspaceNav: NavItem[] = [
@@ -78,6 +79,7 @@ export class App {
           services: 'Services',
           orders: 'Orders',
           users: 'Users',
+          roles: 'Roles',
         };
         this.pageTitle.set(titles[segment] ?? 'Dashboard');
       });

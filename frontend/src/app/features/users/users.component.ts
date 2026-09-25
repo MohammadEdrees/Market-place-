@@ -18,6 +18,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { EMPTY, Subject, catchError, debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs';
 import { AuthService } from '../../core/auth.service';
 import { ProductService } from '../../core/product.service';
+import { RolesService } from '../../core/roles.service';
 import { UsersService } from '../../core/users.service';
 import type { TableLazyLoadEvent } from 'primeng/table';
 import type { Product, UserCreateInput, UserProfile, UserUpdateInput } from '../../core/models';
@@ -59,6 +60,7 @@ const emptyCreateDraft = (): UserCreateInput => ({
 })
 export class UsersComponent implements OnInit {
   private readonly usersService = inject(UsersService);
+  private readonly rolesService = inject(RolesService);
   private readonly productService = inject(ProductService);
   private readonly messageService = inject(MessageService);
   private readonly auth = inject(AuthService);
@@ -121,7 +123,12 @@ export class UsersComponent implements OnInit {
   readonly creating = signal(false);
   createDraft: UserCreateInput = emptyCreateDraft();
 
-  readonly roleOptions = ['SuperAdmin', 'Admin', 'Manager', 'Viewer', 'Provider', 'Client'];
+  /**
+   * Fallback list shown until `GET /api/roles` answers — overwritten with the API's
+   * names (id order) on init, and left untouched when the request fails so the
+   * role dropdown is never empty.
+   */
+  roleOptions: string[] = ['SuperAdmin', 'Admin', 'Manager', 'Viewer', 'Provider', 'Client'];
   readonly typeOptions = ['Dashboard', 'Mobile'];
 
   /** SuperAdmin, Admin and Manager may create and edit accounts (the API returns 403 otherwise). */
@@ -130,6 +137,18 @@ export class UsersComponent implements OnInit {
   );
 
   ngOnInit(): void {
+    // Role names come from the API so the dropdown always matches the backend;
+    // the static fallback above stays in place if the request fails.
+    this.rolesService.list().subscribe({
+      next: (roles) => {
+        const names = roles.map((role) => role.name);
+        if (names.length) {
+          this.roleOptions = names;
+        }
+      },
+      error: () => {},
+    });
+
     // Backend search with RxJS: debounce keystrokes, drop duplicates, refetch page 1.
     this.searchControl.valueChanges
       .pipe(

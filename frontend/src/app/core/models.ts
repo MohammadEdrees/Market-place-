@@ -206,6 +206,21 @@ export interface UserAdminUpdateInput {
   password?: string | null;
 }
 
+/** A dashboard role as returned by `GET /api/roles` (ordered by id). */
+export interface Role {
+  id: number;
+  name: string;
+  description: string | null;
+  /** Accounts currently assigned this role — deletes are rejected while > 0. */
+  userCount: number;
+}
+
+/** Payload for `POST /api/roles` / `PUT /api/roles/{id}` — name required, description optional. */
+export interface RoleInput {
+  name: string;
+  description?: string | null;
+}
+
 /** One image in a listing gallery, stored under the API's `wwwroot/images`. */
 export interface ListingImage {
   id: number;

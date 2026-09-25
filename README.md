@@ -5,7 +5,7 @@ An analytics dashboard built as two independent projects:
 | Folder     | Stack                                              | Runs on                          |
 | ---------- | -------------------------------------------------- | -------------------------------- |
 | `frontend/` | Angular 21, PrimeNG 21, Chart.js, PrimeFlex         | http://localhost:4200            |
-| `backend/`  | .NET 9 Web API (controllers), EF Core Code First + SQL Server | http://localhost:5240            |
+| `backend/`  | .NET 9 Web API as a **4-project n-tier solution** (Domain, Application, Infrastructure, Api), EF Core Code First + SQL Server | http://localhost:5240            |
 
 API documentation (Swagger UI): **http://localhost:5240/swagger**
 
@@ -14,8 +14,8 @@ API documentation (Swagger UI): **http://localhost:5240/swagger**
 - Node.js 22.12+ (Node 22.14 verified)
 - .NET 9 SDK
 - SQL Server (Developer/Express/LocalDB) — the connection string lives in
-  `backend/appsettings.json` (`ConnectionStrings:MarketDb`); the database is created
-  automatically on first run.
+  `backend/MarketWorkplace.Api/appsettings.json` (`ConnectionStrings:MarketDb`); the database
+  is created automatically on first run.
 
 ## Running
 
@@ -23,7 +23,7 @@ Start each project in its own terminal:
 
 ```powershell
 # Terminal 1 — API
-dotnet run --project backend/MarketWorkplace.Api.csproj
+dotnet run --project backend/MarketWorkplace.Api/MarketWorkplace.Api.csproj
 
 # Terminal 2 — dashboard
 cd frontend
@@ -43,7 +43,8 @@ token. The Angular app handles the flow for you: unauthenticated
 visits redirect to `/login`, the token is attached to every request by an HTTP interceptor, and
 a `401` from the API clears the session and returns to the login page.
 
-**Demo accounts** (also shown on the login page and seeded in `backend/Data/DbInitializer.cs`):
+**Demo accounts** (also shown on the login page and seeded in
+`backend/MarketWorkplace.Infrastructure/Data/DbInitializer.cs`):
 
 | Email                      | Password     | Role      |
 | -------------------------- | ------------ | --------- |
@@ -75,11 +76,12 @@ Invoke-RestMethod -Uri http://localhost:5240/api/dashboard `
   -Headers @{ Authorization = "Bearer $token" }
 ```
 
-Configuration lives under the `Jwt` section of `backend/appsettings.json` (issuer, audience,
-secret, 8-hour expiry). **Override `Jwt:Secret` per environment** — the checked-in value is a
+Configuration lives under the `Jwt` section of `backend/MarketWorkplace.Api/appsettings.json`
+(issuer, audience, secret, 8-hour expiry). **Override `Jwt:Secret` per environment** — the checked-in value is a
 development placeholder. Tokens are HS256-signed; passwords are stored as PBKDF2 hashes
-(`backend/Auth/PasswordHasher.cs`). For role checks use `[Authorize(Roles = "Admin")]` — the
-`role` claim is already present in every token.
+(`backend/MarketWorkplace.Application/Security/PasswordHasher.cs`). The token's `role` claim
+carries the caller's role name from the roles table, so `[Authorize(Roles = "Admin")]` and the
+shared `Access` rules keep working as before.
 
 ## API endpoints
 
@@ -120,6 +122,11 @@ development placeholder. Tokens are HS256-signed; passwords are stored as PBKDF2
 | `PUT`    | `/api/users/{id}`            | Edit any account — profile, email, role, optional password reset (SuperAdmin/Admin/Manager; `200`/`409`/`400`/`403`/`404`) |
 | `POST`   | `/api/users/{id}/image`      | Upload or replace the profile picture (owner or admin; multipart `file`) |
 | `DELETE` | `/api/users/{id}/image`      | Remove the profile picture (`204`/`404`)           |
+| `GET`    | `/api/roles`                 | All roles with account counts (any signed-in user)  |
+| `GET`    | `/api/roles/{id}`            | One role with its account count (`200`/`404`)       |
+| `POST`   | `/api/roles`                 | Create a role (SuperAdmin/Admin/Manager; `201`/`400`/`409`/`403`) |
+| `PUT`    | `/api/roles/{id}`            | Rename/re-describe a role (SuperAdmin/Admin/Manager; `200`/`400`/`404`/`409`/`403`) |
+| `DELETE` | `/api/roles/{id}`            | Delete an unused role (`204`/`404`; `409` while accounts still hold it; `403`) |
 
 All rows except `POST /api/auth/login` and `POST /api/auth/register` return `401` without a
 valid bearer token; listing and management operations additionally enforce the role rules
@@ -143,22 +150,42 @@ Products and services carry a **gallery** (multiple images); every user has a si
 **profile picture**:
 
 - **Storage** — uploads are validated (png/jpg/jpeg/webp/gif, ≤ 5 MB, max 10 images per
-  listing) and written to `backend/wwwroot/images/{products|services|users}` by
-  `backend/Data/ImageStore.cs`; `app.UseStaticFiles()` serves them and the dev proxy also
-  maps `/images/*` (`frontend/proxy.conf.json`).
+  listing, rules in `backend/MarketWorkplace.Application/Common/ImageUpload.cs`) and written
+  to `backend/MarketWorkplace.Api/wwwroot/images/{products|services|users}` by
+  `backend/MarketWorkplace.Infrastructure/Data/ImageStore.cs`; `app.UseStaticFiles()` serves
+  them and the dev proxy also maps `/images/*` (`frontend/proxy.conf.json`).
 - **Absolute URLs (`BackendUrl`)** — the public origin comes from the `BackendUrl` setting
-  in `backend/appsettings.json` (currently `http://localhost:5240`). Every image path the
+  in `backend/MarketWorkplace.Api/appsettings.json` (currently `http://localhost:5240`). Every image path the
   API returns is prefixed with it, e.g. `http://localhost:5240/images/products/a1b2….png`,
   so links work anywhere (mobile clients, emails), not only behind the dev proxy. Paths are
   stored absolute in the database, so set the right origin before the first run.
 - **Seeding** — at startup `DbInitializer` generates dependency-free placeholder PNGs
-  (`backend/Data/PlaceholderPng.cs`): two per product and per service (linked as
+  (`backend/MarketWorkplace.Infrastructure/Data/PlaceholderPng.cs`): two per product and per service (linked as
   `ListingImage` rows) and one avatar per user, so galleries and tables never show broken
   images.
 - **Endpoints** — `POST`/`DELETE /api/{products|services}/{id}/images[/{imageId}]` for
   galleries and `POST`/`DELETE /api/users/{id}/image` for avatars (owner or dashboard
   admin). On the dashboard you manage listing galleries from the create/edit dialogs and
   your own picture from *Edit my profile* on the Users page.
+
+## Roles
+
+Accounts are assigned to rows of a **`Roles` table** (`Roles.Id`, unique `Name` ≤ 40 chars,
+`Description`); `Users.RoleId` references it with `RESTRICT`. Six roles are seeded before the
+users — `SuperAdmin`, `Admin`, `Manager`, `Viewer`, `Provider`, `Client` — and everything
+role-related reads from the table:
+
+- **login/JWT** — the token's `role` claim is the caller's `Role.Name`, so renaming a role
+  changes what members carry on their next sign-in;
+- **validation** — `POST /api/auth/register` only accepts the `Client`/`Provider` rows, and
+  admin account provisioning accepts any row in the table;
+- **dashboard** — the role dropdowns on the Users page are fed from `GET /api/roles`, and the
+  **Roles** page (`/roles`, SuperAdmin/Admin/Manager) lists name, description and account
+  count with create/edit dialogs and confirm-to-delete;
+- **deletion** — `DELETE /api/roles/{id}` answers `409 Conflict` while any account still holds
+  the role (reassign those accounts first); unknown ids answer `404`, duplicate names `409`.
+
+The hardcoded role *names* in `Access` (who may list, who is an admin) are unchanged.
 
 ## Marketplace (mobile users)
 
@@ -173,7 +200,7 @@ and **mobile clients** (`type = Mobile`) with two roles:
 
 Who may **add** products/services: mobile **Providers** and dashboard **SuperAdmin / Admin /
 Manager**. Dashboard **Viewer**s and mobile **Client**s get `403` — they may only browse, buy
-and reserve. The rules live in `backend/Auth/Access.cs`; order visibility is: admins see all,
+and reserve. The rules live in `backend/MarketWorkplace.Application/Common/Access.cs`; order visibility is: admins see all,
 everyone else sees orders they placed plus orders for their own listings.
 
 Sample requests for an IDE client live in `backend/MarketWorkplace.Api.http`.
@@ -181,16 +208,16 @@ Sample requests for an IDE client live in `backend/MarketWorkplace.Api.http`.
 ## API documentation (Swagger)
 
 - **UI:** http://localhost:5240/swagger — operations grouped into `Auth`, `Dashboard`, `Orders`,
-  `Products`, `Services` and `Users`, with Try-it-out enabled by default. Click **Authorize**
+  `Products`, `Roles`, `Services` and `Users`, with Try-it-out enabled by default. Click **Authorize**
   and paste the token from
   `POST /api/auth/login` (Swagger UI adds the `Bearer ` prefix) to call the protected operations.
 - **Document:** http://localhost:5240/swagger/v1/swagger.json (OpenAPI 3.0.4).
 
 Descriptions come from XML doc comments: `GenerateDocumentationFile` is enabled in
-`backend/MarketWorkplace.Api.csproj`, and `<summary>`/`<param>` comments plus
+`backend/MarketWorkplace.Api/MarketWorkplace.Api.csproj`, and `<summary>`/`<param>` comments plus
 `[ProducesResponseType]` attributes on the controllers feed the operation and schema docs.
 
-To hide the docs in an environment, set the kill switch in `backend/appsettings.json`:
+To hide the docs in an environment, set the kill switch in `backend/MarketWorkplace.Api/appsettings.json`:
 
 ```json
 "Swagger": { "Enabled": false }
@@ -221,10 +248,14 @@ To hide the docs in an environment, set the kill switch in `backend/appsettings.
   provider**, and editing via `PUT /api/users/me` — name/phone/location/bio plus a
   **profile picture** (upload/replace/remove). SuperAdmin/Admin/Manager also get:
   - an **Add user** button backed by `POST /api/users` (email + password + role; the
-    platform is derived from the role), and
+    platform is derived from the role, and the **role dropdown is fed from `GET /api/roles`**), and
   - an **edit pencil on every row** opening an *Edit user* dialog with email, role, an
     **optional password reset** (blank = keep) and the avatar editor, saved through
     `PUT /api/users/{id}`.
+- **Roles** (`/roles`) — SuperAdmin/Admin/Manager manage the named roles accounts are assigned
+  to: a table of name, description and account count backed by `GET /api/roles`, with a shared
+  create/edit dialog and confirm-to-delete. A role still held by accounts is refused by the
+  API (`409`), and the page surfaces the returned message so you can reassign first.
 - **Search** — every list page (Products, Services, Orders, Users) binds its search box to an
   RxJS pipeline (`valueChanges → debounceTime(300) → map(trim) → distinctUntilChanged →
   switchMap`): keystrokes coalesce into a single backend request, stale responses are
@@ -234,27 +265,52 @@ To hide the docs in an environment, set the kill switch in `backend/appsettings.
 - Sidebar/topbar shell with the signed-in user's name/role and a sign-out button, light **and**
   dark theme (both persisted in `localStorage`).
 
+## Architecture (n-tier)
+
+`backend/MarketWorkplace.sln` splits the API into four projects:
+
+| Project            | Contains                                                                                                                                                                            |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MarketWorkplace.Domain`         | Entities only (`User`, `Product`, `Service`, `Order`, `ListingImage`, `Role`) — no dependencies.                                                                    |
+| `MarketWorkplace.Application`    | DTOs, application services (`AuthService`, `UsersService`, `ProductsService`, `ServicesService`, `OrdersService`, `DashboardService`, `RolesService`) that return the exact HTTP results the controllers delegate to, repository interfaces, `Access` rules, `PasswordHasher`, `ITokenService`, `IImageStore`. |
+| `MarketWorkplace.Infrastructure` | `MarketDbContext`, `DbInitializer` + migrations, repository implementations (`EfRepository<T>`, `UserRepository`, `RoleRepository`, …), `ImageStore`, `PlaceholderPng`, and the `AddInfrastructure()` DI wiring. |
+| `MarketWorkplace.Api`           | Thin controllers (attributes, XML docs, ModelState checks, delegation), `TokenService`, Swagger setup, `Program.cs` — the composition root calling `AddApplication()` + `AddInfrastructure()`. |
+
+Controllers depend on Application services; Application depends on Domain and repository
+interfaces only (queries compose with LINQ, no EF types); Infrastructure implements those
+interfaces over EF Core; only the Api project wires everything together.
+
 ## How the data layer works
 
-`backend/Data/MarketDbContext.cs` maps the model to **SQL Server with EF Core Code First**:
-the connection string lives in `backend/appsettings.json`
+`MarketDbContext` (`backend/MarketWorkplace.Infrastructure/Data/MarketDbContext.cs`) maps the
+model to **SQL Server with EF Core Code First**: the connection string lives in
+`backend/MarketWorkplace.Api/appsettings.json`
 (`ConnectionStrings:MarketDb`, default `Server=localhost;Database=MarketWorkplace`), and the
-schema is generated by the migration under `backend/Migrations/`
+schema is generated by the migration under `backend/MarketWorkplace.Infrastructure/Migrations/`
 (`DbInitializer` calls `Database.Migrate()` at startup — the database is created on first
-run and updated whenever you add a migration with `dotnet ef migrations add <Name>`).
+run and updated whenever you add a migration with
+`dotnet ef migrations add <Name> --project backend/MarketWorkplace.Infrastructure --startup-project backend/MarketWorkplace.Api`).
+
+Data access goes through repositories — a generic `IRepository<T>` (`Query`, `QueryReadOnly`,
+`Add`, `Remove`, `SaveChanges`) plus eager-load shapes such as `IUserRepository.WithRole()`
+and `IProductRepository.Catalog()`. All repositories of a request share one scoped context,
+so a single `SaveChanges` commits the whole unit of work.
 
 The fluent model defines the real relationships: a **product belongs to its provider**
 (`Products.SellerId → Users.Id`, `SET NULL` so platform demo items stay valid), a **service
 requires its provider** (`Services.ProviderId → Users.Id`, `RESTRICT`), orders reference
-their buyer/product/service (`SET NULL` — history survives deletes) and gallery images
-cascade with their listing. Primary keys are app-assigned (`ValueGeneratedNever`), matching
-the controllers' `Max + 1` pattern, and `Users.Email` carries a unique index.
+their buyer/product/service (`SET NULL` — history survives deletes), gallery images
+cascade with their listing, and every account holds a role
+(`Users.RoleId → Roles.Id`, `RESTRICT`). Primary keys are app-assigned
+(`ValueGeneratedNever`), matching the services' `Max + 1` pattern, and `Users.Email` and
+`Roles.Name` carry unique indexes.
 
-`backend/Data/DbInitializer.cs` then seeds 24 products (owned by the demo sellers/admin),
-6 services, ~74 orders across the last 12 months and 8 users (5 dashboard, 3 mobile) **only
-when a table is empty** — data persists across restarts. Display strings (currency, month
-names) are formatted with an explicit `en-US` culture in `DashboardController`, so output
-does not depend on the machine's regional settings.
+`backend/MarketWorkplace.Infrastructure/Data/DbInitializer.cs` then seeds the 6 roles,
+24 products (owned by the demo sellers/admin), 6 services, ~74 orders across the last 12
+months and 8 users (5 dashboard, 3 mobile) **only when a table is empty** — data persists
+across restarts. Display strings (currency, month names) are formatted with an explicit
+`en-US` culture in `DashboardService`, so output does not depend on the machine's regional
+settings.
 
 ## Useful scripts
 
@@ -265,5 +321,5 @@ npm run build      # production build to frontend/dist
 ```
 
 ```powershell
-dotnet build backend/MarketWorkplace.Api.csproj   # compile the API
+dotnet build backend/MarketWorkplace.sln   # compile the whole backend
 ```
