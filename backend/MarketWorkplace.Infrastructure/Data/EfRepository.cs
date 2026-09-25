@@ -20,4 +20,15 @@ public class EfRepository<TEntity>(MarketDbContext db) : IRepository<TEntity> wh
 
     /// <summary>Commits this and any other pending change in the request's shared context.</summary>
     public int SaveChanges() => db.SaveChanges();
+
+    /// <summary>
+    /// Runs <paramref name="action"/> in a database transaction (commits on return, rolls back on
+    /// throw), so multi-step writes like a restore either fully apply or leave no trace.
+    /// </summary>
+    public void InTransaction(Action action)
+    {
+        using var transaction = db.Database.BeginTransaction();
+        action();
+        transaction.Commit();
+    }
 }

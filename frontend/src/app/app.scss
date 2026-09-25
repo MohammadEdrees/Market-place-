@@ -111,7 +111,7 @@
 }
 
 .badge-soon {
-  margin-left: auto;
+  margin-inline-start: auto;
   padding: 0.1rem 0.4rem;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.12);
@@ -153,7 +153,7 @@
 .status-dot {
   width: 8px;
   height: 8px;
-  margin-left: auto;
+  margin-inline-start: auto;
   border-radius: 50%;
   background: #12b76a;
   box-shadow: 0 0 0 3px rgba(18, 183, 106, 0.25);

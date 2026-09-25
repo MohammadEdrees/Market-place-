@@ -1,0 +1,300 @@
+{
+  "@@locale": "en",
+
+  "commonAll": "All",
+  "commonCancel": "Cancel",
+  "commonDelete": "Delete",
+  "commonEdit": "Edit",
+  "commonEmailInvalid": "Enter a valid email address.",
+  "commonEmailLabel": "Email",
+  "commonEmailRequired": "Email is required.",
+  "commonGenericError": "Something went wrong. Please try again.",
+  "commonLanguage": "Language",
+  "commonLanguageArabic": "العربية",
+  "commonLanguageEnglish": "English",
+  "commonMaxCharacters": "Max {count} characters.",
+  "@commonMaxCharacters": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "commonMinCharacters": "At least 6 characters.",
+  "commonNameRequired": "Name is required.",
+  "commonPasswordLabel": "Password",
+  "commonPasswordRequired": "Password is required.",
+  "commonPasswordsDoNotMatch": "Passwords do not match.",
+  "commonRequired": "Required.",
+  "commonSaveChanges": "Save changes",
+  "commonSomethingWentWrong": "Something went wrong.",
+  "commonTryAgain": "Try again",
+
+  "navBrowse": "Browse",
+  "navListings": "Listings",
+  "navOrders": "Orders",
+  "navProfile": "Profile",
+  "navServices": "Services",
+
+  "loginCreateAccount": "New here? Create an account",
+  "loginSignIn": "Sign in",
+  "loginTagline": "Buy products, reserve services, or sell your own.",
+
+  "registerClientHint": "Browse the catalogue, buy products and reserve services.",
+  "registerConfirmPassword": "Confirm password",
+  "registerCreateAccount": "Create account",
+  "registerFullName": "Full name",
+  "registerHaveAccount": "I already have an account",
+  "registerHeading": "Join Market Workplace",
+  "registerLocation": "Location",
+  "registerOptionalContact": "Optional contact details",
+  "registerPhone": "Phone",
+  "registerProviderHint": "Sell products and offer services of your own.",
+  "registerSubtitle": "Choose how you want to use the marketplace.",
+  "registerTitle": "Create account",
+
+  "productsEmpty": "No products match your search.",
+  "productsLoadError": "Could not load products.",
+  "productsSearchHint": "Search products",
+  "productsTitle": "Browse",
+
+  "servicesEmpty": "No services match your search.",
+  "servicesLoadError": "Could not load services.",
+  "servicesSearchHint": "Search services",
+  "servicesTitle": "Services",
+
+  "productDetailBuy": "Buy",
+  "productDetailBuyNow": "Buy now",
+  "productDetailConfirmMessage": "Buy \"{name}\" for {price}?",
+  "@productDetailConfirmMessage": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "productDetailConfirmTitle": "Confirm purchase",
+  "productDetailEditListing": "Edit listing",
+  "productDetailInStock": "{count} in stock",
+  "@productDetailInStock": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "productDetailNoneLeft": "None left",
+  "productDetailOrderPlaced": "Order placed — track it under Orders.",
+  "productDetailSold": "{count} sold",
+  "@productDetailSold": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "productDetailTitle": "Product",
+  "productDetailYours": "This is your listing.",
+
+  "serviceDetailAbout": "About this service",
+  "serviceDetailConfirmMessage": "Reserve \"{title}\" for {price}?",
+  "@serviceDetailConfirmMessage": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "serviceDetailConfirmTitle": "Confirm reservation",
+  "serviceDetailContact": "Contact",
+  "serviceDetailEditService": "Edit service",
+  "serviceDetailReserve": "Reserve",
+  "serviceDetailReserved": "Reserved — track it under Orders.",
+  "serviceDetailTitle": "Service",
+  "serviceDetailUnavailable": "Currently unavailable",
+  "serviceDetailYours": "This is your service.",
+
+  "ordersAnyStatus": "Any status",
+  "ordersCategory": "Category",
+  "ordersCustomer": "Customer",
+  "ordersDate": "Date",
+  "ordersEmpty": "No orders yet.",
+  "ordersFilterByStatus": "Filter by status",
+  "ordersNumber": "Order #{id}",
+  "@ordersNumber": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "ordersProductPurchase": "Product purchase",
+  "ordersProductsFilter": "Products",
+  "ordersSearchHint": "Search orders",
+  "ordersServiceReservation": "Service reservation",
+  "ordersServicesFilter": "Services",
+  "ordersStatus": "Status",
+  "ordersStatusUpdated": "Order #{id} → {status}",
+  "@ordersStatusUpdated": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      },
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "ordersTitle": "Orders",
+  "ordersTotal": "Total",
+  "ordersUpdateStatus": "Update status",
+
+  "myListingsCreate": "Create",
+  "myListingsDeleteProductMessage": "\"{name}\" will be removed permanently.",
+  "@myListingsDeleteProductMessage": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "myListingsDeleteProductTitle": "Delete product?",
+  "myListingsDeleteServiceMessage": "\"{title}\" will be removed permanently.",
+  "@myListingsDeleteServiceMessage": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "myListingsDeleteServiceTitle": "Delete service?",
+  "myListingsDeletedProduct": "Deleted \"{name}\".",
+  "@myListingsDeletedProduct": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "myListingsDeletedService": "Deleted \"{title}\".",
+  "@myListingsDeletedService": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "myListingsEmptyProducts": "You have no products yet. Create your first one.",
+  "myListingsEmptyServices": "You have no services yet. Create your first one.",
+  "myListingsNewProduct": "New product",
+  "myListingsNewService": "New service",
+  "myListingsProductsTab": "Products",
+  "myListingsServicesTab": "Services",
+  "myListingsStockAndSold": "{stock} in stock · {sold} sold",
+  "@myListingsStockAndSold": {
+    "placeholders": {
+      "sold": {
+        "type": "String"
+      },
+      "stock": {
+        "type": "String"
+      }
+    }
+  },
+  "myListingsTitle": "My listings",
+
+  "listingFormCategory": "Category",
+  "listingFormCategoryHintProduct": "e.g. Electronics",
+  "listingFormCategoryHintService": "e.g. Repairs",
+  "listingFormChangesSaved": "Changes saved.",
+  "listingFormContactHint": "Phone, email or WhatsApp",
+  "listingFormContactInfo": "Contact info",
+  "listingFormCost": "Cost (USD)",
+  "listingFormCreateProduct": "Create product",
+  "listingFormCreateService": "Create service",
+  "listingFormDescription": "Description",
+  "listingFormDescriptionHint": "What do you offer?",
+  "listingFormEditProduct": "Edit product",
+  "listingFormEditService": "Edit service",
+  "listingFormLocation": "Location / service area",
+  "listingFormName": "Name",
+  "listingFormNewProduct": "New product",
+  "listingFormNewService": "New service",
+  "listingFormNonNegative": "Enter 0 or more.",
+  "listingFormOffers": "Current offers (optional)",
+  "listingFormOffersHint": "e.g. 20% off the first booking",
+  "listingFormPhotoAdded": "Photo added.",
+  "listingFormPhotoRemoved": "Photo removed.",
+  "listingFormPhotos": "Photos",
+  "listingFormPrice": "Price (USD)",
+  "listingFormSaveFirstProduct": "Save the product first, then add photos here.",
+  "listingFormSaveFirstService": "Save the service first, then add photos here.",
+  "listingFormSavedAddPhotos": "Saved — now add some photos.",
+  "listingFormSku": "SKU",
+  "listingFormStock": "Stock",
+  "listingFormThumbnailHint": "First photo is shown as the thumbnail.",
+  "listingFormTitle": "Title",
+  "listingFormValidAmount": "Enter a valid amount.",
+
+  "profileBio": "Bio",
+  "profileChoosePhoto": "Choose photo",
+  "profileClearToRemove": "Leave empty to remove.",
+  "profileEditProfile": "Edit profile",
+  "profileFullName": "Full name",
+  "profileLocation": "Location",
+  "profilePhone": "Phone",
+  "profilePhotoRemoved": "Photo removed.",
+  "profilePhotoUpdated": "Photo updated.",
+  "profileRemovePhoto": "Remove photo",
+  "profileSignOut": "Sign out",
+  "profileSignOutMessage": "You will need to sign in again to continue.",
+  "profileSignOutTitle": "Sign out?",
+  "profileTitle": "Profile",
+  "profileUpdated": "Profile updated.",
+
+  "statusActive": "Active",
+  "statusCancelled": "Cancelled",
+  "statusClient": "Client",
+  "statusCompleted": "Completed",
+  "statusConfirmed": "Confirmed",
+  "statusDashboard": "Dashboard",
+  "statusInactive": "Inactive",
+  "statusLowStock": "Low stock",
+  "statusMobile": "Mobile",
+  "statusOutOfStock": "Out of stock",
+  "statusProcessing": "Processing",
+  "statusProvider": "Provider",
+  "statusRefunded": "Refunded",
+  "statusReserved": "Reserved",
+
+  "errorsAccountExists": "An account with this email already exists.",
+  "errorsCheckCredentials": "Check the credentials and try again.",
+  "errorsDashboardAccount": "This account belongs to the web dashboard. Sign in with a Client or Provider account.",
+  "errorsEmailAlreadyRegistered": "Sign in instead or choose another email address.",
+  "errorsEmailFieldRequired": "The Email field is required.",
+  "errorsEmailNotValid": "The Email field is not a valid e-mail address.",
+  "errorsInvalidCredentials": "Invalid email or password.",
+  "errorsInvalidRoleClientProvider": "Role must be Client or Provider.",
+  "errorsPasswordFieldRequired": "The Password field is required.",
+  "errorsPasswordTooShort": "Password must be at least 6 characters.",
+
+  "networkCancelled": "Request cancelled.",
+  "networkConflict": "Conflict",
+  "networkConnectionFailed": "Connection failed",
+  "networkFileTooLarge": "File too large",
+  "networkInvalidRequest": "Invalid request",
+  "networkNotAllowed": "Not allowed",
+  "networkNotFound": "Not found",
+  "networkRequestFailed": "Request failed",
+  "networkServerError": "Server error",
+  "networkSignInRequired": "Sign-in required",
+  "networkTimeout": "The server took too long to respond.",
+  "networkUnexpected": "Unexpected network error.",
+  "networkUnreachable": "Could not reach the server. Check your connection."
+}

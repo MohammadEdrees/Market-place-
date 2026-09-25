@@ -1,0 +1,182 @@
+<section class="page">
+  <div class="page-head">
+    <div>
+      <h2>{{ 'settings.title' | t }}</h2>
+      <p>{{ 'settings.subtitle' | t }}</p>
+    </div>
+  </div>
+
+  <div class="grid">
+    <!-- Workspace preferences -->
+    <div class="col-12 xl:col-6">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>{{ 'settings.preferences' | t }}</h3>
+            <small>{{ 'settings.preferencesHint' | t }}</small>
+          </div>
+        </div>
+
+        <div class="pref-row">
+          <label for="set-language">{{ 'settings.language' | t }}</label>
+          <p-select
+            inputId="set-language"
+            [ngModel]="i18n.lang()"
+            (ngModelChange)="i18n.setLang($event)"
+            [options]="langOptions"
+            optionLabel="label"
+            optionValue="value"
+            [showClear]="false"
+            appendTo="body"
+            styleClass="lang-select"
+          />
+        </div>
+        <p class="muted hint">{{ 'settings.languageHint' | t }}</p>
+      </div>
+    </div>
+
+    <!-- Backups -->
+    <div class="col-12 xl:col-6">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>{{ 'settings.backup' | t }}</h3>
+            <small>{{ 'settings.backupHint' | t }}</small>
+          </div>
+          @if (isAdmin()) {
+            <p-button
+              [label]="'settings.createBackup' | t"
+              icon="pi pi-download"
+              (onClick)="createBackup()"
+              [loading]="working()"
+            />
+          }
+        </div>
+
+        @if (!isAdmin()) {
+          <p class="muted">{{ 'settings.adminOnly' | t }}</p>
+        } @else if (loading()) {
+          <p-skeleton height="9rem" styleClass="panel" />
+        } @else if (backups().length === 0) {
+          <p class="muted">{{ 'settings.noBackups' | t }}</p>
+        } @else {
+          <p-table [value]="backups()" styleClass="data-table" [tableStyle]="{ 'min-width': '100%' }">
+            <ng-template #header>
+              <tr>
+                <th>{{ 'settings.file' | t }}</th>
+                <th>{{ 'common.date' | t }}</th>
+                <th>{{ 'settings.size' | t }}</th>
+                <th>{{ 'settings.contains' | t }}</th>
+                <th class="actions-cell"></th>
+              </tr>
+            </ng-template>
+            <ng-template #body let-file>
+              <tr>
+                <td class="file-name">{{ file.name }}</td>
+                <td class="muted">{{ file.createdAtUtc | date: 'MMM d, y HH:mm' }}</td>
+                <td class="muted">{{ size(file.sizeBytes) }}</td>
+                <td class="muted">{{ countsText(file) }}</td>
+                <td class="actions-cell">
+                  <p-button
+                    icon="pi pi-download"
+                    [text]="true"
+                    [rounded]="true"
+                    severity="secondary"
+                    [pTooltip]="'settings.download' | t"
+                    [attr.aria-label]="'settings.download' | t"
+                    (onClick)="downloadBackup(file)"
+                  />
+                  <p-button
+                    icon="pi pi-trash"
+                    [text]="true"
+                    [rounded]="true"
+                    severity="danger"
+                    [pTooltip]="'common.delete' | t"
+                    [attr.aria-label]="'common.delete' | t"
+                    (onClick)="removeBackup(file)"
+                  />
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+        }
+      </div>
+    </div>
+
+    <!-- Restore -->
+    @if (isAdmin()) {
+      <div class="col-12">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>{{ 'settings.restore' | t }}</h3>
+              <small>{{ 'settings.restoreHint' | t }}</small>
+            </div>
+          </div>
+
+          <div class="restore-row">
+            <input
+              type="file"
+              class="file-input"
+              accept="application/json,.json"
+              (change)="onFileSelected($event)"
+            />
+            <p-selectbutton
+              [options]="restoreModes()"
+              [ngModel]="restoreMode()"
+              (ngModelChange)="restoreMode.set($event)"
+              optionLabel="label"
+              optionValue="value"
+              [allowEmpty]="false"
+            />
+            <p-button
+              [label]="'settings.restoreAction' | t"
+              icon="pi pi-upload"
+              severity="danger"
+              [outlined]="true"
+              [disabled]="!selectedFile()"
+              [loading]="working()"
+              (onClick)="restore()"
+            />
+          </div>
+
+          <p class="muted hint">
+            {{ restoreMode() === 'replace' ? ('settings.replaceExplain' | t) : ('settings.mergeExplain' | t) }}
+          </p>
+
+          @if (lastReport(); as report) {
+            <div class="report">
+              <div class="report-head">
+                <strong>{{ 'settings.lastRestore' | t }}</strong>
+                <p-tag
+                  [value]="report.mode === 'replace' ? ('settings.modeReplace' | t) : ('settings.modeMerge' | t)"
+                  [severity]="report.mode === 'replace' ? 'danger' : 'info'"
+                />
+                <span class="muted">{{ report.restoredAtUtc | date: 'MMM d, y HH:mm' }}</span>
+              </div>
+              <p-table [value]="report.tables" styleClass="data-table">
+                <ng-template #header>
+                  <tr>
+                    <th>{{ 'settings.table' | t }}</th>
+                    <th>{{ 'settings.inserted' | t }}</th>
+                    <th>{{ 'settings.updated' | t }}</th>
+                  </tr>
+                </ng-template>
+                <ng-template #body let-row>
+                  <tr>
+                    <td>{{ row.table }}</td>
+                    <td>{{ row.inserted }}</td>
+                    <td>{{ row.updated }}</td>
+                  </tr>
+                </ng-template>
+              </p-table>
+            </div>
+          }
+        </div>
+      </div>
+    }
+  </div>
+</section>
+
+<p-toast />
+<p-confirmdialog />

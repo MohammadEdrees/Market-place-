@@ -1,11 +1,11 @@
 <section class="page">
   <div class="page-head">
     <div>
-      <h2>Market overview</h2>
-      <p>Live metrics from the .NET API · last 30 days vs. previous period</p>
+      <h2>{{ 'dashboard.title' | t }}</h2>
+      <p>{{ 'dashboard.subtitle' | t }}</p>
     </div>
     <p-tag
-      [value]="loading() ? 'Loading…' : 'Synced'"
+      [value]="loading() ? ('common.loading' | t) : ('dashboard.synced' | t)"
       [severity]="loading() ? 'warn' : 'success'"
       icon="pi pi-refresh"
     />
@@ -34,7 +34,7 @@
               </span>
             </div>
             <span class="metric-value">{{ metric.value }}</span>
-            <span class="metric-label">{{ metric.label }}</span>
+            <span class="metric-label">{{ i18n.label('metric', metric.key) }}</span>
           </div>
         </div>
       }
@@ -44,12 +44,12 @@
         <div class="panel">
           <div class="panel-head">
             <div>
-              <h3>Revenue &amp; orders</h3>
-              <small>Rolling 12 months</small>
+              <h3>{{ 'dashboard.revenueOrders' | t }}</h3>
+              <small>{{ 'dashboard.rolling12' | t }}</small>
             </div>
             <span class="legend-hint">
-              <span class="dot accent"></span> Revenue
-              <span class="dot green"></span> Orders
+              <span class="dot accent"></span> {{ 'dashboard.chartRevenue' | t }}
+              <span class="dot green"></span> {{ 'dashboard.chartOrders' | t }}
             </span>
           </div>
           <div class="chart-box">
@@ -62,8 +62,8 @@
         <div class="panel">
           <div class="panel-head">
             <div>
-              <h3>Sales by category</h3>
-              <small>All-time revenue split</small>
+              <h3>{{ 'dashboard.salesByCategory' | t }}</h3>
+              <small>{{ 'dashboard.allTimeSplit' | t }}</small>
             </div>
           </div>
           <div class="chart-box">
@@ -77,19 +77,19 @@
         <div class="panel">
           <div class="panel-head">
             <div>
-              <h3>Recent orders</h3>
-              <small>Latest activity across all customers</small>
+              <h3>{{ 'dashboard.recentOrders' | t }}</h3>
+              <small>{{ 'dashboard.latestActivity' | t }}</small>
             </div>
           </div>
           <p-table [value]="d.recentOrders" styleClass="data-table" [tableStyle]="{ 'min-width': '100%' }">
             <ng-template #header>
               <tr>
-                <th>Order</th>
-                <th>Customer</th>
-                <th>Product</th>
-                <th>Total</th>
-                <th>Status</th>
-                <th>Date</th>
+                <th>{{ 'common.order' | t }}</th>
+                <th>{{ 'common.customer' | t }}</th>
+                <th>{{ 'common.product' | t }}</th>
+                <th>{{ 'common.total' | t }}</th>
+                <th>{{ 'common.status' | t }}</th>
+                <th>{{ 'common.date' | t }}</th>
               </tr>
             </ng-template>
             <ng-template #body let-order>
@@ -99,14 +99,14 @@
                 <td class="muted">{{ order.product }}</td>
                 <td>{{ order.total | currency: 'USD' : 'symbol' : '1.2-2' }}</td>
                 <td>
-                  <p-tag [value]="order.status" [severity]="statusSeverity(order.status)" />
+                  <p-tag [value]="i18n.label('status', order.status)" [severity]="statusSeverity(order.status)" />
                 </td>
                 <td class="muted">{{ order.date | date: 'MMM d, y' }}</td>
               </tr>
             </ng-template>
             <ng-template #emptymessage>
               <tr>
-                <td colspan="6" class="muted">No orders yet.</td>
+                <td colspan="6" class="muted">{{ 'dashboard.noOrders' | t }}</td>
               </tr>
             </ng-template>
           </p-table>
@@ -118,14 +118,14 @@
         <div class="panel">
           <div class="panel-head">
             <div>
-              <h3>Inventory health</h3>
-              <small>Stock levels across {{ inventory().total }} SKUs</small>
+              <h3>{{ 'dashboard.inventoryHealth' | t }}</h3>
+              <small>{{ 'dashboard.stockLevels' | t: { count: inventory().total } }}</small>
             </div>
           </div>
 
           <div class="health-score">
             <span class="health-value">{{ inventory().healthyPercent }}%</span>
-            <span class="muted">healthy stock</span>
+            <span class="muted">{{ 'dashboard.healthyStock' | t }}</span>
           </div>
 
           <p-progressbar
@@ -137,17 +137,17 @@
           <ul class="health-list">
             <li>
               <span class="dot green"></span>
-              In stock
+              {{ 'dashboard.inStock' | t }}
               <strong>{{ inventory().total - inventory().low }}</strong>
             </li>
             <li>
               <span class="dot amber"></span>
-              Low stock (≤ 15)
+              {{ 'dashboard.lowStock' | t }}
               <strong>{{ inventory().low }}</strong>
             </li>
             <li>
               <span class="dot red"></span>
-              Out of stock
+              {{ 'dashboard.outOfStock' | t }}
               <strong>{{ inventory().out }}</strong>
             </li>
           </ul>
@@ -155,16 +155,86 @@
           @if (inventory().low > 0) {
             <div class="health-alert">
               <i class="pi pi-exclamation-triangle"></i>
-              <span>{{ inventory().low }} products need restocking soon.</span>
+              <span>{{ 'dashboard.restockWarning' | t: { count: inventory().low } }}</span>
             </div>
           }
+        </div>
+      </div>
+
+      <!-- Top products: all-time revenue ranking straight from the orders table -->
+      <div class="col-12 xl:col-4">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>{{ 'dashboard.topProducts' | t }}</h3>
+              <small>{{ 'dashboard.topProductsHint' | t }}</small>
+            </div>
+          </div>
+          @if (d.topProducts?.length) {
+            <div class="chart-box">
+              <p-chart type="bar" [data]="topProductsData()" [options]="topProductsOptions" height="260px" />
+            </div>
+          } @else {
+            <p class="muted">{{ 'dashboard.noProducts' | t }}</p>
+          }
+        </div>
+      </div>
+
+      <!-- Orders by status: every order grouped by its status -->
+      <div class="col-12 xl:col-4">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>{{ 'dashboard.ordersByStatus' | t }}</h3>
+              <small>{{ 'dashboard.ordersByStatusHint' | t }}</small>
+            </div>
+          </div>
+          @if (statusBreakdown().length) {
+            <ul class="health-list">
+              @for (row of statusBreakdown(); track row.status) {
+                <li>
+                  <span class="dot" [style.background]="statusColor(row.status)"></span>
+                  {{ i18n.label('status', row.status) }}
+                  <strong>{{ row.count }}</strong>
+                  <span class="status-share">{{ row.share }}%</span>
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="muted">{{ 'dashboard.noOrders' | t }}</p>
+          }
+        </div>
+      </div>
+
+      <!-- Audience: account totals and recent signups -->
+      <div class="col-12 xl:col-4">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>{{ 'dashboard.audience' | t }}</h3>
+              <small>{{ 'dashboard.audienceHint' | t }}</small>
+            </div>
+          </div>
+          <div class="audience-grid">
+            @for (item of audience(); track item.key) {
+              <div class="audience-item">
+                <span class="metric-icon"><i [class]="'pi pi-' + item.icon"></i></span>
+                <span class="audience-value">{{ item.value }}</span>
+                <span class="audience-label">{{ item.label }}</span>
+              </div>
+            }
+          </div>
+          <p class="platforms">
+            {{ 'dashboard.mobileAccounts' | t }}: {{ d.userStats?.mobile ?? 0 }} ·
+            {{ 'dashboard.dashboardAccounts' | t }}: {{ d.userStats?.dashboard ?? 0 }}
+          </p>
         </div>
       </div>
     </div>
   } @else {
     <div class="panel empty-state">
       <i class="pi pi-wifi"></i>
-      <p>Could not reach the API. Make sure it is running on <code>localhost:5240</code>.</p>
+      <p>{{ 'dashboard.apiUnreachable' | t }} <code>localhost:5240</code>.</p>
     </div>
   }
 </section>

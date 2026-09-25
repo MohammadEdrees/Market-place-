@@ -9,11 +9,20 @@ import { MessageModule } from 'primeng/message';
 import { PasswordModule } from 'primeng/password';
 
 import { AuthService } from '../../core/auth.service';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { TranslatePipe } from '../../core/i18n/t.pipe';
 
 /** Full-screen sign-in page — rendered without the app shell (see app.html). */
 @Component({
   selector: 'app-login',
-  imports: [ReactiveFormsModule, ButtonModule, InputTextModule, PasswordModule, MessageModule],
+  imports: [
+    ReactiveFormsModule,
+    ButtonModule,
+    InputTextModule,
+    PasswordModule,
+    MessageModule,
+    TranslatePipe,
+  ],
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss',
 })
@@ -23,6 +32,7 @@ export class LoginComponent {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
+  readonly i18n = inject(I18nService);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
@@ -57,9 +67,9 @@ export class LoginComponent {
         error: (error: HttpErrorResponse) => {
           this.loading.set(false);
           this.error.set(
-            error.status === 401
-              ? 'Invalid email or password.'
-              : 'Sign-in failed — is the API running on port 5240?',
+            this.i18n.t(
+              error.status === 401 ? 'login.invalidCredentials' : 'login.signInFailed',
+            ),
           );
         },
       });

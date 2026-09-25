@@ -36,4 +36,7 @@ public class User
 
     /// <summary>Profile picture URL (absolute — prefixed with <c>BackendUrl</c> from appsettings), or <c>null</c>.</summary>
     public string? ImagePath { get; set; }
+
+    /// <summary>When the account was created (UTC) — powers the dashboard's user statistics.</summary>
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

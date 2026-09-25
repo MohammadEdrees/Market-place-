@@ -232,7 +232,7 @@ body {
 .gallery-remove {
   position: absolute;
   top: -6px;
-  right: -6px;
+  inset-inline-end: -6px;
   width: 20px;
   height: 20px;
   border-radius: 50%;
@@ -280,5 +280,21 @@ body {
 
   input[type='file'] {
     display: none;
+  }
+}
+
+/* ---------- RTL ----------
+   Layout is direction-agnostic already: every physical property in the
+   feature stylesheets was converted to its logical counterpart
+   (margin-inline-start, padding-inline-start, inset-inline-end, text-align: end),
+   and the templates use no PrimeFlex left/right utility classes, so no
+   class flips are needed. What remains below is bidi hygiene for Arabic. */
+[dir='rtl'] {
+  /* Isolate Latin/code runs (emails, SKUs, API paths, numbers) so they read
+     left-to-right inside Arabic sentences instead of being reordered. */
+  code,
+  .mono {
+    direction: ltr;
+    unicode-bidi: isolate;
   }
 }

@@ -284,94 +284,108 @@ public static class DbInitializer
 
     // --- Seed data ----------------------------------------------------------
 
-    private static List<User> BuildUsers(IReadOnlyDictionary<string, Role> roles) =>
-    [
-        new User
-        {
-            Id = 3,
-            Email = "superadmin@marketplace.dev",
-            Name = "Super Admin",
-            Role = roles["SuperAdmin"],
-            Type = "Dashboard",
-            PasswordHash = PasswordHasher.Hash("123456"),
-        },
-        new User
-        {
-            Id = 1,
-            Email = "admin@marketplace.dev",
-            Name = "Ada Admin",
-            Role = roles["Admin"],
-            Type = "Dashboard",
-            Phone = "+1 555 0100",
-            Location = "Chicago, IL",
-            Bio = "Platform administrator — catalogue and marketplace operations.",
-            PasswordHash = PasswordHasher.Hash("Admin123!"),
-        },
-        new User
-        {
-            Id = 4,
-            Email = "manager@marketplace.dev",
-            Name = "Mia Manager",
-            Role = roles["Manager"],
-            Type = "Dashboard",
-            PasswordHash = PasswordHasher.Hash("Manager123!"),
-        },
-        new User
-        {
-            Id = 5,
-            Email = "chief.admin@marketplace.dev",
-            Name = "Chief Admin",
-            Role = roles["Admin"],
-            Type = "Dashboard",
-            PasswordHash = PasswordHasher.Hash("Chief123!"),
-        },
-        new User
-        {
-            Id = 2,
-            Email = "viewer@marketplace.dev",
-            Name = "Vic Viewer",
-            Role = roles["Viewer"],
-            Type = "Dashboard",
-            PasswordHash = PasswordHasher.Hash("Viewer123!"),
-        },
+    private static List<User> BuildUsers(IReadOnlyDictionary<string, Role> roles)
+    {
+        // Deterministic sign-up dates spread over the past year so the dashboard's
+        // "new users (30d)" statistic reflects a realistic curve from the first boot.
+        var now = DateTime.UtcNow;
+        return
+        [
+            new User
+            {
+                Id = 3,
+                Email = "superadmin@marketplace.dev",
+                Name = "Super Admin",
+                Role = roles["SuperAdmin"],
+                Type = "Dashboard",
+                PasswordHash = PasswordHasher.Hash("123456"),
+                CreatedAt = now.AddDays(-400),
+            },
+            new User
+            {
+                Id = 1,
+                Email = "admin@marketplace.dev",
+                Name = "Ada Admin",
+                Role = roles["Admin"],
+                Type = "Dashboard",
+                Phone = "+1 555 0100",
+                Location = "Chicago, IL",
+                Bio = "Platform administrator — catalogue and marketplace operations.",
+                PasswordHash = PasswordHasher.Hash("Admin123!"),
+                CreatedAt = now.AddDays(-380),
+            },
+            new User
+            {
+                Id = 4,
+                Email = "manager@marketplace.dev",
+                Name = "Mia Manager",
+                Role = roles["Manager"],
+                Type = "Dashboard",
+                PasswordHash = PasswordHasher.Hash("Manager123!"),
+                CreatedAt = now.AddDays(-300),
+            },
+            new User
+            {
+                Id = 5,
+                Email = "chief.admin@marketplace.dev",
+                Name = "Chief Admin",
+                Role = roles["Admin"],
+                Type = "Dashboard",
+                PasswordHash = PasswordHasher.Hash("Chief123!"),
+                CreatedAt = now.AddDays(-260),
+            },
+            new User
+            {
+                Id = 2,
+                Email = "viewer@marketplace.dev",
+                Name = "Vic Viewer",
+                Role = roles["Viewer"],
+                Type = "Dashboard",
+                PasswordHash = PasswordHasher.Hash("Viewer123!"),
+                CreatedAt = now.AddDays(-200),
+            },
 
-        // --- Mobile users ----------------------------------------------------
-        new User
-        {
-            Id = 6,
-            Email = "seller@marketplace.dev",
-            Name = "Sam Seller",
-            Role = roles["Provider"],
-            Type = "Mobile",
-            Phone = "+1 555 0142",
-            Location = "Austin, TX",
-            Bio = "Audio and peripherals specialist — fast shipping, 2-year warranty.",
-            PasswordHash = PasswordHasher.Hash("Seller123!"),
-        },
-        new User
-        {
-            Id = 7,
-            Email = "nova@marketplace.dev",
-            Name = "Nova Services",
-            Role = roles["Provider"],
-            Type = "Mobile",
-            Phone = "+1 555 0177",
-            Location = "Seattle, WA",
-            Bio = "On-site tech support and repairs — same-day appointments.",
-            PasswordHash = PasswordHasher.Hash("Nova123!"),
-        },
-        new User
-        {
-            Id = 8,
-            Email = "client@marketplace.dev",
-            Name = "Cody Client",
-            Role = roles["Client"],
-            Type = "Mobile",
-            Phone = "+1 555 0199",
-            Location = "Denver, CO",
-            PasswordHash = PasswordHasher.Hash("Client123!"),
-        },
-    ];
+            // --- Mobile users ----------------------------------------------------
+            new User
+            {
+                Id = 6,
+                Email = "seller@marketplace.dev",
+                Name = "Sam Seller",
+                Role = roles["Provider"],
+                Type = "Mobile",
+                Phone = "+1 555 0142",
+                Location = "Austin, TX",
+                Bio = "Audio and peripherals specialist — fast shipping, 2-year warranty.",
+                PasswordHash = PasswordHasher.Hash("Seller123!"),
+                CreatedAt = now.AddDays(-150),
+            },
+            new User
+            {
+                Id = 7,
+                Email = "nova@marketplace.dev",
+                Name = "Nova Services",
+                Role = roles["Provider"],
+                Type = "Mobile",
+                Phone = "+1 555 0177",
+                Location = "Seattle, WA",
+                Bio = "On-site tech support and repairs — same-day appointments.",
+                PasswordHash = PasswordHasher.Hash("Nova123!"),
+                CreatedAt = now.AddDays(-120),
+            },
+            new User
+            {
+                Id = 8,
+                Email = "client@marketplace.dev",
+                Name = "Cody Client",
+                Role = roles["Client"],
+                Type = "Mobile",
+                Phone = "+1 555 0199",
+                Location = "Denver, CO",
+                PasswordHash = PasswordHasher.Hash("Client123!"),
+                CreatedAt = now.AddDays(-20),
+            },
+        ];
+    }
 
     private static List<Product> BuildProducts()
     {

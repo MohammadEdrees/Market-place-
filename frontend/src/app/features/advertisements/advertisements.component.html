@@ -1,12 +1,12 @@
 <section class="page">
   <div class="page-head">
     <div>
-      <h2>Advertisements</h2>
-      <p>{{ ads().length }} banners · ordered by sort order, shown in the mobile app</p>
+      <h2>{{ 'nav.advertisements' | t }}</h2>
+      <p>{{ 'advertisements.subtitle' | t: { count: ads().length } }}</p>
     </div>
     <div class="toolbar">
       @if (canManage()) {
-        <p-button label="New advertisement" icon="pi pi-plus" (onClick)="openCreate()" />
+        <p-button [label]="'advertisements.new' | t" icon="pi pi-plus" (onClick)="openCreate()" />
       }
     </div>
   </div>
@@ -21,11 +21,11 @@
       >
         <ng-template #header>
           <tr>
-            <th pSortableColumn="title">Advertisement <p-sortIcon field="title" /></th>
-            <th>Status</th>
-            <th>Schedule</th>
-            <th pSortableColumn="sortOrder">Order <p-sortIcon field="sortOrder" /></th>
-            <th style="width: 11rem">Actions</th>
+            <th pSortableColumn="title">{{ 'advertisements.advertisement' | t }} <p-sortIcon field="title" /></th>
+            <th>{{ 'common.status' | t }}</th>
+            <th>{{ 'advertisements.schedule' | t }}</th>
+            <th pSortableColumn="sortOrder">{{ 'common.order' | t }} <p-sortIcon field="sortOrder" /></th>
+            <th style="width: 11rem">{{ 'common.actions' | t }}</th>
           </tr>
         </ng-template>
 
@@ -45,18 +45,18 @@
               </div>
             </td>
             <td>
-              <p-tag [value]="statusLabel(ad)" [severity]="statusSeverity(ad)" />
+              <p-tag [value]="i18n.label('status', statusLabel(ad))" [severity]="statusSeverity(ad)" />
             </td>
             <td class="muted">
               @if (!ad.startsAt && !ad.endsAt) {
-                <span>Always</span>
+                <span>{{ 'advertisements.always' | t }}</span>
               } @else {
                 <div class="schedule">
                   @if (ad.startsAt) {
-                    <span>From <strong>{{ ad.startsAt | date: 'MMM d, y, h:mm a' }}</strong></span>
+                    <span>{{ 'advertisements.from' | t }} <strong>{{ ad.startsAt | date: 'MMM d, y, h:mm a' }}</strong></span>
                   }
                   @if (ad.endsAt) {
-                    <span>Until <strong>{{ ad.endsAt | date: 'MMM d, y, h:mm a' }}</strong></span>
+                    <span>{{ 'advertisements.until' | t }} <strong>{{ ad.endsAt | date: 'MMM d, y, h:mm a' }}</strong></span>
                   }
                 </div>
               }
@@ -70,7 +70,7 @@
                     [text]="true"
                     [rounded]="true"
                     severity="secondary"
-                    pTooltip="Edit advertisement"
+                    [pTooltip]="'advertisements.editTooltip' | t"
                     (onClick)="openEdit(ad)"
                   />
                   <p-button
@@ -79,22 +79,22 @@
                     [rounded]="true"
                     severity="secondary"
                     [disabled]="uploadingId() !== null"
-                    pTooltip="Replace image"
+                    [pTooltip]="'advertisements.replaceImage' | t"
                     (onClick)="replaceImage(ad)"
                   />
                   <p-toggleswitch
                     [ngModel]="ad.isActive"
                     (ngModelChange)="toggleActive(ad, $event)"
                     [readonly]="togglingId() !== null"
-                    ariaLabel="Enable or disable advertisement"
-                    pTooltip="Enable / disable"
+                    [ariaLabel]="'advertisements.toggleAria' | t"
+                    [pTooltip]="'advertisements.toggleTooltip' | t"
                   />
                   <p-button
                     icon="pi pi-trash"
                     [text]="true"
                     [rounded]="true"
                     severity="danger"
-                    pTooltip="Delete advertisement"
+                    [pTooltip]="'advertisements.deleteTooltip' | t"
                     (onClick)="confirmDelete(ad)"
                   />
                 </div>
@@ -105,7 +105,7 @@
 
         <ng-template #emptymessage>
           <tr>
-            <td colspan="5" class="empty-row">No advertisements yet.</td>
+            <td colspan="5" class="empty-row">{{ 'advertisements.empty' | t }}</td>
           </tr>
         </ng-template>
       </p-table>
@@ -135,29 +135,29 @@
   >
     <div class="form-grid">
       <div class="field field-full">
-        <label for="a-title">Title</label>
+        <label for="a-title">{{ 'common.title' | t }}</label>
         <input
           id="a-title"
           pInputText
           type="text"
           [(ngModel)]="draft.title"
-          placeholder="e.g. Summer sale — up to 40% off"
+          [placeholder]="'advertisements.titlePlaceholder' | t"
         />
       </div>
 
       <div class="field field-full">
-        <label for="a-subtitle">Subtitle</label>
+        <label for="a-subtitle">{{ 'advertisements.adSubtitle' | t }}</label>
         <input
           id="a-subtitle"
           pInputText
           type="text"
           [(ngModel)]="draft.subtitle"
-          placeholder="Short line under the title (optional)"
+          [placeholder]="'advertisements.adSubtitlePlaceholder' | t"
         />
       </div>
 
       <div class="field field-full">
-        <label for="a-target">Target</label>
+        <label for="a-target">{{ 'advertisements.target' | t }}</label>
         <input
           id="a-target"
           pInputText
@@ -166,32 +166,31 @@
           placeholder="product/{id} · service/{id} · https://…"
         />
         <span class="field-hint">
-          In-app targets (product/12, service/3) open a listing; absolute https:// URLs open
-          outside the app. Leave empty for no link.
+          {{ 'advertisements.targetHint' | t }}
         </span>
       </div>
 
       <div class="field">
-        <label for="a-order">Sort order</label>
+        <label for="a-order">{{ 'advertisements.sortOrder' | t }}</label>
         <p-inputnumber id="a-order" [min]="0" [useGrouping]="false" [(ngModel)]="draft.sortOrder" />
       </div>
 
       <div class="field">
-        <label for="a-active">Active</label>
+        <label for="a-active">{{ 'advertisements.active' | t }}</label>
         <div class="switch-row">
-          <p-toggleswitch id="a-active" [(ngModel)]="draft.isActive" ariaLabel="Advertisement active" />
+          <p-toggleswitch id="a-active" [(ngModel)]="draft.isActive" [ariaLabel]="'advertisements.activeAria' | t" />
           <span class="field-hint">
-            {{ draft.isActive ? 'Visible when the schedule allows' : 'Hidden regardless of schedule' }}
+            {{ draft.isActive ? ('advertisements.activeHintOn' | t) : ('advertisements.activeHintOff' | t) }}
           </span>
         </div>
       </div>
 
       <div class="field">
-        <label for="a-starts">Starts</label>
+        <label for="a-starts">{{ 'advertisements.starts' | t }}</label>
         <p-datepicker
           id="a-starts"
           [(ngModel)]="draft.startsAt"
-          placeholder="Immediately"
+          [placeholder]="'advertisements.startsPlaceholder' | t"
           [showTime]="true"
           [hourFormat]="'12'"
           [showClear]="true"
@@ -201,22 +200,22 @@
       </div>
 
       <div class="field">
-        <label for="a-ends">Ends</label>
+        <label for="a-ends">{{ 'advertisements.ends' | t }}</label>
         <p-datepicker
           id="a-ends"
           [(ngModel)]="draft.endsAt"
-          placeholder="No end"
+          [placeholder]="'advertisements.endsPlaceholder' | t"
           [showTime]="true"
           [hourFormat]="'12'"
           [showClear]="true"
           [readonlyInput]="true"
           appendTo="body"
         />
-        <span class="field-hint">Must be after Starts — clear the field to remove the bound.</span>
+        <span class="field-hint">{{ 'advertisements.endsHint' | t }}</span>
       </div>
 
       <div class="field field-full">
-        <label>Image</label>
+        <label>{{ 'common.image' | t }}</label>
         <div class="gallery">
           @if (pendingImage(); as pending) {
             <div class="gallery-item">
@@ -224,7 +223,7 @@
               <button
                 type="button"
                 class="gallery-remove"
-                aria-label="Remove image"
+                [attr.aria-label]="'common.removeImage' | t"
                 (click)="clearPendingImage()"
               >
                 <i class="pi pi-times"></i>
@@ -233,30 +232,30 @@
           }
           @if (existingImage(); as current) {
             <div class="gallery-item">
-              <img [src]="current" alt="Current image" (click)="openImage(current)" />
+              <img [src]="current" [alt]="'advertisements.currentImage' | t" (click)="openImage(current)" />
             </div>
           }
           <label class="gallery-add">
             <i class="pi pi-image"></i>
-            <span>Choose image</span>
+            <span>{{ 'common.chooseImage' | t }}</span>
             <input
               type="file"
               accept="image/png,image/jpeg,image/webp,image/gif"
-              aria-label="Choose image"
+              [attr.aria-label]="'common.chooseImage' | t"
               (change)="onDialogFileSelected($event)"
             />
           </label>
         </div>
         <span class="field-hint">
-          PNG, JPG, WEBP or GIF up to 5 MB — on save it replaces the current image.
+          {{ 'advertisements.imageHint' | t }}
         </span>
       </div>
     </div>
 
     <ng-template #footer>
-      <p-button label="Cancel" [text]="true" severity="secondary" (onClick)="dialogVisible.set(false)" />
+      <p-button [label]="'common.cancel' | t" [text]="true" severity="secondary" (onClick)="dialogVisible.set(false)" />
       <p-button
-        [label]="saving() ? 'Saving…' : editingId() ? 'Save advertisement' : 'Create advertisement'"
+        [label]="saving() ? ('common.saving' | t) : editingId() ? ('advertisements.save' | t) : ('advertisements.create' | t)"
         icon="pi pi-check"
         (onClick)="save()"
         [loading]="saving()"

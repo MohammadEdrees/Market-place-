@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_exception.dart';
 import '../../core/format/formatters.dart';
+import '../../core/i18n/l10n_ext.dart';
 import '../../core/widgets/gallery.dart';
 import '../../core/widgets/state_views.dart';
 import '../../core/widgets/status_badge.dart';
@@ -21,7 +22,7 @@ class ProductDetailPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Product')),
+      appBar: AppBar(title: Text(context.l10n.productDetailTitle)),
       body: AsyncValueView<Product>(
         value: ref.watch(productProvider(id)),
         onRetry: () => ref.invalidate(productProvider(id)),
@@ -39,19 +40,22 @@ class _ProductDetail extends ConsumerWidget {
   Future<void> _buy(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirm purchase'),
+      builder: (dialogContext) => AlertDialog(
+        title: Text(dialogContext.l10n.productDetailConfirmTitle),
         content: Text(
-          'Buy "${product.name}" for ${formatMoney(product.price)}?',
+          dialogContext.l10n.productDetailConfirmMessage(
+            product.name,
+            formatMoney(product.price),
+          ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(dialogContext.l10n.commonCancel),
           ),
           FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Buy'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(dialogContext.l10n.productDetailBuy),
           ),
         ],
       ),
@@ -65,8 +69,8 @@ class _ProductDetail extends ConsumerWidget {
       ref.invalidate(productProvider(product.id));
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Order placed — track it under Orders.'),
+          SnackBar(
+            content: Text(context.l10n.productDetailOrderPlaced),
           ),
         );
       }
@@ -74,7 +78,7 @@ class _ProductDetail extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.message),
+            content: Text(context.localizeApiMessage(e.message)),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -85,6 +89,7 @@ class _ProductDetail extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
     final session = ref.watch(authControllerProvider).value;
     final mine = session != null && product.sellerId == session.user.id;
 
@@ -133,13 +138,15 @@ class _ProductDetail extends ConsumerWidget {
                         _InfoChip(
                           icon: Icons.inventory_2_outlined,
                           label: product.inStock
-                              ? '${product.stock} in stock'
-                              : 'None left',
+                              ? l10n.productDetailInStock(
+                                  product.stock.toString())
+                              : l10n.productDetailNoneLeft,
                         ),
                         if (product.sold > 0)
                           _InfoChip(
                             icon: Icons.sell_outlined,
-                            label: '${product.sold} sold',
+                            label:
+                                l10n.productDetailSold(product.sold.toString()),
                           ),
                         _InfoChip(
                           icon: Icons.qr_code_outlined,
@@ -150,7 +157,7 @@ class _ProductDetail extends ConsumerWidget {
                     if (mine) ...[
                       const SizedBox(height: 16),
                       Text(
-                        'This is your listing.',
+                        l10n.productDetailYours,
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -175,14 +182,16 @@ class _ProductDetail extends ConsumerWidget {
                     onPressed: () =>
                         context.go('/listings/product/${product.id}'),
                     icon: const Icon(Icons.edit_outlined),
-                    label: const Text('Edit listing'),
+                    label: Text(l10n.productDetailEditListing),
                   )
                 : FilledButton.icon(
                     onPressed:
                         product.inStock ? () => _buy(context, ref) : null,
                     icon: const Icon(Icons.shopping_cart_outlined),
                     label: Text(
-                      product.inStock ? 'Buy now' : 'Out of stock',
+                      product.inStock
+                          ? l10n.productDetailBuyNow
+                          : l10n.statusOutOfStock,
                     ),
                   ),
           ),

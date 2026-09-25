@@ -5,6 +5,7 @@ import 'package:market_workplace/core/api/api_exception.dart';
 import 'package:market_workplace/features/catalog/catalog_repository.dart';
 import 'package:market_workplace/features/catalog/models.dart';
 import 'package:market_workplace/features/catalog/products_page.dart';
+import 'package:market_workplace/l10n/generated/app_localizations.dart';
 
 class FakeCatalogRepository implements CatalogRepository {
   FakeCatalogRepository({
@@ -159,7 +160,11 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [catalogRepositoryProvider.overrideWithValue(repo)],
-        child: const MaterialApp(home: ProductsPage()),
+        child: const MaterialApp(
+          home: ProductsPage(),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+        ),
       ),
     );
     await tester.pumpAndSettle();

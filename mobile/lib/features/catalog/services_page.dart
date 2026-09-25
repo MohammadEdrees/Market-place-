@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_exception.dart';
 import '../../core/format/formatters.dart';
+import '../../core/i18n/l10n_ext.dart';
 import '../../core/widgets/listing_image.dart';
 import '../../core/widgets/state_views.dart';
 import '../../core/widgets/status_badge.dart';
@@ -106,8 +107,9 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: const Text('Services')),
+      appBar: AppBar(title: Text(l10n.servicesTitle)),
       body: Column(
         children: [
           Padding(
@@ -117,7 +119,7 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
               textInputAction: TextInputAction.search,
               onSubmitted: _applySearch,
               decoration: InputDecoration(
-                hintText: 'Search services',
+                hintText: l10n.servicesSearchHint,
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchController.text.isEmpty
                     ? null
@@ -146,7 +148,7 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: ChoiceChip(
-                      label: const Text('All'),
+                      label: Text(l10n.commonAll),
                       selected: _category == null,
                       onSelected: (_) => _setCategory(null),
                     ),
@@ -173,16 +175,16 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
     if (_error != null && _services.isEmpty) {
       return ErrorView(
         message: _error is ApiException
-            ? (_error as ApiException).message
-            : 'Could not load services.',
+            ? context.localizeApiMessage((_error as ApiException).message)
+            : context.l10n.servicesLoadError,
         onRetry: () => _load(reset: true),
       );
     }
     if (_loading && _services.isEmpty) return const LoadingView();
     if (_services.isEmpty) {
-      return const EmptyView(
+      return EmptyView(
         icon: Icons.search_off,
-        message: 'No services match your search.',
+        message: context.l10n.servicesEmpty,
       );
     }
 

@@ -1,15 +1,20 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormsModule } from '@angular/forms';
 import { filter } from 'rxjs';
 import { AvatarModule } from 'primeng/avatar';
 import { ButtonModule } from 'primeng/button';
+import { SelectModule } from 'primeng/select';
 import { TooltipModule } from 'primeng/tooltip';
 
 import { AuthService } from './core/auth.service';
+import { I18nService, Lang } from './core/i18n/i18n.service';
+import { TranslatePipe } from './core/i18n/t.pipe';
 
 interface NavItem {
-  label: string;
+  /** Translation key (see `nav.*` in core/i18n/en.json), not display text. */
+  labelKey: string;
   icon: string;
   link?: string;
   soon?: boolean;
@@ -17,7 +22,17 @@ interface NavItem {
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, AvatarModule, ButtonModule, TooltipModule],
+  imports: [
+    RouterOutlet,
+    RouterLink,
+    RouterLinkActive,
+    FormsModule,
+    AvatarModule,
+    ButtonModule,
+    SelectModule,
+    TooltipModule,
+    TranslatePipe,
+  ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
@@ -25,9 +40,21 @@ export class App {
   private readonly router = inject(Router);
 
   readonly auth = inject(AuthService);
+  readonly i18n = inject(I18nService);
   readonly darkMode = signal(false);
-  readonly pageTitle = signal('Dashboard');
   readonly apiUrl = 'localhost:5240';
+
+  /** Translation key for the current route segment (see `nav.*` / `page.login`). */
+  private readonly pageKey = signal('nav.dashboard');
+
+  /** Current route title, re-translated whenever the language changes. */
+  readonly pageTitle = computed(() => this.i18n.t(this.pageKey()));
+
+  /** Language choices for the topbar switcher — endonyms, never translated. */
+  readonly langOptions: { label: string; value: Lang }[] = [
+    { label: 'English', value: 'en' },
+    { label: 'العربية', value: 'ar' },
+  ];
 
   /** The login page renders full-screen; everything else gets the sidebar/topbar chrome. */
   readonly showShell = signal(!this.router.url.startsWith('/login'));
@@ -44,20 +71,20 @@ export class App {
   });
 
   readonly primaryNav: NavItem[] = [
-    { label: 'Dashboard', icon: 'pi pi-home', link: '/dashboard' },
-    { label: 'Products', icon: 'pi pi-box', link: '/products' },
-    { label: 'Services', icon: 'pi pi-wrench', link: '/services' },
-    { label: 'Orders', icon: 'pi pi-shopping-cart', link: '/orders' },
-    { label: 'Categories', icon: 'pi pi-tags', link: '/categories' },
-    { label: 'Advertisements', icon: 'pi pi-megaphone', link: '/advertisements' },
-    { label: 'Users', icon: 'pi pi-users', link: '/users' },
-    { label: 'Roles', icon: 'pi pi-key', link: '/roles' },
+    { labelKey: 'nav.dashboard', icon: 'pi pi-home', link: '/dashboard' },
+    { labelKey: 'nav.products', icon: 'pi pi-box', link: '/products' },
+    { labelKey: 'nav.services', icon: 'pi pi-wrench', link: '/services' },
+    { labelKey: 'nav.orders', icon: 'pi pi-shopping-cart', link: '/orders' },
+    { labelKey: 'nav.categories', icon: 'pi pi-tags', link: '/categories' },
+    { labelKey: 'nav.advertisements', icon: 'pi pi-megaphone', link: '/advertisements' },
+    { labelKey: 'nav.users', icon: 'pi pi-users', link: '/users' },
+    { labelKey: 'nav.roles', icon: 'pi pi-key', link: '/roles' },
+    { labelKey: 'nav.settings', icon: 'pi pi-cog', link: '/settings' },
   ];
 
   readonly workspaceNav: NavItem[] = [
-    { label: 'Reports', icon: 'pi pi-chart-bar', soon: true },
-    { label: 'Team', icon: 'pi pi-id-card', soon: true },
-    { label: 'Settings', icon: 'pi pi-cog', soon: true },
+    { labelKey: 'nav.reports', icon: 'pi pi-chart-bar', soon: true },
+    { labelKey: 'nav.team', icon: 'pi pi-id-card', soon: true },
   ];
 
   constructor() {
@@ -75,18 +102,27 @@ export class App {
         const url = e.urlAfterRedirects;
         this.showShell.set(!url.startsWith('/login'));
         const segment = url.split('?')[0].split('/').filter(Boolean)[0] ?? '';
-        const titles: Record<string, string> = {
-          dashboard: 'Dashboard',
-          products: 'Products',
-          services: 'Services',
-          orders: 'Orders',
-          categories: 'Categories',
-          advertisements: 'Advertisements',
-          users: 'Users',
-          roles: 'Roles',
+        const keys: Record<string, string> = {
+          login: 'page.login',
+          dashboard: 'nav.dashboard',
+          products: 'nav.products',
+          services: 'nav.services',
+          orders: 'nav.orders',
+          categories: 'nav.categories',
+          advertisements: 'nav.advertisements',
+          users: 'nav.users',
+          roles: 'nav.roles',
+          settings: 'page.settings',
         };
-        this.pageTitle.set(titles[segment] ?? 'Dashboard');
+        // Store the *key*; pageTitle re-translates it on every switch.
+        this.pageKey.set(keys[segment] ?? 'nav.dashboard');
       });
+
+    // Browser tab title: refreshed on navigation (pageTitle) and on every
+    // language switch, beating the router's default static title strategy.
+    effect(() => {
+      document.title = `${this.pageTitle()} · Market Workplace`;
+    });
   }
 
   toggleDarkMode(): void {

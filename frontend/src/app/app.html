@@ -5,25 +5,29 @@
         <span class="brand-mark"><i class="pi pi-bolt"></i></span>
         <span class="brand-text">
           <strong>Market Workplace</strong>
-          <small>Analytics</small>
+          <small>{{ 'shell.brandSubtitle' | t }}</small>
         </span>
       </div>
 
       <nav class="nav">
-        <p class="nav-label">Overview</p>
-        @for (item of primaryNav; track item.label) {
+        <p class="nav-label">{{ 'shell.overview' | t }}</p>
+        @for (item of primaryNav; track item.labelKey) {
           <a class="nav-link" [routerLink]="item.link" routerLinkActive="active">
             <i [class]="item.icon"></i>
-            <span>{{ item.label }}</span>
+            <span>{{ item.labelKey | t }}</span>
           </a>
         }
 
-        <p class="nav-label">Workspace</p>
-        @for (item of workspaceNav; track item.label) {
-          <span class="nav-link is-disabled" pTooltip="Coming soon" tooltipPosition="right">
+        <p class="nav-label">{{ 'shell.workspace' | t }}</p>
+        @for (item of workspaceNav; track item.labelKey) {
+          <span
+            class="nav-link is-disabled"
+            [pTooltip]="'shell.comingSoon' | t"
+            tooltipPosition="right"
+          >
             <i [class]="item.icon"></i>
-            <span>{{ item.label }}</span>
-            <span class="badge-soon">Soon</span>
+            <span>{{ item.labelKey | t }}</span>
+            <span class="badge-soon">{{ 'shell.soon' | t }}</span>
           </span>
         }
       </nav>
@@ -46,21 +50,33 @@
         </div>
 
         <div class="topbar-actions">
+          <p-select
+            [ngModel]="i18n.lang()"
+            (ngModelChange)="i18n.setLang($event)"
+            [options]="langOptions"
+            optionLabel="label"
+            optionValue="value"
+            [showClear]="false"
+            appendTo="body"
+            styleClass="lang-select"
+            [pTooltip]="'shell.language' | t"
+            [attr.aria-label]="'shell.language' | t"
+          />
           <p-button
             icon="pi pi-bell"
             [text]="true"
             [rounded]="true"
             severity="secondary"
-            ariaLabel="Notifications"
-            pTooltip="No new notifications"
+            [ariaLabel]="'shell.notifications' | t"
+            [pTooltip]="'shell.noNotifications' | t"
           />
           <p-button
             [icon]="darkMode() ? 'pi pi-sun' : 'pi pi-moon'"
             [text]="true"
             [rounded]="true"
             severity="secondary"
-            ariaLabel="Toggle dark mode"
-            pTooltip="Toggle dark mode"
+            [ariaLabel]="'shell.toggleDarkMode' | t"
+            [pTooltip]="'shell.toggleDarkMode' | t"
             (onClick)="toggleDarkMode()"
           />
           <span class="topbar-divider"></span>
@@ -69,7 +85,7 @@
             <p-avatar [label]="initials()" shape="circle" />
             <span class="topbar-user-text">
               <strong>{{ auth.user()?.name }}</strong>
-              <small>{{ auth.user()?.role }}</small>
+              <small>{{ i18n.label('role', auth.user()?.role) }}</small>
             </span>
           </div>
 
@@ -78,8 +94,8 @@
             [text]="true"
             [rounded]="true"
             severity="secondary"
-            ariaLabel="Sign out"
-            pTooltip="Sign out"
+            [ariaLabel]="'shell.signOut' | t"
+            [pTooltip]="'shell.signOut' | t"
             (onClick)="logout()"
           />
         </div>

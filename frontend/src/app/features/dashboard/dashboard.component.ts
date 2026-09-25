@@ -8,19 +8,22 @@ import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { DashboardService } from '../../core/dashboard.service';
 import { ProductService } from '../../core/product.service';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { TranslatePipe } from '../../core/i18n/t.pipe';
 import type { DashboardResponse, Product } from '../../core/models';
 
 Chart.register(...registerables);
 
 @Component({
   selector: 'app-dashboard',
-  imports: [CurrencyPipe, DatePipe, ChartModule, ProgressBarModule, SkeletonModule, TableModule, TagModule],
+  imports: [CurrencyPipe, DatePipe, ChartModule, ProgressBarModule, SkeletonModule, TableModule, TagModule, TranslatePipe],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
 })
 export class DashboardComponent implements OnInit {
   private readonly dashboardService = inject(DashboardService);
   private readonly productService = inject(ProductService);
+  readonly i18n = inject(I18nService);
 
   readonly loading = signal(true);
   readonly data = signal<DashboardResponse | null>(null);
@@ -44,7 +47,7 @@ export class DashboardComponent implements OnInit {
       labels: trend.map((p) => p.label),
       datasets: [
         {
-          label: 'Revenue',
+          label: this.i18n.t('dashboard.chartRevenue'),
           data: trend.map((p) => p.revenue),
           borderColor: '#6366f1',
           backgroundColor: 'rgba(99, 102, 241, 0.18)',
@@ -55,7 +58,7 @@ export class DashboardComponent implements OnInit {
           yAxisID: 'y',
         },
         {
-          label: 'Orders',
+          label: this.i18n.t('dashboard.chartOrders'),
           data: trend.map((p) => p.orders),
           borderColor: '#12b76a',
           backgroundColor: 'transparent',
@@ -77,10 +80,11 @@ export class DashboardComponent implements OnInit {
       legend: { labels: { usePointStyle: true, boxWidth: 8 } },
       tooltip: {
         callbacks: {
+          // Resolved per tooltip so the active language is always current.
           label: (item) =>
-            item.dataset.label === 'Revenue'
-              ? ` Revenue: $${Number(item.parsed.y).toLocaleString()}`
-              : ` Orders: ${item.parsed.y}`,
+            item.dataset.label === this.i18n.t('dashboard.chartRevenue')
+              ? ` ${this.i18n.t('dashboard.chartRevenue')}: $${Number(item.parsed.y).toLocaleString()}`
+              : ` ${this.i18n.t('dashboard.chartOrders')}: ${item.parsed.y}`,
         },
       },
     },
@@ -123,6 +127,57 @@ export class DashboardComponent implements OnInit {
     },
   };
 
+  /** Best-sellers ranking as a horizontal bar chart (all-time revenue). */
+  readonly topProductsData = computed(() => {
+    const top = this.data()?.topProducts ?? [];
+    return {
+      labels: top.map((p) => p.name),
+      datasets: [
+        {
+          label: this.i18n.t('dashboard.chartRevenue'),
+          data: top.map((p) => p.revenue),
+          backgroundColor: 'rgba(99, 102, 241, 0.85)',
+          hoverBackgroundColor: '#6366f1',
+          borderRadius: 6,
+          barThickness: 18,
+        },
+      ],
+    };
+  });
+
+  readonly topProductsOptions: ChartOptions<'bar'> = {
+    indexAxis: 'y',
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: { label: (item) => ` $${Number(item.parsed.x).toLocaleString()}` },
+      },
+    },
+    scales: {
+      x: {
+        grid: { color: 'rgba(102, 112, 133, 0.15)' },
+        ticks: { callback: (value) => `$${Number(value).toLocaleString()}` },
+      },
+      y: { grid: { display: false } },
+    },
+  };
+
+  /** Order status breakdown, largest first (server already sorts it). */
+  readonly statusBreakdown = computed(() => this.data()?.ordersByStatus ?? []);
+
+  /** Audience figures; empty placeholders keep the panel stable before data arrives. */
+  readonly audience = computed(() => {
+    const stats = this.data()?.userStats;
+    return [
+      { key: 'total', label: this.i18n.t('dashboard.totalAccounts'), value: stats?.total ?? 0, icon: 'users' },
+      { key: 'clients', label: this.i18n.t('dashboard.clients'), value: stats?.clients ?? 0, icon: 'user' },
+      { key: 'providers', label: this.i18n.t('dashboard.providers'), value: stats?.providers ?? 0, icon: 'briefcase' },
+      { key: 'new', label: this.i18n.t('dashboard.newUsers'), value: stats?.newLast30 ?? 0, icon: 'user-plus' },
+    ];
+  });
+
   ngOnInit(): void {
     this.dashboardService.getDashboard().subscribe({
       next: (data) => {
@@ -146,6 +201,25 @@ export class DashboardComponent implements OnInit {
         return 'danger';
       default:
         return 'info';
+    }
+  }
+
+  /** Bar colour per order status, mirroring the tag severities above. */
+  statusColor(status: string): string {
+    switch (status) {
+      case 'Completed':
+        return '#12b76a';
+      case 'Processing':
+        return '#f79009';
+      case 'Refunded':
+      case 'Cancelled':
+        return '#f04438';
+      case 'Reserved':
+        return '#7a5af8';
+      case 'Confirmed':
+        return '#0ba5ec';
+      default:
+        return '#667085';
     }
   }
 }

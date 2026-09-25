@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../core/i18n/l10n_ext.dart';
 import '../../core/widgets/listing_image.dart';
 import '../../core/widgets/state_views.dart';
 import '../catalog/catalog_providers.dart';
@@ -50,9 +51,12 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
   bool _loading = false;
   bool _saving = false;
   bool _uploading = false;
-  String? _error;
+  Object? _error;
 
   bool get _isProduct => widget.kind == 'product';
+
+  /// API identifier for image uploads (`products` / `services`); never
+  /// translated.
   String get _kindPlural => _isProduct ? 'products' : 'services';
 
   @override
@@ -133,7 +137,7 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = errorMessage(e);
+          _error = e;
           _loading = false;
         });
       }
@@ -164,7 +168,7 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
           );
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Saved — now add some photos.')),
+            SnackBar(content: Text(context.l10n.listingFormSavedAddPhotos)),
           );
           context.go('/listings/product/${created.id}');
         } else {
@@ -179,7 +183,7 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
           ref.invalidate(myProductsProvider);
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Changes saved.')),
+              SnackBar(content: Text(context.l10n.listingFormChangesSaved)),
             );
           }
         }
@@ -197,7 +201,7 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
           );
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Saved — now add some photos.')),
+            SnackBar(content: Text(context.l10n.listingFormSavedAddPhotos)),
           );
           context.go('/listings/service/${created.id}');
         } else {
@@ -214,7 +218,7 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
           ref.invalidate(myServicesProvider);
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Changes saved.')),
+              SnackBar(content: Text(context.l10n.listingFormChangesSaved)),
             );
           }
         }
@@ -223,7 +227,7 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(errorMessage(e)),
+            content: Text(errorMessage(context, e)),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -263,14 +267,15 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
           );
       await _reloadImages();
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Photo added.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.listingFormPhotoAdded)),
+        );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(errorMessage(e)),
+            content: Text(errorMessage(context, e)),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -292,14 +297,15 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
               if (existing.id != image.id) existing,
           ]);
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Photo removed.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.listingFormPhotoRemoved)),
+        );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(errorMessage(e)),
+            content: Text(errorMessage(context, e)),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -309,29 +315,35 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
 
   String? _required(String? value, [int? max]) {
     final v = value?.trim() ?? '';
-    if (v.isEmpty) return 'Required.';
-    if (max != null && v.length > max) return 'Max $max characters.';
+    if (v.isEmpty) return context.l10n.commonRequired;
+    if (max != null && v.length > max) {
+      return context.l10n.commonMaxCharacters(max.toString());
+    }
     return null;
   }
 
   String? _optionalMax(String? value, int max) {
     final v = value?.trim() ?? '';
-    if (v.length > max) return 'Max $max characters.';
+    if (v.length > max) {
+      return context.l10n.commonMaxCharacters(max.toString());
+    }
     return null;
   }
 
   String? _amountValidator(String? value) {
     final v = value?.trim() ?? '';
-    if (v.isEmpty) return 'Required.';
-    if (_parseAmount(v) < 0) return 'Enter a valid amount.';
+    if (v.isEmpty) return context.l10n.commonRequired;
+    if (_parseAmount(v) < 0) return context.l10n.listingFormValidAmount;
     return null;
   }
 
   String? _intValidator(String? value) {
     final v = value?.trim() ?? '';
-    if (v.isEmpty) return 'Required.';
+    if (v.isEmpty) return context.l10n.commonRequired;
     final parsed = int.tryParse(v);
-    if (parsed == null || parsed < 0) return 'Enter 0 or more.';
+    if (parsed == null || parsed < 0) {
+      return context.l10n.listingFormNonNegative;
+    }
     return null;
   }
 
@@ -341,7 +353,7 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
         initialValue: _category,
         isExpanded: true,
         decoration: InputDecoration(
-          labelText: 'Category',
+          labelText: context.l10n.listingFormCategory,
           hintText: hintText,
           border: const OutlineInputBorder(),
         ),
@@ -355,12 +367,21 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
 
   @override
   Widget build(BuildContext context) {
-    final noun = _isProduct ? 'product' : 'service';
+    final l10n = context.l10n;
+    final isProduct = _isProduct;
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.id == null ? 'New $noun' : 'Edit $noun'),
+        title: Text(
+          widget.id == null
+              ? (isProduct
+                  ? l10n.listingFormNewProduct
+                  : l10n.listingFormNewService)
+              : (isProduct
+                  ? l10n.listingFormEditProduct
+                  : l10n.listingFormEditService),
+        ),
       ),
-      body: _buildBody(noun),
+      body: _buildBody(),
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
@@ -373,17 +394,27 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : Text(widget.id == null ? 'Create $noun' : 'Save changes'),
+                : Text(
+                    widget.id == null
+                        ? (isProduct
+                            ? l10n.listingFormCreateProduct
+                            : l10n.listingFormCreateService)
+                        : l10n.commonSaveChanges,
+                  ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildBody(String noun) {
+  Widget _buildBody() {
+    final l10n = context.l10n;
     if (_loading) return const LoadingView();
     if (_error != null && widget.id != null && _images.isEmpty && _name.text.isEmpty && _title.text.isEmpty) {
-      return ErrorView(message: _error!, onRetry: _loadExisting);
+      return ErrorView(
+        message: errorMessage(context, _error!),
+        onRetry: _loadExisting,
+      );
     }
 
     return Form(
@@ -396,9 +427,9 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
               controller: _name,
               textInputAction: TextInputAction.next,
               maxLength: 120,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.listingFormName,
+                border: const OutlineInputBorder(),
                 counterText: '',
               ),
               validator: (v) => _required(v, 120),
@@ -411,16 +442,18 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
                     controller: _sku,
                     textInputAction: TextInputAction.next,
                     maxLength: 40,
-                    decoration: const InputDecoration(
-                      labelText: 'SKU',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: l10n.listingFormSku,
+                      border: const OutlineInputBorder(),
                       counterText: '',
                     ),
                     validator: (v) => _required(v, 40),
                   ),
                 ),
                 const SizedBox(width: 12),
-                Expanded(child: _categoryField('e.g. Electronics')),
+                Expanded(
+                    child:
+                        _categoryField(l10n.listingFormCategoryHintProduct)),
               ],
             ),
             const SizedBox(height: 16),
@@ -432,10 +465,10 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
-                    decoration: const InputDecoration(
-                      labelText: 'Price (USD)',
+                    decoration: InputDecoration(
+                      labelText: l10n.listingFormPrice,
                       prefixText: r'$ ',
-                      border: OutlineInputBorder(),
+                      border: const OutlineInputBorder(),
                     ),
                     validator: _amountValidator,
                   ),
@@ -445,9 +478,9 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
                   child: TextFormField(
                     controller: _stock,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Stock',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: l10n.listingFormStock,
+                      border: const OutlineInputBorder(),
                     ),
                     validator: _intValidator,
                   ),
@@ -459,9 +492,9 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
               controller: _title,
               textInputAction: TextInputAction.next,
               maxLength: 120,
-              decoration: const InputDecoration(
-                labelText: 'Title',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.listingFormTitle,
+                border: const OutlineInputBorder(),
                 counterText: '',
               ),
               validator: (v) => _required(v, 120),
@@ -472,11 +505,11 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
               textInputAction: TextInputAction.next,
               maxLength: 1000,
               maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: 'Description',
-                hintText: 'What do you offer?',
+              decoration: InputDecoration(
+                labelText: l10n.listingFormDescription,
+                hintText: l10n.listingFormDescriptionHint,
                 alignLabelWithHint: true,
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
                 counterText: '',
               ),
               validator: (v) => _optionalMax(v, 1000),
@@ -484,7 +517,9 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
             const SizedBox(height: 16),
             Row(
               children: [
-                Expanded(child: _categoryField('e.g. Repairs')),
+                Expanded(
+                    child:
+                        _categoryField(l10n.listingFormCategoryHintService)),
                 const SizedBox(width: 12),
                 Expanded(
                   child: TextFormField(
@@ -492,10 +527,10 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
-                    decoration: const InputDecoration(
-                      labelText: 'Cost (USD)',
+                    decoration: InputDecoration(
+                      labelText: l10n.listingFormCost,
                       prefixText: r'$ ',
-                      border: OutlineInputBorder(),
+                      border: const OutlineInputBorder(),
                     ),
                     validator: _amountValidator,
                   ),
@@ -507,10 +542,10 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
               controller: _contactInfo,
               textInputAction: TextInputAction.next,
               maxLength: 200,
-              decoration: const InputDecoration(
-                labelText: 'Contact info',
-                hintText: 'Phone, email or WhatsApp',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.listingFormContactInfo,
+                hintText: l10n.listingFormContactHint,
+                border: const OutlineInputBorder(),
                 counterText: '',
               ),
               validator: (v) => _required(v, 200),
@@ -520,9 +555,9 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
               controller: _location,
               textInputAction: TextInputAction.next,
               maxLength: 120,
-              decoration: const InputDecoration(
-                labelText: 'Location / service area',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.listingFormLocation,
+                border: const OutlineInputBorder(),
                 counterText: '',
               ),
               validator: (v) => _required(v, 120),
@@ -533,11 +568,11 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
               textInputAction: TextInputAction.done,
               maxLength: 500,
               maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'Current offers (optional)',
-                hintText: 'e.g. 20% off the first booking',
+              decoration: InputDecoration(
+                labelText: l10n.listingFormOffers,
+                hintText: l10n.listingFormOffersHint,
                 alignLabelWithHint: true,
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
                 counterText: '',
               ),
               validator: (v) => _optionalMax(v, 500),
@@ -547,7 +582,7 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
           Row(
             children: [
               Text(
-                'Photos',
+                l10n.listingFormPhotos,
                 style: Theme.of(context)
                     .textTheme
                     .titleMedium
@@ -565,8 +600,10 @@ class _ListingFormPageState extends ConsumerState<ListingFormPage> {
           const SizedBox(height: 4),
           Text(
             widget.id == null
-                ? 'Save the $noun first, then add photos here.'
-                : 'First photo is shown as the thumbnail.',
+                ? (_isProduct
+                    ? l10n.listingFormSaveFirstProduct
+                    : l10n.listingFormSaveFirstService)
+                : l10n.listingFormThumbnailHint,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),

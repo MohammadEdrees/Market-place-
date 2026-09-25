@@ -70,6 +70,13 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/roles/roles.component').then((m) => m.RolesComponent),
       },
+      {
+        path: 'settings',
+        title: 'Settings · Market Workplace',
+        data: { breadcrumb: 'Settings' },
+        loadComponent: () =>
+          import('./features/settings/settings.component').then((m) => m.SettingsComponent),
+      },
       { path: '**', redirectTo: 'dashboard' },
     ],
   },

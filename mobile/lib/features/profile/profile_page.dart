@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/auth/session.dart';
+import '../../core/i18n/language_switcher.dart';
+import '../../core/i18n/l10n_ext.dart';
+import '../../core/i18n/locale_provider.dart';
 import '../../core/widgets/state_views.dart';
 import '../auth/auth_controller.dart';
 import '../auth/auth_repository.dart';
@@ -56,14 +59,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       await ref.read(authControllerProvider.notifier).applyUser(updated);
       if (mounted) {
         setState(() => _editing = false);
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Profile updated.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.profileUpdated)),
+        );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(errorMessage(e)),
+            content: Text(errorMessage(context, e)),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -96,14 +100,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           );
       await _refreshUser();
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Photo updated.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.profilePhotoUpdated)),
+        );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(errorMessage(e)),
+            content: Text(errorMessage(context, e)),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -118,14 +123,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       await ref.read(usersRepositoryProvider).removeAvatar(user.id);
       await _refreshUser();
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Photo removed.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.profilePhotoRemoved)),
+        );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(errorMessage(e)),
+            content: Text(errorMessage(context, e)),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -144,7 +150,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           children: [
             ListTile(
               leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('Choose photo'),
+              title: Text(sheetContext.l10n.profileChoosePhoto),
               onTap: () {
                 Navigator.of(sheetContext).pop();
                 _pickAvatar();
@@ -156,7 +162,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   Icons.delete_outline,
                   color: Theme.of(context).colorScheme.error,
                 ),
-                title: const Text('Remove photo'),
+                title: Text(sheetContext.l10n.profileRemovePhoto),
                 onTap: () {
                   Navigator.of(sheetContext).pop();
                   _removeAvatar();
@@ -172,16 +178,16 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Sign out?'),
-        content: const Text('You will need to sign in again to continue.'),
+        title: Text(dialogContext.l10n.profileSignOutTitle),
+        content: Text(dialogContext.l10n.profileSignOutMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
+            child: Text(dialogContext.l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Sign out'),
+            child: Text(dialogContext.l10n.profileSignOut),
           ),
         ],
       ),
@@ -200,12 +206,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: Text(context.l10n.profileTitle),
         actions: [
           if (!_editing)
             IconButton(
               icon: const Icon(Icons.edit_outlined),
-              tooltip: 'Edit profile',
+              tooltip: context.l10n.profileEditProfile,
               onPressed: () => _startEditing(user),
             ),
         ],
@@ -264,8 +270,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               runSpacing: 8,
               alignment: WrapAlignment.center,
               children: [
-                _RolePill(label: user.role),
-                _RolePill(label: user.type, muted: true),
+                _RolePill(label: context.statusLabel(user.role)),
+                _RolePill(label: context.statusLabel(user.type), muted: true),
               ],
             ),
           ),
@@ -278,17 +284,19 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
   Widget _buildReadView(UserProfile user) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _infoRow(theme, Icons.phone_outlined, 'Phone', user.phone),
-        _infoRow(theme, Icons.location_on_outlined, 'Location', user.location),
-        _infoRow(theme, Icons.notes_outlined, 'Bio', user.bio),
+        _infoRow(theme, Icons.phone_outlined, l10n.profilePhone, user.phone),
+        _infoRow(
+            theme, Icons.location_on_outlined, l10n.profileLocation, user.location),
+        _infoRow(theme, Icons.notes_outlined, l10n.profileBio, user.bio),
         const SizedBox(height: 20),
         FilledButton.icon(
           onPressed: () => _startEditing(user),
           icon: const Icon(Icons.edit_outlined),
-          label: const Text('Edit profile'),
+          label: Text(l10n.profileEditProfile),
         ),
         const SizedBox(height: 10),
         OutlinedButton.icon(
@@ -297,7 +305,20 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             foregroundColor: theme.colorScheme.error,
           ),
           icon: const Icon(Icons.logout),
-          label: const Text('Sign out'),
+          label: Text(l10n.profileSignOut),
+        ),
+        const SizedBox(height: 20),
+        Card(
+          margin: EdgeInsets.zero,
+          child: ListTile(
+            leading: const Icon(Icons.language_outlined),
+            title: Text(l10n.commonLanguage),
+            subtitle: Text(
+              currentLanguageLabel(context, ref.watch(localeProvider)),
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => showLanguagePicker(context, ref),
+          ),
         ),
       ],
     );
@@ -333,6 +354,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   }
 
   Widget _buildEditForm() {
+    final l10n = context.l10n;
     return Form(
       key: _formKey,
       child: Column(
@@ -341,15 +363,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           TextFormField(
             controller: _name,
             maxLength: 120,
-            decoration: const InputDecoration(
-              labelText: 'Full name',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: l10n.profileFullName,
+              border: const OutlineInputBorder(),
               counterText: '',
             ),
             validator: (value) {
               final v = value?.trim() ?? '';
-              if (v.isEmpty) return 'Name is required.';
-              if (v.length > 120) return 'Max 120 characters.';
+              if (v.isEmpty) return l10n.commonNameRequired;
+              if (v.length > 120) return l10n.commonMaxCharacters('120');
               return null;
             },
           ),
@@ -358,42 +380,48 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             controller: _phone,
             keyboardType: TextInputType.phone,
             maxLength: 40,
-            decoration: const InputDecoration(
-              labelText: 'Phone',
-              helperText: 'Leave empty to remove.',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: l10n.profilePhone,
+              helperText: l10n.profileClearToRemove,
+              border: const OutlineInputBorder(),
               counterText: '',
             ),
             validator: (value) =>
-                (value?.trim().length ?? 0) > 40 ? 'Max 40 characters.' : null,
+                (value?.trim().length ?? 0) > 40
+                    ? l10n.commonMaxCharacters('40')
+                    : null,
           ),
           const SizedBox(height: 16),
           TextFormField(
             controller: _location,
             maxLength: 120,
-            decoration: const InputDecoration(
-              labelText: 'Location',
-              helperText: 'Leave empty to remove.',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: l10n.profileLocation,
+              helperText: l10n.profileClearToRemove,
+              border: const OutlineInputBorder(),
               counterText: '',
             ),
             validator: (value) =>
-                (value?.trim().length ?? 0) > 120 ? 'Max 120 characters.' : null,
+                (value?.trim().length ?? 0) > 120
+                    ? l10n.commonMaxCharacters('120')
+                    : null,
           ),
           const SizedBox(height: 16),
           TextFormField(
             controller: _bio,
             maxLength: 500,
             maxLines: 4,
-            decoration: const InputDecoration(
-              labelText: 'Bio',
-              helperText: 'Leave empty to remove.',
+            decoration: InputDecoration(
+              labelText: l10n.profileBio,
+              helperText: l10n.profileClearToRemove,
               alignLabelWithHint: true,
-              border: OutlineInputBorder(),
+              border: const OutlineInputBorder(),
               counterText: '',
             ),
             validator: (value) =>
-                (value?.trim().length ?? 0) > 500 ? 'Max 500 characters.' : null,
+                (value?.trim().length ?? 0) > 500
+                    ? l10n.commonMaxCharacters('500')
+                    : null,
           ),
           const SizedBox(height: 24),
           FilledButton(
@@ -407,12 +435,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text('Save changes'),
+                : Text(l10n.commonSaveChanges),
           ),
           const SizedBox(height: 10),
           OutlinedButton(
             onPressed: _saving ? null : () => setState(() => _editing = false),
-            child: const Text('Cancel'),
+            child: Text(l10n.commonCancel),
           ),
         ],
       ),

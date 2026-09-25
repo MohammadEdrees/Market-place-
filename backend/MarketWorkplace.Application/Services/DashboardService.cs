@@ -8,7 +8,17 @@ using static MarketWorkplace.Application.Common.ServiceResults;
 namespace MarketWorkplace.Application.Services;
 
 /// <summary>Aggregated figures for the dashboard's Overview page (backs <c>DashboardController</c>).</summary>
-public class DashboardService(IRepository<Order> orderList, IRepository<Product> products)
+/// <remarks>
+/// Every number here is computed live from the database — KPI deltas compare the last
+/// 30 days against the previous window, the trend/category/top-product panels group the
+/// order history, and the audience figures come from the accounts table. Nothing is cached
+/// or stubbed.
+/// </remarks>
+public class DashboardService(
+    IRepository<Order> orderList,
+    IRepository<Product> products,
+    IRepository<User> users,
+    IRepository<Role> roles)
 {
     /// <summary>Culture used for display strings so output never depends on the host machine's locale.</summary>
     private static readonly CultureInfo DisplayCulture = CultureInfo.GetCultureInfo("en-US");
@@ -30,9 +40,14 @@ public class DashboardService(IRepository<Order> orderList, IRepository<Product>
         var customers = monthOrders.Select(o => o.Customer).Distinct().Count();
         var previousCustomers = previousMonthOrders.Select(o => o.Customer).Distinct().Count();
 
+        // Average order value, current vs. previous window (was a fixed "+2.4%" before).
+        var aov = monthOrders.Count == 0 ? 0 : revenue / monthOrders.Count;
+        var previousAov = previousMonthOrders.Count == 0 ? 0 : previousRevenue / previousMonthOrders.Count;
+
         var revenueDelta = Delta(revenue, previousRevenue);
         var orderDelta = Delta(monthOrders.Count, previousMonthOrders.Count);
         var customerDelta = Delta(customers, previousCustomers);
+        var aovDelta = Delta(aov, previousAov);
 
         var metrics = new List<MetricCardDto>
         {
@@ -41,8 +56,10 @@ public class DashboardService(IRepository<Order> orderList, IRepository<Product>
             new("customers", "Customers", customers.ToString("N0", DisplayCulture), customerDelta.Text, customerDelta.IsUp, "users"),
             new("aov",
                 "Avg. order value",
-                (monthOrders.Count == 0 ? 0 : revenue / monthOrders.Count).ToString("C2", DisplayCulture),
-                "+2.4%", true, "chart-line"),
+                aov.ToString("C2", DisplayCulture),
+                aovDelta.Text,
+                aovDelta.IsUp,
+                "chart-line"),
         };
 
         var trend = BuildRevenueTrend(orders);
@@ -55,7 +72,12 @@ public class DashboardService(IRepository<Order> orderList, IRepository<Product>
 
         var lowStockCount = products.QueryReadOnly().Count(p => p.Stock <= 15);
 
-        return Ok(new DashboardResponse(metrics, trend, categories, recent, lowStockCount));
+        var topProducts = BuildTopProducts(orders);
+        var ordersByStatus = BuildOrdersByStatus(orders);
+        var userStats = BuildUserStats(now);
+
+        return Ok(new DashboardResponse(
+            metrics, trend, categories, recent, lowStockCount, topProducts, ordersByStatus, userStats));
     }
 
     /// <summary>Revenue and order count per month for the last 12 months.</summary>
@@ -91,6 +113,49 @@ public class DashboardService(IRepository<Order> orderList, IRepository<Product>
             .OrderByDescending(c => c.Value)
             .Take(6)
             .ToList();
+
+    /// <summary>Best five product/service lines by all-time revenue, with their order counts.</summary>
+    private static IReadOnlyList<TopProductDto> BuildTopProducts(IEnumerable<Order> orders) =>
+        orders.GroupBy(o => new { o.Product, o.Kind })
+            .Select(g => new TopProductDto(
+                g.Key.Product,
+                g.Key.Kind,
+                g.Count(),
+                Math.Round(g.Sum(o => o.Total), 2)))
+            .OrderByDescending(p => p.Revenue)
+            .Take(5)
+            .ToList();
+
+    /// <summary>All-time order counts per status plus each status's share of the total.</summary>
+    private static IReadOnlyList<StatusShareDto> BuildOrdersByStatus(IReadOnlyList<Order> orders)
+    {
+        var total = orders.Count;
+        return orders.GroupBy(o => o.Status)
+            .Select(g => new StatusShareDto(
+                g.Key,
+                g.Count(),
+                total == 0 ? 0 : Math.Round(g.Count() * 100m / total, 1)))
+            .OrderByDescending(s => s.Count)
+            .ToList();
+    }
+
+    /// <summary>Account totals by role/platform plus signups in the last 30 days.</summary>
+    private UserStatsDto BuildUserStats(DateTime now)
+    {
+        var allUsers = users.QueryReadOnly().ToList();
+        var roleNames = roles.QueryReadOnly().ToDictionary(r => r.Id, r => r.Name);
+
+        int CountRole(string roleName) =>
+            allUsers.Count(u => roleNames.TryGetValue(u.RoleId, out var name) && name == roleName);
+
+        return new UserStatsDto(
+            allUsers.Count,
+            CountRole("Client"),
+            CountRole("Provider"),
+            allUsers.Count(u => u.Type == "Mobile"),
+            allUsers.Count(u => u.Type == "Dashboard"),
+            allUsers.Count(u => u.CreatedAt >= now.AddDays(-30)));
+    }
 
     private static (string Text, bool IsUp) Delta(decimal current, decimal previous)
     {

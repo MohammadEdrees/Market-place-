@@ -6,6 +6,7 @@ import 'package:market_workplace/core/config/api_config.dart';
 import 'package:market_workplace/features/catalog/advertisement_slider.dart';
 import 'package:market_workplace/features/catalog/catalog_providers.dart';
 import 'package:market_workplace/features/catalog/models.dart';
+import 'package:market_workplace/l10n/generated/app_localizations.dart';
 
 void main() {
   /// Minimal router mirroring the app's detail routes so tap-to-navigate can
@@ -53,6 +54,8 @@ void main() {
             autoAdvance: autoAdvance,
             interval: interval,
           ),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
         ),
       ),
     );

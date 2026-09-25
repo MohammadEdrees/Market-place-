@@ -1,8 +1,8 @@
 <section class="page">
   <div class="page-head">
     <div>
-      <h2>Services</h2>
-      <p>{{ total() }} listings · paged, filtered and sorted by the API</p>
+      <h2>{{ 'nav.services' | t }}</h2>
+      <p>{{ 'services.subtitle' | t: { count: total() } }}</p>
     </div>
     <div class="toolbar">
       <p-iconfield>
@@ -10,24 +10,24 @@
         <input
           pInputText
           type="search"
-          placeholder="Search title or location"
-          aria-label="Search services"
+          [placeholder]="'services.searchPlaceholder' | t"
+          [attr.aria-label]="'services.searchAria' | t"
           [formControl]="searchControl"
         />
       </p-iconfield>
 
       <p-select
         [options]="categories()"
-        placeholder="All categories"
+        [placeholder]="'common.allCategories' | t"
         [showClear]="true"
         styleClass="category-select"
         [ngModel]="category()"
         (ngModelChange)="onCategory($event)"
       />
 
-      <p-button label="Reset" icon="pi pi-filter-slash" [text]="true" severity="secondary" (onClick)="clearFilters()" />
+      <p-button [label]="'common.reset' | t" icon="pi pi-filter-slash" [text]="true" severity="secondary" (onClick)="clearFilters()" />
       @if (canList()) {
-        <p-button label="New service" icon="pi pi-plus" (onClick)="openNew()" />
+        <p-button [label]="'services.new' | t" icon="pi pi-plus" (onClick)="openNew()" />
       }
     </div>
   </div>
@@ -45,21 +45,21 @@
         [totalRecords]="total()"
         (onLazyLoad)="onLazyLoad($event)"
         [showCurrentPageReport]="true"
-        currentPageReportTemplate="{first}–{last} of {totalRecords}"
+        [currentPageReportTemplate]="'common.pageReport' | t"
         [rowsPerPageOptions]="[8, 16, 32]"
         [tableStyle]="{ 'min-width': '64rem' }"
         paginatorPosition="bottom"
       >
         <ng-template #header>
           <tr>
-            <th pSortableColumn="title">Service <p-sortIcon field="title" /></th>
-            <th pSortableColumn="category">Category <p-sortIcon field="category" /></th>
-            <th pSortableColumn="cost">Cost <p-sortIcon field="cost" /></th>
-            <th>Provider</th>
-            <th pSortableColumn="location">Location <p-sortIcon field="location" /></th>
-            <th>Offers</th>
+            <th pSortableColumn="title">{{ 'services.service' | t }} <p-sortIcon field="title" /></th>
+            <th pSortableColumn="category">{{ 'common.category' | t }} <p-sortIcon field="category" /></th>
+            <th pSortableColumn="cost">{{ 'services.cost' | t }} <p-sortIcon field="cost" /></th>
+            <th>{{ 'role.provider' | t }}</th>
+            <th pSortableColumn="location">{{ 'common.location' | t }} <p-sortIcon field="location" /></th>
+            <th>{{ 'services.offers' | t }}</th>
             @if (canList()) {
-              <th style="width: 7rem">Actions</th>
+              <th style="width: 7rem">{{ 'common.actions' | t }}</th>
             }
           </tr>
         </ng-template>
@@ -89,7 +89,7 @@
             <td>{{ providerName(service.providerId) }}</td>
             <td>{{ service.location }}</td>
             <td>
-              <span class="offers-clamp" [pTooltip]="service.offers || 'No offers'" tooltipPosition="top">
+              <span class="offers-clamp" [pTooltip]="service.offers || ('services.noOffers' | t)" tooltipPosition="top">
                 {{ service.offers || '—' }}
               </span>
             </td>
@@ -101,7 +101,7 @@
                     [text]="true"
                     [rounded]="true"
                     severity="secondary"
-                    pTooltip="Edit"
+                    [pTooltip]="'common.edit' | t"
                     (onClick)="openEdit(service)"
                   />
                   <p-button
@@ -109,7 +109,7 @@
                     [text]="true"
                     [rounded]="true"
                     severity="danger"
-                    pTooltip="Delete"
+                    [pTooltip]="'common.delete' | t"
                     (onClick)="confirmDelete(service)"
                   />
                 </div>
@@ -120,7 +120,7 @@
 
         <ng-template #emptymessage>
           <tr>
-            <td [attr.colspan]="canList() ? 7 : 6" class="empty-row">No services match your filters.</td>
+            <td [attr.colspan]="canList() ? 7 : 6" class="empty-row">{{ 'services.empty' | t }}</td>
           </tr>
         </ng-template>
       </p-table>
@@ -142,40 +142,40 @@
   >
     <div class="form-grid">
       <div class="field field-full">
-        <label for="s-title">Title</label>
+        <label for="s-title">{{ 'common.title' | t }}</label>
         <input
           id="s-title"
           pInputText
           type="text"
           [(ngModel)]="draft.title"
-          placeholder="e.g. Home Wi-Fi Setup"
+          [placeholder]="'services.titlePlaceholder' | t"
         />
       </div>
 
       <div class="field field-full">
-        <label for="s-desc">Description</label>
+        <label for="s-desc">{{ 'common.description' | t }}</label>
         <textarea
           id="s-desc"
           pTextarea
           rows="3"
           [(ngModel)]="draft.description"
-          placeholder="What do you offer?"
+          [placeholder]="'services.descriptionPlaceholder' | t"
         ></textarea>
       </div>
 
       <div class="field">
-        <label for="s-category">Category</label>
+        <label for="s-category">{{ 'common.category' | t }}</label>
         <p-select
           id="s-category"
           [options]="categories()"
           [(ngModel)]="draft.category"
-          placeholder="Select a category"
+          [placeholder]="'common.selectCategory' | t"
           [showClear]="true"
         />
       </div>
 
       <div class="field">
-        <label for="s-cost">Cost (USD)</label>
+        <label for="s-cost">{{ 'services.costUsd' | t }}</label>
         <p-inputnumber
           id="s-cost"
           mode="decimal"
@@ -187,48 +187,48 @@
       </div>
 
       <div class="field">
-        <label for="s-contact">Contact info</label>
+        <label for="s-contact">{{ 'services.contactInfo' | t }}</label>
         <input
           id="s-contact"
           pInputText
           type="text"
           [(ngModel)]="draft.contactInfo"
-          placeholder="Phone / email / WhatsApp"
+          [placeholder]="'services.contactPlaceholder' | t"
         />
       </div>
 
       <div class="field">
-        <label for="s-location">Location</label>
+        <label for="s-location">{{ 'common.location' | t }}</label>
         <input
           id="s-location"
           pInputText
           type="text"
           [(ngModel)]="draft.location"
-          placeholder="City or service area"
+          [placeholder]="'services.locationPlaceholder' | t"
         />
       </div>
 
       <div class="field field-full">
-        <label for="s-offers">Offers</label>
+        <label for="s-offers">{{ 'services.offers' | t }}</label>
         <input
           id="s-offers"
           pInputText
           type="text"
           [(ngModel)]="draft.offers"
-          placeholder="e.g. 20% off the first booking"
+          [placeholder]="'services.offersPlaceholder' | t"
         />
       </div>
 
       <div class="field field-full">
-        <label>Images</label>
+        <label>{{ 'common.images' | t }}</label>
         <div class="gallery">
           @for (image of existingImages(); track image.id) {
             <div class="gallery-item">
-              <img [src]="image.path" [alt]="'Image ' + (image.sortOrder + 1)" (click)="openImage(image.path)" />
+              <img [src]="image.path" [alt]="'common.imageN' | t: { n: image.sortOrder + 1 }" (click)="openImage(image.path)" />
               <button
                 type="button"
                 class="gallery-remove"
-                aria-label="Remove image"
+                [attr.aria-label]="'common.removeImage' | t"
                 (click)="removeExistingImage(image)"
               >
                 <i class="pi pi-times"></i>
@@ -241,7 +241,7 @@
               <button
                 type="button"
                 class="gallery-remove"
-                aria-label="Remove image"
+                [attr.aria-label]="'common.removeImage' | t"
                 (click)="removePendingImage(item)"
               >
                 <i class="pi pi-times"></i>
@@ -251,25 +251,25 @@
           @if (existingImages().length + pendingImages().length < maxImages) {
             <label class="gallery-add">
               <i class="pi pi-image"></i>
-              <span>Add images</span>
+              <span>{{ 'common.addImages' | t }}</span>
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/webp,image/gif"
                 multiple
-                aria-label="Choose images"
+                [attr.aria-label]="'common.chooseImages' | t"
                 (change)="onFilesSelected($event)"
               />
             </label>
           }
         </div>
-        <span class="field-hint">PNG, JPG, WEBP or GIF up to 5 MB each — max {{ maxImages }} images. Files upload when you save; click a thumbnail to preview.</span>
+        <span class="field-hint">{{ 'common.imagesHint' | t: { max: maxImages } }}</span>
       </div>
     </div>
 
     <ng-template #footer>
-      <p-button label="Cancel" [text]="true" severity="secondary" (onClick)="dialogVisible.set(false)" />
+      <p-button [label]="'common.cancel' | t" [text]="true" severity="secondary" (onClick)="dialogVisible.set(false)" />
       <p-button
-        [label]="saving() ? 'Saving…' : 'Save service'"
+        [label]="saving() ? ('common.saving' | t) : ('services.save' | t)"
         icon="pi pi-check"
         (onClick)="save()"
         [loading]="saving()"

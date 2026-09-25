@@ -4,6 +4,8 @@ backend/**/obj/
 # Generated gallery content: seeded placeholder PNGs are rewritten at startup
 # and uploads are runtime data — both live under wwwroot.
 backend/**/wwwroot/
+# Backup snapshots (App_Data/backups) contain password hashes — runtime data, never committed.
+backend/**/App_Data/
 .vs/
 *.user
 *.suo

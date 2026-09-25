@@ -1,3 +1,4 @@
+using MarketWorkplace.Application.Common;
 using MarketWorkplace.Application.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -31,6 +32,11 @@ public static class ServiceCollectionExtensions
         // Image file storage (wwwroot); IImageStore is what the application services consume.
         services.AddTransient<ImageStore>();
         services.AddTransient<IImageStore>(sp => sp.GetRequiredService<ImageStore>());
+
+        // Backup snapshots live in App_Data/backups — outside wwwroot on purpose, they contain
+        // password hashes and must never be served as static files.
+        services.AddTransient<BackupStore>();
+        services.AddTransient<IBackupStore>(sp => sp.GetRequiredService<BackupStore>());
 
         return services;
     }

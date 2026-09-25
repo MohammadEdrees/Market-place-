@@ -7,6 +7,7 @@ import 'package:market_workplace/core/auth/session.dart';
 import 'package:market_workplace/features/auth/auth_controller.dart';
 import 'package:market_workplace/features/auth/auth_repository.dart';
 import 'package:market_workplace/features/auth/login_page.dart';
+import 'package:market_workplace/l10n/generated/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class FakeAuthRepository implements AuthRepository {
@@ -88,7 +89,11 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [authRepositoryProvider.overrideWithValue(fake)],
-        child: MaterialApp.router(routerConfig: buildRouter()),
+        child: MaterialApp.router(
+          routerConfig: buildRouter(),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+        ),
       ),
     );
     await tester.pumpAndSettle();

@@ -22,4 +22,11 @@ public interface IRepository<TEntity> where TEntity : class
     /// <c>MarketDbContext</c>, so saving through any of them commits the whole unit of work.
     /// </summary>
     int SaveChanges();
+
+    /// <summary>
+    /// Runs <paramref name="action"/> inside a database transaction: every <see cref="SaveChanges"/>
+    /// call inside it joins the transaction, which commits when the action returns and rolls back
+    /// if it throws. Used by restore, where a partial write would corrupt the dataset.
+    /// </summary>
+    void InTransaction(Action action);
 }

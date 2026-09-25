@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/format/formatters.dart';
+import '../../core/i18n/l10n_ext.dart';
 import '../../core/widgets/state_views.dart';
 import '../auth/auth_controller.dart';
 import 'models.dart';
@@ -95,8 +96,9 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: const Text('Orders')),
+      appBar: AppBar(title: Text(l10n.ordersTitle)),
       body: Column(
         children: [
           Padding(
@@ -106,7 +108,7 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
               textInputAction: TextInputAction.search,
               onSubmitted: _applySearch,
               decoration: InputDecoration(
-                hintText: 'Search orders',
+                hintText: l10n.ordersSearchHint,
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchController.text.isEmpty
                     ? null
@@ -136,7 +138,7 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
                       Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: ChoiceChip(
-                          label: const Text('All'),
+                          label: Text(l10n.commonAll),
                           selected: _kind == null,
                           onSelected: (_) => _setFilter(kind: null),
                         ),
@@ -144,7 +146,7 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
                       Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: ChoiceChip(
-                          label: const Text('Products'),
+                          label: Text(l10n.ordersProductsFilter),
                           selected: _kind == 'Product',
                           onSelected: (_) => _setFilter(kind: 'Product'),
                         ),
@@ -152,7 +154,7 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
                       Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: ChoiceChip(
-                          label: const Text('Services'),
+                          label: Text(l10n.ordersServicesFilter),
                           selected: _kind == 'Service',
                           onSelected: (_) => _setFilter(kind: 'Service'),
                         ),
@@ -161,7 +163,7 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
                   ),
                 ),
                 PopupMenuButton<String?>(
-                  tooltip: 'Filter by status',
+                  tooltip: l10n.ordersFilterByStatus,
                   icon: Icon(
                     Icons.filter_list,
                     color: _status == null
@@ -169,10 +171,16 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
                         : Theme.of(context).colorScheme.primary,
                   ),
                   onSelected: (value) => _setFilter(status: value),
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(value: null, child: Text('Any status')),
+                  itemBuilder: (itemContext) => [
+                    PopupMenuItem(
+                      value: null,
+                      child: Text(itemContext.l10n.ordersAnyStatus),
+                    ),
                     for (final status in kOrderStatuses)
-                      PopupMenuItem(value: status, child: Text(status)),
+                      PopupMenuItem(
+                        value: status,
+                        child: Text(itemContext.statusLabel(status)),
+                      ),
                   ],
                 ),
                 const SizedBox(width: 4),
@@ -188,15 +196,15 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
   Widget _buildBody() {
     if (_error != null && _orders.isEmpty) {
       return ErrorView(
-        message: errorMessage(_error!),
+        message: errorMessage(context, _error!),
         onRetry: () => _load(reset: true),
       );
     }
     if (_loading && _orders.isEmpty) return const LoadingView();
     if (_orders.isEmpty) {
-      return const EmptyView(
+      return EmptyView(
         icon: Icons.receipt_long_outlined,
-        message: 'No orders yet.',
+        message: context.l10n.ordersEmpty,
       );
     }
 
@@ -239,66 +247,79 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                order.product,
-                style: Theme.of(sheetContext)
-                    .textTheme
-                    .titleLarge
-                    ?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${order.isProduct ? 'Product purchase' : 'Service reservation'} · Order #${order.id}',
-                style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(sheetContext).colorScheme.onSurfaceVariant,
-                    ),
-              ),
-              const SizedBox(height: 16),
-              _detailRow(sheetContext, 'Status', order.status),
-              _detailRow(sheetContext, 'Total', formatMoney(order.total)),
-              _detailRow(sheetContext, 'Date', formatDate(order.date)),
-              _detailRow(sheetContext, 'Customer', order.customer),
-              if (order.category.isNotEmpty)
-                _detailRow(sheetContext, 'Category', order.category),
-              if (canManage) ...[
-                const SizedBox(height: 16),
-                const Divider(height: 1),
-                const SizedBox(height: 12),
+      builder: (sheetContext) {
+        final sheetL10n = sheetContext.l10n;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  'Update status',
+                  order.product,
                   style: Theme.of(sheetContext)
                       .textTheme
-                      .titleMedium
+                      .titleLarge
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final status in kOrderStatuses)
-                      if (status != order.status)
-                        ActionChip(
-                          label: Text(status),
-                          onPressed: () async {
-                            Navigator.of(sheetContext).pop();
-                            await _updateStatus(order, status);
-                          },
-                        ),
-                  ],
+                const SizedBox(height: 4),
+                Text(
+                  '${order.isProduct ? sheetL10n.ordersProductPurchase : sheetL10n.ordersServiceReservation} · ${sheetL10n.ordersNumber(order.id.toString())}',
+                  style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(sheetContext)
+                            .colorScheme
+                            .onSurfaceVariant,
+                      ),
                 ),
+                const SizedBox(height: 16),
+                _detailRow(
+                  sheetContext,
+                  sheetL10n.ordersStatus,
+                  sheetContext.statusLabel(order.status),
+                ),
+                _detailRow(
+                    sheetContext, sheetL10n.ordersTotal, formatMoney(order.total)),
+                _detailRow(
+                    sheetContext, sheetL10n.ordersDate, formatDate(order.date)),
+                _detailRow(
+                    sheetContext, sheetL10n.ordersCustomer, order.customer),
+                if (order.category.isNotEmpty)
+                  _detailRow(
+                      sheetContext, sheetL10n.ordersCategory, order.category),
+                if (canManage) ...[
+                  const SizedBox(height: 16),
+                  const Divider(height: 1),
+                  const SizedBox(height: 12),
+                  Text(
+                    sheetL10n.ordersUpdateStatus,
+                    style: Theme.of(sheetContext)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final status in kOrderStatuses)
+                        if (status != order.status)
+                          ActionChip(
+                            label: Text(sheetContext.statusLabel(status)),
+                            onPressed: () async {
+                              Navigator.of(sheetContext).pop();
+                              await _updateStatus(order, status);
+                            },
+                          ),
+                    ],
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -329,7 +350,14 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
       await ref.read(ordersRepositoryProvider).updateStatus(order.id, status);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Order #$order.id → $status')),
+          SnackBar(
+            content: Text(
+              context.l10n.ordersStatusUpdated(
+                order.id.toString(),
+                context.statusLabel(status),
+              ),
+            ),
+          ),
         );
       }
       await _load(reset: true);
@@ -337,7 +365,7 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(errorMessage(e)),
+            content: Text(errorMessage(context, e)),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -469,7 +497,7 @@ class _StatusPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        status,
+        context.statusLabel(status),
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,

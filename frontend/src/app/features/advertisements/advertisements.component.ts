@@ -18,6 +18,8 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { EMPTY, Subject, catchError, switchMap } from 'rxjs';
 import { AuthService } from '../../core/auth.service';
 import { AdvertisementService } from '../../core/advertisement.service';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { TranslatePipe } from '../../core/i18n/t.pipe';
 import type { Advertisement, AdvertisementInput } from '../../core/models';
 
 /** Dialog draft — dates are handled as `Date` and serialized to ISO on save. */
@@ -85,6 +87,7 @@ const toDate = (value: string | null): Date | null => {
     ToastModule,
     ToggleSwitchModule,
     TooltipModule,
+    TranslatePipe,
   ],
   providers: [MessageService, ConfirmationService],
   templateUrl: './advertisements.component.html',
@@ -96,6 +99,7 @@ export class AdvertisementsComponent implements OnInit {
   private readonly confirmationService = inject(ConfirmationService);
   private readonly auth = inject(AuthService);
   private readonly destroyRef = inject(DestroyRef);
+  readonly i18n = inject(I18nService);
 
   /** Hidden file input behind the row "Replace image" buttons. */
   private readonly replaceInput = viewChild<ElementRef<HTMLInputElement>>('replaceInput');
@@ -127,7 +131,9 @@ export class AdvertisementsComponent implements OnInit {
     ['SuperAdmin', 'Admin'].includes(this.auth.user()?.role ?? ''),
   );
 
-  readonly title = computed(() => (this.editingId() ? 'Edit advertisement' : 'New advertisement'));
+  readonly title = computed(() =>
+    this.editingId() ? this.i18n.t('advertisements.edit') : this.i18n.t('advertisements.new'),
+  );
 
   ngOnInit(): void {
     // Single fetch pipeline: switchMap cancels the previous request as soon as a newer
@@ -142,8 +148,8 @@ export class AdvertisementsComponent implements OnInit {
               this.loading.set(false);
               this.messageService.add({
                 severity: 'error',
-                summary: 'API unreachable',
-                detail: 'Start the .NET API on localhost:5240.',
+                summary: this.i18n.t('toast.apiUnreachable'),
+                detail: this.i18n.t('toast.apiUnreachableDetail'),
               });
               return EMPTY;
             }),
@@ -195,8 +201,8 @@ export class AdvertisementsComponent implements OnInit {
     if (!title) {
       this.messageService.add({
         severity: 'warn',
-        summary: 'Missing fields',
-        detail: 'Advertisement title is required.',
+        summary: this.i18n.t('toast.missingFields'),
+        detail: this.i18n.t('validation.adTitleRequired'),
       });
       return;
     }
@@ -205,8 +211,8 @@ export class AdvertisementsComponent implements OnInit {
     if (startsAt && endsAt && endsAt.getTime() <= startsAt.getTime()) {
       this.messageService.add({
         severity: 'warn',
-        summary: 'Check the schedule',
-        detail: 'Ends must be after starts.',
+        summary: this.i18n.t('toast.checkSchedule'),
+        detail: this.i18n.t('validation.scheduleOrder'),
       });
       return;
     }
@@ -234,8 +240,10 @@ export class AdvertisementsComponent implements OnInit {
         this.saving.set(false);
         this.messageService.add({
           severity: 'error',
-          summary: editing != null ? 'Could not save advertisement' : 'Could not create advertisement',
-          detail: this.apiError(err, 'The API rejected the request.'),
+          summary: editing != null
+            ? this.i18n.t('toast.couldNotSaveAd')
+            : this.i18n.t('toast.couldNotCreateAd'),
+          detail: this.apiError(err, this.i18n.t('toast.apiRejected')),
         });
       },
     });
@@ -260,8 +268,8 @@ export class AdvertisementsComponent implements OnInit {
         this.reload();
         this.messageService.add({
           severity: 'error',
-          summary: 'Image upload failed',
-          detail: this.apiError(err, 'The advertisement was saved, but its image was not.'),
+          summary: this.i18n.t('toast.imageUploadFailed'),
+          detail: this.apiError(err, this.i18n.t('toast.adSavedImageNot')),
         });
       },
     });
@@ -273,7 +281,7 @@ export class AdvertisementsComponent implements OnInit {
     this.reload();
     this.messageService.add({
       severity: 'success',
-      summary: editing != null ? 'Advertisement updated' : 'Advertisement created',
+      summary: editing != null ? this.i18n.t('toast.adUpdated') : this.i18n.t('toast.adCreated'),
       detail: saved.title,
     });
   }
@@ -289,7 +297,11 @@ export class AdvertisementsComponent implements OnInit {
     }
     const problem = this.imageProblem(file);
     if (problem) {
-      this.messageService.add({ severity: 'warn', summary: 'Invalid image', detail: problem });
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.i18n.t('toast.invalidImage'),
+        detail: problem,
+      });
       return;
     }
     this.clearPendingImage();
@@ -329,7 +341,11 @@ export class AdvertisementsComponent implements OnInit {
     }
     const problem = this.imageProblem(file);
     if (problem) {
-      this.messageService.add({ severity: 'warn', summary: 'Invalid image', detail: problem });
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.i18n.t('toast.invalidImage'),
+        detail: problem,
+      });
       return;
     }
 
@@ -345,7 +361,7 @@ export class AdvertisementsComponent implements OnInit {
         this.ads.update((list) => list.map((ad) => (ad.id === updated.id ? updated : ad)));
         this.messageService.add({
           severity: 'success',
-          summary: 'Image updated',
+          summary: this.i18n.t('toast.imageUpdated'),
           detail: updated.title,
         });
       },
@@ -354,8 +370,8 @@ export class AdvertisementsComponent implements OnInit {
         this.uploadingId.set(null);
         this.messageService.add({
           severity: 'error',
-          summary: 'Image upload failed',
-          detail: this.apiError(err, 'The API rejected the image.'),
+          summary: this.i18n.t('toast.imageUploadFailed'),
+          detail: this.apiError(err, this.i18n.t('toast.apiRejectedImage')),
         });
       },
     });
@@ -392,7 +408,7 @@ export class AdvertisementsComponent implements OnInit {
         this.ads.update((list) => list.map((item) => (item.id === updated.id ? updated : item)));
         this.messageService.add({
           severity: 'success',
-          summary: isActive ? 'Advertisement enabled' : 'Advertisement disabled',
+          summary: isActive ? this.i18n.t('toast.adEnabled') : this.i18n.t('toast.adDisabled'),
           detail: updated.title,
         });
       },
@@ -401,8 +417,8 @@ export class AdvertisementsComponent implements OnInit {
         this.reload();
         this.messageService.add({
           severity: 'error',
-          summary: 'Could not update advertisement',
-          detail: this.apiError(err, 'Only admins can manage advertisements.'),
+          summary: this.i18n.t('toast.couldNotUpdateAd'),
+          detail: this.apiError(err, this.i18n.t('toast.adminsOnly')),
         });
       },
     });
@@ -412,26 +428,26 @@ export class AdvertisementsComponent implements OnInit {
 
   confirmDelete(ad: Advertisement): void {
     this.confirmationService.confirm({
-      header: 'Delete advertisement',
-      message: `Remove <strong>${ad.title}</strong>? Its image is deleted too.`,
+      header: this.i18n.t('advertisements.deleteHeader'),
+      message: this.i18n.t('advertisements.deleteMessage', { name: ad.title }),
       icon: 'pi pi-trash',
-      acceptButtonProps: { label: 'Delete', severity: 'danger' },
-      rejectButtonProps: { label: 'Cancel', severity: 'secondary', outlined: true },
+      acceptButtonProps: { label: this.i18n.t('common.delete'), severity: 'danger' },
+      rejectButtonProps: { label: this.i18n.t('common.cancel'), severity: 'secondary', outlined: true },
       accept: () => {
         this.advertisementService.remove(ad.id).subscribe({
           next: () => {
             this.reload();
             this.messageService.add({
               severity: 'success',
-              summary: 'Deleted',
+              summary: this.i18n.t('toast.deleted'),
               detail: ad.title,
             });
           },
           error: (err) =>
             this.messageService.add({
               severity: 'error',
-              summary: 'Delete failed',
-              detail: this.apiError(err, 'The API rejected the request.'),
+              summary: this.i18n.t('toast.deleteFailed'),
+              detail: this.apiError(err, this.i18n.t('toast.apiRejected')),
             }),
         });
       },
@@ -479,10 +495,10 @@ export class AdvertisementsComponent implements OnInit {
 
   private imageProblem(file: File): string | null {
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-      return 'PNG, JPG, WEBP or GIF only.';
+      return this.i18n.t('validation.imageTypeOnly');
     }
     if (file.size > MAX_IMAGE_BYTES) {
-      return 'Images must be 5 MB or smaller.';
+      return this.i18n.t('validation.imageTooBig');
     }
     return null;
   }
@@ -490,6 +506,6 @@ export class AdvertisementsComponent implements OnInit {
   private apiError(err: unknown, fallback: string): string {
     const error = (err as { error?: { errors?: Record<string, string[]>; detail?: string; title?: string } })?.error;
     const first = error?.errors ? Object.values(error.errors)[0] : undefined;
-    return first?.[0] ?? error?.detail ?? error?.title ?? fallback;
+    return this.i18n.apiMessage(first?.[0] ?? error?.detail ?? error?.title ?? fallback);
   }
 }

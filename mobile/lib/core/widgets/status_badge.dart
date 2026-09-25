@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../i18n/l10n_ext.dart';
+
 /// Coloured pill for a listing's derived status:
 /// `Active`, `Low stock` or `Out of stock`.
 class StatusBadge extends StatelessWidget {
@@ -40,7 +42,7 @@ class StatusBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        status,
+        context.statusLabel(status),
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,

@@ -5,7 +5,8 @@ services behind the home **advertisement slider**, buy/reserve, track orders —
 providers, manage listings, galleries and order statuses from the phone.
 
 Built with **Riverpod** (state), **go_router** (navigation + auth/role redirects), **dio**
-(HTTP), **Material 3**.
+(HTTP), **Material 3**, and `flutter gen-l10n` for **English / Arabic** (runtime switcher on
+the sign-in screen and in *Profile*, right-to-left layout for Arabic).
 
 ## Run
 
@@ -29,7 +30,7 @@ or `nova@marketplace.dev` / `Nova123!` — the Provider). Registration creates *
 
 ```powershell
 flutter analyze   # 0 issues
-flutter test      # unit + widget tests
+flutter test      # 63 unit + widget tests (English/Arabic, slider, forms, routing)
 ```
 
 ## Layout
@@ -44,7 +45,8 @@ lib/
                advertisement slider, repository
     orders/    order history + provider status management
     listings/  provider CRUD forms + gallery upload
-    profile/   profile edit, avatar, sign out
+    profile/   profile edit, avatar, sign out, language switcher
+  l10n/        app_en.arb (template) + app_ar.arb, generated localizations
 test/          repository tests (mocked Dio), session, formatters, widget tests
 ```
 

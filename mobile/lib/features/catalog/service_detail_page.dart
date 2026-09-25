@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_exception.dart';
 import '../../core/format/formatters.dart';
+import '../../core/i18n/l10n_ext.dart';
 import '../../core/widgets/gallery.dart';
 import '../../core/widgets/state_views.dart';
 import '../auth/auth_controller.dart';
@@ -20,7 +21,7 @@ class ServiceDetailPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Service')),
+      appBar: AppBar(title: Text(context.l10n.serviceDetailTitle)),
       body: AsyncValueView<Service>(
         value: ref.watch(serviceProvider(id)),
         onRetry: () => ref.invalidate(serviceProvider(id)),
@@ -38,19 +39,22 @@ class _ServiceDetail extends ConsumerWidget {
   Future<void> _reserve(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirm reservation'),
+      builder: (dialogContext) => AlertDialog(
+        title: Text(dialogContext.l10n.serviceDetailConfirmTitle),
         content: Text(
-          'Reserve "${service.title}" for ${formatMoney(service.cost)}?',
+          dialogContext.l10n.serviceDetailConfirmMessage(
+            service.title,
+            formatMoney(service.cost),
+          ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(dialogContext.l10n.commonCancel),
           ),
           FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Reserve'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(dialogContext.l10n.serviceDetailReserve),
           ),
         ],
       ),
@@ -64,8 +68,8 @@ class _ServiceDetail extends ConsumerWidget {
       ref.invalidate(serviceProvider(service.id));
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Reserved — track it under Orders.'),
+          SnackBar(
+            content: Text(context.l10n.serviceDetailReserved),
           ),
         );
       }
@@ -73,7 +77,7 @@ class _ServiceDetail extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.message),
+            content: Text(context.localizeApiMessage(e.message)),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -84,6 +88,7 @@ class _ServiceDetail extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
     final session = ref.watch(authControllerProvider).value;
     final mine = session != null && service.providerId == session.user.id;
 
@@ -127,9 +132,9 @@ class _ServiceDetail extends ConsumerWidget {
                               color: const Color(0xFFECECF3),
                               borderRadius: BorderRadius.circular(999),
                             ),
-                            child: const Text(
-                              'Inactive',
-                              style: TextStyle(
+                            child: Text(
+                              context.statusLabel('Inactive'),
+                              style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                                 color: Color(0xFF5A5A6E),
@@ -161,7 +166,7 @@ class _ServiceDetail extends ConsumerWidget {
                     if (service.description.isNotEmpty) ...[
                       const SizedBox(height: 20),
                       Text(
-                        'About this service',
+                        l10n.serviceDetailAbout,
                         style: theme.textTheme.titleMedium
                             ?.copyWith(fontWeight: FontWeight.w700),
                       ),
@@ -176,7 +181,7 @@ class _ServiceDetail extends ConsumerWidget {
                     ],
                     const SizedBox(height: 20),
                     Text(
-                      'Contact',
+                      l10n.serviceDetailContact,
                       style: theme.textTheme.titleMedium
                           ?.copyWith(fontWeight: FontWeight.w700),
                     ),
@@ -207,7 +212,7 @@ class _ServiceDetail extends ConsumerWidget {
                     if (mine) ...[
                       const SizedBox(height: 16),
                       Text(
-                        'This is your service.',
+                        l10n.serviceDetailYours,
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -232,14 +237,16 @@ class _ServiceDetail extends ConsumerWidget {
                     onPressed: () =>
                         context.go('/listings/service/${service.id}'),
                     icon: const Icon(Icons.edit_outlined),
-                    label: const Text('Edit service'),
+                    label: Text(l10n.serviceDetailEditService),
                   )
                 : FilledButton.icon(
                     onPressed:
                         service.isActive ? () => _reserve(context, ref) : null,
                     icon: const Icon(Icons.event_available_outlined),
                     label: Text(
-                      service.isActive ? 'Reserve' : 'Currently unavailable',
+                      service.isActive
+                          ? l10n.serviceDetailReserve
+                          : l10n.serviceDetailUnavailable,
                     ),
                   ),
           ),

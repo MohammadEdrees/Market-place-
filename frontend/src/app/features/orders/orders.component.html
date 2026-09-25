@@ -1,8 +1,8 @@
 <section class="page">
   <div class="page-head">
     <div>
-      <h2>Orders &amp; reservations</h2>
-      <p>{{ total() }} orders · paged, filtered and sorted by the API</p>
+      <h2>{{ 'orders.title' | t }}</h2>
+      <p>{{ 'orders.subtitle' | t: { count: total() } }}</p>
     </div>
     <div class="toolbar">
       <p-iconfield>
@@ -10,15 +10,15 @@
         <input
           pInputText
           type="search"
-          placeholder="Search customer or item"
-          aria-label="Search orders"
+          [placeholder]="'orders.searchPlaceholder' | t"
+          [attr.aria-label]="'orders.searchAria' | t"
           [formControl]="searchControl"
         />
       </p-iconfield>
 
       <p-select
-        [options]="kindOptions"
-        placeholder="All kinds"
+        [options]="kindOptions()"
+        [placeholder]="'orders.allKinds' | t"
         [showClear]="true"
         styleClass="filter-select"
         [ngModel]="kind()"
@@ -26,15 +26,15 @@
       />
 
       <p-select
-        [options]="statusOptions"
-        placeholder="Any status"
+        [options]="statusOptions()"
+        [placeholder]="'orders.anyStatus' | t"
         [showClear]="true"
         styleClass="filter-select"
         [ngModel]="status()"
         (ngModelChange)="onStatus($event)"
       />
 
-      <p-button label="Reset" icon="pi pi-filter-slash" [text]="true" severity="secondary" (onClick)="clearFilters()" />
+      <p-button [label]="'common.reset' | t" icon="pi pi-filter-slash" [text]="true" severity="secondary" (onClick)="clearFilters()" />
     </div>
   </div>
 
@@ -51,20 +51,20 @@
         [totalRecords]="total()"
         (onLazyLoad)="onLazyLoad($event)"
         [showCurrentPageReport]="true"
-        currentPageReportTemplate="{first}–{last} of {totalRecords}"
+        [currentPageReportTemplate]="'common.pageReport' | t"
         [rowsPerPageOptions]="[8, 16, 32]"
         [tableStyle]="{ 'min-width': '62rem' }"
         paginatorPosition="bottom"
       >
         <ng-template #header>
           <tr>
-            <th pSortableColumn="id">Order <p-sortIcon field="id" /></th>
-            <th>Kind</th>
-            <th pSortableColumn="product">Item <p-sortIcon field="product" /></th>
-            <th pSortableColumn="customer">Customer <p-sortIcon field="customer" /></th>
-            <th pSortableColumn="total">Total <p-sortIcon field="total" /></th>
-            <th pSortableColumn="status">Status <p-sortIcon field="status" /></th>
-            <th style="width: 5rem">Actions</th>
+            <th pSortableColumn="id">{{ 'common.order' | t }} <p-sortIcon field="id" /></th>
+            <th>{{ 'common.kind' | t }}</th>
+            <th pSortableColumn="product">{{ 'common.item' | t }} <p-sortIcon field="product" /></th>
+            <th pSortableColumn="customer">{{ 'common.customer' | t }} <p-sortIcon field="customer" /></th>
+            <th pSortableColumn="total">{{ 'common.total' | t }} <p-sortIcon field="total" /></th>
+            <th pSortableColumn="status">{{ 'common.status' | t }} <p-sortIcon field="status" /></th>
+            <th style="width: 5rem">{{ 'common.actions' | t }}</th>
           </tr>
         </ng-template>
 
@@ -76,7 +76,7 @@
             </td>
             <td>
               <p-tag
-                [value]="order.kind"
+                [value]="i18n.label('kind', order.kind)"
                 [severity]="kindSeverity(order.kind)"
                 [icon]="order.kind === 'Service' ? 'pi pi-wrench' : 'pi pi-box'"
               />
@@ -88,7 +88,7 @@
             <td>{{ order.customer }}</td>
             <td class="total">{{ order.total | currency: 'USD' : 'symbol' : '1.2-2' }}</td>
             <td>
-              <p-tag [value]="order.status" [severity]="statusSeverity(order.status)" />
+              <p-tag [value]="i18n.label('status', order.status)" [severity]="statusSeverity(order.status)" />
             </td>
             <td>
               <p-button
@@ -96,7 +96,7 @@
                 [text]="true"
                 [rounded]="true"
                 severity="secondary"
-                pTooltip="Change status"
+                [pTooltip]="'orders.changeStatus' | t"
                 (onClick)="openStatus(order)"
               />
             </td>
@@ -105,7 +105,7 @@
 
         <ng-template #emptymessage>
           <tr>
-            <td colspan="7" class="empty-row">No orders match your filters.</td>
+            <td colspan="7" class="empty-row">{{ 'orders.empty' | t }}</td>
           </tr>
         </ng-template>
       </p-table>
@@ -119,7 +119,7 @@
   </div>
 
   <p-dialog
-    [header]="'Order #' + (active()?.id ?? '')"
+    [header]="'orders.dialogHeader' | t: { id: active()?.id ?? '' }"
     [(visible)]="dialogVisible"
     [modal]="true"
     styleClass="order-dialog"
@@ -128,36 +128,36 @@
     @if (active(); as order) {
       <div class="order-summary">
         <div class="summary-row">
-          <span>Kind</span>
+          <span>{{ 'common.kind' | t }}</span>
           <p-tag
-            [value]="order.kind"
+            [value]="i18n.label('kind', order.kind)"
             [severity]="kindSeverity(order.kind)"
             [icon]="order.kind === 'Service' ? 'pi pi-wrench' : 'pi pi-box'"
           />
         </div>
         <div class="summary-row">
-          <span>Item</span>
+          <span>{{ 'common.item' | t }}</span>
           <strong>{{ order.product }}</strong>
         </div>
         <div class="summary-row">
-          <span>Customer</span>
+          <span>{{ 'common.customer' | t }}</span>
           <strong>{{ order.customer }}</strong>
         </div>
         <div class="summary-row">
-          <span>Total</span>
+          <span>{{ 'common.total' | t }}</span>
           <strong>{{ order.total | currency: 'USD' : 'symbol' : '1.2-2' }}</strong>
         </div>
         <div class="summary-row">
-          <span>Placed</span>
+          <span>{{ 'orders.placed' | t }}</span>
           <strong>{{ order.date | date: 'medium' }}</strong>
         </div>
       </div>
 
       <div class="field status-field">
-        <label for="o-status">Status</label>
+        <label for="o-status">{{ 'common.status' | t }}</label>
         <p-select
           id="o-status"
-          [options]="statusOptions"
+          [options]="statusOptions()"
           styleClass="w-full"
           [ngModel]="newStatus()"
           (ngModelChange)="newStatus.set($event)"
@@ -166,9 +166,9 @@
     }
 
     <ng-template #footer>
-      <p-button label="Close" [text]="true" severity="secondary" (onClick)="dialogVisible.set(false)" />
+      <p-button [label]="'common.close' | t" [text]="true" severity="secondary" (onClick)="dialogVisible.set(false)" />
       <p-button
-        [label]="saving() ? 'Saving…' : 'Update status'"
+        [label]="saving() ? ('common.saving' | t) : ('orders.updateStatus' | t)"
         icon="pi pi-check"
         (onClick)="saveStatus()"
         [loading]="saving()"

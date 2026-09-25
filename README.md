@@ -146,6 +146,11 @@ shared `Access` rules keep working as before.
 | `PUT`    | `/api/advertisements/{id}`   | Update title/subtitle/target/schedule/order (admin; `200`/`400`/`404`/`403`) |
 | `DELETE` | `/api/advertisements/{id}`   | Delete a slide and its banner file (`204`/`404`/`403`) |
 | `POST`   | `/api/advertisements/{id}/image` | Upload/replace the banner (admin; multipart `file`, png/jpg/webp/gif ≤ 5 MB; the old file is removed) |
+| `GET`    | `/api/backup`                   | Stored snapshots with their row counts, newest first (admin) |
+| `GET`    | `/api/backup/export`            | Snapshot the live data, store a copy in `App_Data/backups` and download the JSON file (admin) |
+| `GET`    | `/api/backup/{name}`            | Download a stored snapshot (`200`/`404`; `403`) |
+| `DELETE` | `/api/backup/{name}`            | Delete a stored snapshot (`204`/`404`; `403`) |
+| `POST`   | `/api/backup/restore`           | Apply a snapshot (admin; multipart `file` + `mode=merge\|replace`; per-table insert/update report, `400` on an invalid or unsupported file) |
 
 All rows except `POST /api/auth/login` and `POST /api/auth/register` return `401` without a
 valid bearer token; listing and management operations additionally enforce the role rules
@@ -244,8 +249,14 @@ To hide the docs in an environment, set the kill switch in `backend/MarketWorkpl
 
 ## Dashboard features
 
-- **Overview** (`/dashboard`) — metric cards with period-over-period deltas, dual-axis
-  revenue/orders line chart, sales-by-category doughnut, recent orders table, inventory health.
+- **Overview** (`/dashboard`) — every figure is computed live by `DashboardService` from the
+  orders/products/users tables (nothing is stubbed): metric cards with real period-over-period
+  deltas — revenue, orders, customers and **average order value** (last 30 days vs. the previous
+  window), a dual-axis revenue/orders line chart over 12 months, a sales-by-category doughnut,
+  the six most recent orders, inventory health, a **top-products bar chart** (best five lines by
+  all-time revenue), an **orders-by-status breakdown** with each status' share, and an
+  **audience panel** (accounts by role/platform plus signups in the last 30 days, backed by
+  `User.CreatedAt`).
 - **Products** (`/products`) — server-backed CRUD with **server-side pagination, search,
   category filter, provider filter and column sorting** (PrimeNG lazy loading round-trips
   page/sort/filter to the API), row thumbnails, a create/edit dialog with an **image gallery**
@@ -287,14 +298,47 @@ To hide the docs in an environment, set the kill switch in `backend/MarketWorkpl
   enable/disable toggle, **image upload with local preview** (multipart `file`, replaces the
   previous banner) and confirm-to-delete. `GET /api/advertisements/active` is what the
   Flutter app renders.
+- **Settings** (`/settings`) — workspace preferences and the data-safety tools:
+  the **language switcher** (English ⇄ العربية, persisted in `localStorage`) and the
+  **backup & restore** panel for admins: *Back up now* snapshots every table to JSON,
+  stores a copy in `App_Data/backups` (newest ten kept) and downloads the file; the table
+  lists each snapshot with its date, size and row summary and can re-download or delete it;
+  a restore section applies a file either as a **merge** (upsert by id, never deletes) or a
+  **replace** (wipes every table first, transactional), both behind a confirmation dialog and
+  followed by a per-table insert/update report. The API enforces the admin role regardless of
+  what the UI shows.
 - **Search** — every list page (Products, Services, Orders, Users) binds its search box to an
   RxJS pipeline (`valueChanges → debounceTime(300) → map(trim) → distinctUntilChanged →
   switchMap`): keystrokes coalesce into a single backend request, stale responses are
   cancelled and a failed request never breaks the stream.
 - **Sign in** (`/login`) — JWT login with inline errors, guarded routes and a `returnUrl`
   round-trip; the session survives reloads until the token expires.
-- Sidebar/topbar shell with the signed-in user's name/role and a sign-out button, light **and**
-  dark theme (both persisted in `localStorage`).
+- Sidebar/topbar shell with the signed-in user's name/role, a sign-out button, a **language
+  switcher** and light **and** dark theme (both persisted in `localStorage`).
+
+## Languages (English & Arabic)
+
+Both front-ends ship English and Arabic with a runtime switcher — no rebuild, no per-locale
+build target:
+
+- **Dashboard** — `frontend/src/app/core/i18n/` holds `en.json` and `ar.json` (a single nested
+  dictionary per language, ~400 keys, kept key-symmetric) plus `I18nService` (a signal-backed
+  `lang`, `t('key', params)` with English fallback, `label(prefix, value)` for enum values such
+  as order statuses, and `apiMessage()` for known API problem-details) and the impure
+  `TranslatePipe` (`{{ 'nav.products' | t }}`). Switching flips `<html lang>` **and**
+  `<html dir>`, so Arabic renders right-to-left; a `dir='rtl'` block in `styles.scss` isolates
+  Latin runs (emails, SKUs, API paths) so they keep reading left-to-right inside Arabic text.
+  Known backend messages are mapped through `errors.*` so validation/conflict toasts also
+  translate; anything unrecognised falls back to the original English text.
+- **Mobile** — standard `flutter gen-l10n` with `lib/l10n/app_en.arb` (template) and
+  `app_ar.arb` (generated into `lib/l10n/generated/`). The active locale is a Riverpod
+  provider persisted in `shared_preferences` under `marketplace.locale` and read in
+  `main()` before `runApp`, so the choice survives restarts; a compact switcher on the
+  **login** page and a full row in **Profile → Language** change it at runtime. RTL comes free
+  from `GlobalWidgetsLocalizations`. Numbers and dates keep their `en-US` formatting
+  (`$1,234.50`) on purpose.
+- Adding a language = add `app_<locale>.arb` / `<locale>.json` and register it in the switcher;
+  a missing key falls back to English rather than breaking the UI.
 
 ## Mobile app (Flutter)
 
@@ -314,6 +358,9 @@ listings from a phone. It talks to the same .NET API as the dashboard.
 - **Sign in / register** — JWT session restored on launch and persisted across restarts;
   register as **Client** or **Provider** (dashboard roles are refused with a clear message);
   a `401` anywhere drops the session and returns to the sign-in screen.
+- **English / Arabic** — a language switcher on the sign-in screen and under *Profile →
+  Language*; the choice is persisted (`marketplace.locale`) and Arabic flips the whole app
+  to a right-to-right layout. See *Languages* above.
 - **Browse** — paged product and service lists with search, category chips, infinite scroll,
   pull-to-refresh, and detail pages with a swipeable **image gallery**, en-US prices
   (`$1,234.50`) and stock/status badges.
@@ -355,8 +402,9 @@ release.
 ```powershell
 cd mobile
 flutter analyze    # 0 issues
-flutter test       # 57 tests: repositories (mocked Dio), session store, formatters,
-                   # router role tabs, login flow, catalogue + advertisement slider widgets
+flutter test       # 63 tests: repositories (mocked Dio), session store, formatters,
+                   # router role tabs, login flow, catalogue + advertisement slider widgets,
+                   # language switch (RTL) and ARB completeness
 ```
 
 ## Architecture (n-tier)

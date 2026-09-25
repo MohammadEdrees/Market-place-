@@ -14,6 +14,8 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { EMPTY, Subject, catchError, switchMap } from 'rxjs';
 import { AuthService } from '../../core/auth.service';
 import { RolesService } from '../../core/roles.service';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { TranslatePipe } from '../../core/i18n/t.pipe';
 import type { Role, RoleInput } from '../../core/models';
 
 const emptyDraft = (): RoleInput => ({ name: '', description: '' });
@@ -31,6 +33,7 @@ const emptyDraft = (): RoleInput => ({ name: '', description: '' });
     Textarea,
     ToastModule,
     TooltipModule,
+    TranslatePipe,
   ],
   providers: [MessageService, ConfirmationService],
   templateUrl: './roles.component.html',
@@ -42,6 +45,7 @@ export class RolesComponent implements OnInit {
   private readonly confirmationService = inject(ConfirmationService);
   private readonly auth = inject(AuthService);
   private readonly destroyRef = inject(DestroyRef);
+  readonly i18n = inject(I18nService);
 
   /** Every reload funnels through here so switchMap cancels stale in-flight requests. */
   private readonly reload$ = new Subject<void>();
@@ -62,7 +66,9 @@ export class RolesComponent implements OnInit {
     ['SuperAdmin', 'Admin', 'Manager'].includes(this.auth.user()?.role ?? ''),
   );
 
-  readonly title = computed(() => (this.editingId() ? 'Edit role' : 'Add role'));
+  readonly title = computed(() =>
+    this.editingId() ? this.i18n.t('roles.edit') : this.i18n.t('roles.add'),
+  );
 
   ngOnInit(): void {
     // Single fetch pipeline: switchMap cancels the previous request as soon as a newer
@@ -77,8 +83,8 @@ export class RolesComponent implements OnInit {
               this.loading.set(false);
               this.messageService.add({
                 severity: 'error',
-                summary: 'API unreachable',
-                detail: 'Start the .NET API on localhost:5240.',
+                summary: this.i18n.t('toast.apiUnreachable'),
+                detail: this.i18n.t('toast.apiUnreachableDetail'),
               });
               return EMPTY;
             }),
@@ -119,8 +125,8 @@ export class RolesComponent implements OnInit {
     if (!name) {
       this.messageService.add({
         severity: 'warn',
-        summary: 'Missing fields',
-        detail: 'Role name is required.',
+        summary: this.i18n.t('toast.missingFields'),
+        detail: this.i18n.t('validation.roleNameRequired'),
       });
       return;
     }
@@ -139,16 +145,18 @@ export class RolesComponent implements OnInit {
         this.reload();
         this.messageService.add({
           severity: 'success',
-          summary: editing != null ? 'Role updated' : 'Role created',
-          detail: `${saved.name} · ${saved.userCount} user(s)`,
+          summary: editing != null ? this.i18n.t('toast.roleUpdated') : this.i18n.t('toast.roleCreated'),
+          detail: this.i18n.t('toast.roleSavedDetail', { name: saved.name, count: saved.userCount }),
         });
       },
       error: (err) => {
         this.saving.set(false);
         this.messageService.add({
           severity: 'error',
-          summary: editing != null ? 'Could not edit role' : 'Could not create role',
-          detail: this.apiError(err, 'The API rejected the request.'),
+          summary: editing != null
+            ? this.i18n.t('toast.couldNotEditRole')
+            : this.i18n.t('toast.couldNotCreateRole'),
+          detail: this.apiError(err, this.i18n.t('toast.apiRejected')),
         });
       },
     });
@@ -156,18 +164,18 @@ export class RolesComponent implements OnInit {
 
   confirmDelete(role: Role): void {
     this.confirmationService.confirm({
-      header: 'Delete role',
-      message: `Remove <strong>${role.name}</strong>?`,
+      header: this.i18n.t('roles.deleteHeader'),
+      message: this.i18n.t('roles.deleteMessage', { name: role.name }),
       icon: 'pi pi-trash',
-      acceptButtonProps: { label: 'Delete', severity: 'danger' },
-      rejectButtonProps: { label: 'Cancel', severity: 'secondary', outlined: true },
+      acceptButtonProps: { label: this.i18n.t('common.delete'), severity: 'danger' },
+      rejectButtonProps: { label: this.i18n.t('common.cancel'), severity: 'secondary', outlined: true },
       accept: () => {
         this.rolesService.remove(role.id).subscribe({
           next: () => {
             this.reload();
             this.messageService.add({
               severity: 'success',
-              summary: 'Deleted',
+              summary: this.i18n.t('toast.deleted'),
               detail: role.name,
             });
           },
@@ -175,8 +183,8 @@ export class RolesComponent implements OnInit {
           error: (err) =>
             this.messageService.add({
               severity: 'error',
-              summary: 'Delete failed',
-              detail: this.apiError(err, 'The API rejected the request.'),
+              summary: this.i18n.t('toast.deleteFailed'),
+              detail: this.apiError(err, this.i18n.t('toast.apiRejected')),
             }),
         });
       },
@@ -186,6 +194,6 @@ export class RolesComponent implements OnInit {
   private apiError(err: unknown, fallback: string): string {
     const error = (err as { error?: { errors?: Record<string, string[]>; detail?: string; title?: string } })?.error;
     const first = error?.errors ? Object.values(error.errors)[0] : undefined;
-    return first?.[0] ?? error?.detail ?? error?.title ?? fallback;
+    return this.i18n.apiMessage(first?.[0] ?? error?.detail ?? error?.title ?? fallback);
   }
 }

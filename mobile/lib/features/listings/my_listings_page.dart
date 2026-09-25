@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/format/formatters.dart';
+import '../../core/i18n/l10n_ext.dart';
 import '../../core/widgets/listing_image.dart';
 import '../../core/widgets/state_views.dart';
 import '../../core/widgets/status_badge.dart';
@@ -25,7 +26,7 @@ class MyListingsPage extends StatelessWidget {
           children: [
             ListTile(
               leading: const Icon(Icons.shopping_bag_outlined),
-              title: const Text('New product'),
+              title: Text(sheetContext.l10n.myListingsNewProduct),
               onTap: () {
                 Navigator.of(sheetContext).pop();
                 context.go('/listings/product/new');
@@ -33,7 +34,7 @@ class MyListingsPage extends StatelessWidget {
             ),
             ListTile(
               leading: const Icon(Icons.home_repair_service_outlined),
-              title: const Text('New service'),
+              title: Text(sheetContext.l10n.myListingsNewService),
               onTap: () {
                 Navigator.of(sheetContext).pop();
                 context.go('/listings/service/new');
@@ -47,19 +48,23 @@ class MyListingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return DefaultTabController(
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('My listings'),
-          bottom: const TabBar(
-            tabs: [Tab(text: 'Products'), Tab(text: 'Services')],
+          title: Text(l10n.myListingsTitle),
+          bottom: TabBar(
+            tabs: [
+              Tab(text: l10n.myListingsProductsTab),
+              Tab(text: l10n.myListingsServicesTab),
+            ],
           ),
         ),
         floatingActionButton: FloatingActionButton.extended(
           onPressed: () => _showCreateSheet(context),
           icon: const Icon(Icons.add),
-          label: const Text('Create'),
+          label: Text(l10n.myListingsCreate),
         ),
         body: const TabBarView(
           children: [_MyProductsTab(), _MyServicesTab()],
@@ -80,16 +85,18 @@ class _MyProductsTab extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete product?'),
-        content: Text('"${product.name}" will be removed permanently.'),
+        title: Text(dialogContext.l10n.myListingsDeleteProductTitle),
+        content: Text(
+          dialogContext.l10n.myListingsDeleteProductMessage(product.name),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
+            child: Text(dialogContext.l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Delete'),
+            child: Text(dialogContext.l10n.commonDelete),
           ),
         ],
       ),
@@ -101,14 +108,18 @@ class _MyProductsTab extends ConsumerWidget {
       ref.invalidate(myProductsProvider);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Deleted "${product.name}".')),
+          SnackBar(
+            content: Text(
+              context.l10n.myListingsDeletedProduct(product.name),
+            ),
+          ),
         );
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(errorMessage(e)),
+            content: Text(errorMessage(context, e)),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -123,9 +134,9 @@ class _MyProductsTab extends ConsumerWidget {
       onRetry: () => ref.invalidate(myProductsProvider),
       data: (products) {
         if (products.isEmpty) {
-          return const EmptyView(
+          return EmptyView(
             icon: Icons.inventory_2_outlined,
-            message: 'You have no products yet. Create your first one.',
+            message: context.l10n.myListingsEmptyProducts,
           );
         }
         return ListView.builder(
@@ -162,7 +173,10 @@ class _MyProductsTab extends ConsumerWidget {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          '${product.stock} in stock · ${product.sold} sold',
+                          context.l10n.myListingsStockAndSold(
+                            product.stock.toString(),
+                            product.sold.toString(),
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.bodySmall,
@@ -180,20 +194,20 @@ class _MyProductsTab extends ConsumerWidget {
                       _delete(context, ref, product);
                     }
                   },
-                  itemBuilder: (context) => const [
+                  itemBuilder: (popupContext) => [
                     PopupMenuItem(
                       value: 'edit',
                       child: ListTile(
-                        leading: Icon(Icons.edit_outlined),
-                        title: Text('Edit'),
+                        leading: const Icon(Icons.edit_outlined),
+                        title: Text(popupContext.l10n.commonEdit),
                         contentPadding: EdgeInsets.zero,
                       ),
                     ),
                     PopupMenuItem(
                       value: 'delete',
                       child: ListTile(
-                        leading: Icon(Icons.delete_outline),
-                        title: Text('Delete'),
+                        leading: const Icon(Icons.delete_outline),
+                        title: Text(popupContext.l10n.commonDelete),
                         contentPadding: EdgeInsets.zero,
                       ),
                     ),
@@ -219,16 +233,18 @@ class _MyServicesTab extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete service?'),
-        content: Text('"${service.title}" will be removed permanently.'),
+        title: Text(dialogContext.l10n.myListingsDeleteServiceTitle),
+        content: Text(
+          dialogContext.l10n.myListingsDeleteServiceMessage(service.title),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
+            child: Text(dialogContext.l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Delete'),
+            child: Text(dialogContext.l10n.commonDelete),
           ),
         ],
       ),
@@ -240,14 +256,18 @@ class _MyServicesTab extends ConsumerWidget {
       ref.invalidate(myServicesProvider);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Deleted "${service.title}".')),
+          SnackBar(
+            content: Text(
+              context.l10n.myListingsDeletedService(service.title),
+            ),
+          ),
         );
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(errorMessage(e)),
+            content: Text(errorMessage(context, e)),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -262,9 +282,9 @@ class _MyServicesTab extends ConsumerWidget {
       onRetry: () => ref.invalidate(myServicesProvider),
       data: (services) {
         if (services.isEmpty) {
-          return const EmptyView(
+          return EmptyView(
             icon: Icons.home_repair_service_outlined,
-            message: 'You have no services yet. Create your first one.',
+            message: context.l10n.myListingsEmptyServices,
           );
         }
         return ListView.builder(
@@ -322,20 +342,20 @@ class _MyServicesTab extends ConsumerWidget {
                       _delete(context, ref, service);
                     }
                   },
-                  itemBuilder: (context) => const [
+                  itemBuilder: (popupContext) => [
                     PopupMenuItem(
                       value: 'edit',
                       child: ListTile(
-                        leading: Icon(Icons.edit_outlined),
-                        title: Text('Edit'),
+                        leading: const Icon(Icons.edit_outlined),
+                        title: Text(popupContext.l10n.commonEdit),
                         contentPadding: EdgeInsets.zero,
                       ),
                     ),
                     PopupMenuItem(
                       value: 'delete',
                       child: ListTile(
-                        leading: Icon(Icons.delete_outline),
-                        title: Text('Delete'),
+                        leading: const Icon(Icons.delete_outline),
+                        title: Text(popupContext.l10n.commonDelete),
                         contentPadding: EdgeInsets.zero,
                       ),
                     ),

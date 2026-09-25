@@ -87,6 +87,9 @@ public class MarketDbContext(DbContextOptions<MarketDbContext> options) : DbCont
             entity.Property(u => u.Email).IsRequired().HasMaxLength(200);
             entity.Property(u => u.Name).IsRequired().HasMaxLength(120);
             entity.Property(u => u.PasswordHash).IsRequired();
+            // New accounts default to "now" at the store, and rows that predate the
+            // column receive the migration-time timestamp (dashboard "new users" stat).
+            entity.Property(u => u.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
             entity.HasIndex(u => u.Email).IsUnique();
         });
 

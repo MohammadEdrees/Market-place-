@@ -16,6 +16,8 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { EMPTY, Subject, catchError, switchMap } from 'rxjs';
 import { AuthService } from '../../core/auth.service';
 import { CategoryService } from '../../core/category.service';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { TranslatePipe } from '../../core/i18n/t.pipe';
 import type { Category, CategoryKind } from '../../core/models';
 
 const emptyDraft = (): { name: string } => ({ name: '' });
@@ -35,6 +37,7 @@ const emptyDraft = (): { name: string } => ({ name: '' });
     TagModule,
     ToastModule,
     TooltipModule,
+    TranslatePipe,
   ],
   providers: [MessageService, ConfirmationService],
   templateUrl: './categories.component.html',
@@ -46,16 +49,17 @@ export class CategoriesComponent implements OnInit {
   private readonly confirmationService = inject(ConfirmationService);
   private readonly auth = inject(AuthService);
   private readonly destroyRef = inject(DestroyRef);
+  readonly i18n = inject(I18nService);
 
   /** Every reload funnels through here so switchMap cancels stale in-flight requests. */
   private readonly reload$ = new Subject<void>();
 
   /** Which pool is shown (and used when creating): "Products" | "Services". */
   readonly kind = signal<CategoryKind>('Product');
-  readonly kindOptions: { label: string; value: CategoryKind }[] = [
-    { label: 'Products', value: 'Product' },
-    { label: 'Services', value: 'Service' },
-  ];
+  readonly kindOptions = computed<{ label: string; value: CategoryKind }[]>(() => [
+    { label: this.i18n.t('nav.products'), value: 'Product' },
+    { label: this.i18n.t('nav.services'), value: 'Service' },
+  ]);
 
   readonly loadedOnce = signal(false);
   readonly loading = signal(true);
@@ -73,7 +77,9 @@ export class CategoriesComponent implements OnInit {
     ['SuperAdmin', 'Admin'].includes(this.auth.user()?.role ?? ''),
   );
 
-  readonly title = computed(() => (this.editingId() ? 'Rename category' : 'Add category'));
+  readonly title = computed(() =>
+    this.editingId() ? this.i18n.t('categories.rename') : this.i18n.t('categories.add'),
+  );
 
   ngOnInit(): void {
     // Single fetch pipeline: switchMap cancels the previous request as soon as a newer
@@ -88,8 +94,8 @@ export class CategoriesComponent implements OnInit {
               this.loading.set(false);
               this.messageService.add({
                 severity: 'error',
-                summary: 'API unreachable',
-                detail: 'Start the .NET API on localhost:5240.',
+                summary: this.i18n.t('toast.apiUnreachable'),
+                detail: this.i18n.t('toast.apiUnreachableDetail'),
               });
               return EMPTY;
             }),
@@ -139,8 +145,8 @@ export class CategoriesComponent implements OnInit {
     if (!name) {
       this.messageService.add({
         severity: 'warn',
-        summary: 'Missing fields',
-        detail: 'Category name is required.',
+        summary: this.i18n.t('toast.missingFields'),
+        detail: this.i18n.t('validation.categoryNameRequired'),
       });
       return;
     }
@@ -159,16 +165,18 @@ export class CategoriesComponent implements OnInit {
         this.reload();
         this.messageService.add({
           severity: 'success',
-          summary: editing != null ? 'Category renamed' : 'Category created',
-          detail: `${saved.name} · ${saved.kind === 'Product' ? 'products' : 'services'}`,
+          summary: editing != null ? this.i18n.t('toast.categoryRenamed') : this.i18n.t('toast.categoryCreated'),
+          detail: `${saved.name} · ${this.i18n.label('kind', saved.kind)}`,
         });
       },
       error: (err) => {
         this.saving.set(false);
         this.messageService.add({
           severity: 'error',
-          summary: editing != null ? 'Could not rename category' : 'Could not create category',
-          detail: this.apiError(err, 'The API rejected the request.'),
+          summary: editing != null
+            ? this.i18n.t('toast.couldNotRenameCategory')
+            : this.i18n.t('toast.couldNotCreateCategory'),
+          detail: this.apiError(err, this.i18n.t('toast.apiRejected')),
         });
       },
     });
@@ -176,18 +184,18 @@ export class CategoriesComponent implements OnInit {
 
   confirmDelete(category: Category): void {
     this.confirmationService.confirm({
-      header: 'Delete category',
-      message: `Remove <strong>${category.name}</strong>?`,
+      header: this.i18n.t('categories.deleteHeader'),
+      message: this.i18n.t('categories.deleteMessage', { name: category.name }),
       icon: 'pi pi-trash',
-      acceptButtonProps: { label: 'Delete', severity: 'danger' },
-      rejectButtonProps: { label: 'Cancel', severity: 'secondary', outlined: true },
+      acceptButtonProps: { label: this.i18n.t('common.delete'), severity: 'danger' },
+      rejectButtonProps: { label: this.i18n.t('common.cancel'), severity: 'secondary', outlined: true },
       accept: () => {
         this.categoryService.remove(category.id).subscribe({
           next: () => {
             this.reload();
             this.messageService.add({
               severity: 'success',
-              summary: 'Deleted',
+              summary: this.i18n.t('toast.deleted'),
               detail: category.name,
             });
           },
@@ -195,8 +203,8 @@ export class CategoriesComponent implements OnInit {
           error: (err) =>
             this.messageService.add({
               severity: 'error',
-              summary: 'Delete failed',
-              detail: this.apiError(err, 'The API rejected the request.'),
+              summary: this.i18n.t('toast.deleteFailed'),
+              detail: this.apiError(err, this.i18n.t('toast.apiRejected')),
             }),
         });
       },
@@ -210,6 +218,6 @@ export class CategoriesComponent implements OnInit {
   private apiError(err: unknown, fallback: string): string {
     const error = (err as { error?: { errors?: Record<string, string[]>; detail?: string; title?: string } })?.error;
     const first = error?.errors ? Object.values(error.errors)[0] : undefined;
-    return first?.[0] ?? error?.detail ?? error?.title ?? fallback;
+    return this.i18n.apiMessage(first?.[0] ?? error?.detail ?? error?.title ?? fallback);
   }
 }

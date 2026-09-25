@@ -19,7 +19,9 @@ import { TooltipModule } from 'primeng/tooltip';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { EMPTY, Subject, catchError, debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs';
 import { AuthService } from '../../core/auth.service';
+import { I18nService } from '../../core/i18n/i18n.service';
 import { ServicesService } from '../../core/services.service';
+import { TranslatePipe } from '../../core/i18n/t.pipe';
 import { UsersService } from '../../core/users.service';
 import type { TableLazyLoadEvent } from 'primeng/table';
 import type { ListingImage, ServiceInput, ServiceListing, UserProfile } from '../../core/models';
@@ -58,6 +60,7 @@ type PendingImage = { file: File; url: string };
     Textarea,
     ToastModule,
     TooltipModule,
+    TranslatePipe,
   ],
   providers: [MessageService, ConfirmationService],
   templateUrl: './services.component.html',
@@ -70,6 +73,7 @@ export class ServicesComponent implements OnInit {
   private readonly confirmationService = inject(ConfirmationService);
   private readonly auth = inject(AuthService);
   private readonly destroyRef = inject(DestroyRef);
+  readonly i18n = inject(I18nService);
 
   /** Search box as a reactive control: valueChanges → debounce → distinct → fetch. */
   readonly searchControl = new FormControl('', { nonNullable: true });
@@ -109,7 +113,9 @@ export class ServicesComponent implements OnInit {
     ['SuperAdmin', 'Admin', 'Manager', 'Provider'].includes(this.auth.user()?.role ?? ''),
   );
 
-  readonly title = computed(() => (this.editingId() ? 'Edit service' : 'New service'));
+  readonly title = computed(() =>
+    this.editingId() ? this.i18n.t('services.edit') : this.i18n.t('services.new'),
+  );
 
   ngOnInit(): void {
     // Backend search with RxJS: debounce keystrokes, drop duplicates, refetch page 1.
@@ -148,8 +154,8 @@ export class ServicesComponent implements OnInit {
                 this.loading.set(false);
                 this.messageService.add({
                   severity: 'error',
-                  summary: 'API unreachable',
-                  detail: 'Start the .NET API on localhost:5240.',
+                  summary: this.i18n.t('toast.apiUnreachable'),
+                  detail: this.i18n.t('toast.apiUnreachableDetail'),
                 });
                 return EMPTY;
               }),
@@ -240,8 +246,8 @@ export class ServicesComponent implements OnInit {
     if (!draft.title.trim() || !draft.category.trim() || !draft.contactInfo.trim() || !draft.location.trim()) {
       this.messageService.add({
         severity: 'warn',
-        summary: 'Missing fields',
-        detail: 'Title, category, contact info and location are required.',
+        summary: this.i18n.t('toast.missingFields'),
+        detail: this.i18n.t('validation.servicesRequired'),
       });
       return;
     }
@@ -249,8 +255,8 @@ export class ServicesComponent implements OnInit {
     if (this.existingImages().length + this.pendingImages().length > this.maxImages) {
       this.messageService.add({
         severity: 'warn',
-        summary: 'Too many images',
-        detail: `A listing can hold at most ${this.maxImages} images.`,
+        summary: this.i18n.t('toast.tooManyImages'),
+        detail: this.i18n.t('toast.maxImagesDetail', { count: this.maxImages }),
       });
       return;
     }
@@ -265,8 +271,8 @@ export class ServicesComponent implements OnInit {
         this.saving.set(false);
         this.messageService.add({
           severity: 'error',
-          summary: 'Save failed',
-          detail: this.apiError(err, 'The API rejected the request.'),
+          summary: this.i18n.t('toast.saveFailed'),
+          detail: this.apiError(err, this.i18n.t('toast.apiRejected')),
         });
       },
     });
@@ -290,8 +296,8 @@ export class ServicesComponent implements OnInit {
         this.reload();
         this.messageService.add({
           severity: 'error',
-          summary: 'Image upload failed',
-          detail: this.apiError(err, 'The listing was saved, but its images were not.'),
+          summary: this.i18n.t('toast.imageUploadFailed'),
+          detail: this.apiError(err, this.i18n.t('toast.listingSavedImagesNot')),
         });
       },
     });
@@ -303,7 +309,7 @@ export class ServicesComponent implements OnInit {
     this.reload();
     this.messageService.add({
       severity: 'success',
-      summary: editingId ? 'Service updated' : 'Service created',
+      summary: this.i18n.t(editingId ? 'toast.serviceUpdated' : 'toast.serviceCreated'),
       detail: label,
     });
   }
@@ -321,8 +327,8 @@ export class ServicesComponent implements OnInit {
     if (files.length > room) {
       this.messageService.add({
         severity: 'warn',
-        summary: 'Gallery limit',
-        detail: `A listing can hold at most ${this.maxImages} images.`,
+        summary: this.i18n.t('toast.galleryLimit'),
+        detail: this.i18n.t('toast.maxImagesDetail', { count: this.maxImages }),
       });
     }
     const accepted = files.slice(0, Math.max(0, room));
@@ -349,8 +355,8 @@ export class ServicesComponent implements OnInit {
       error: (err) =>
         this.messageService.add({
           severity: 'error',
-          summary: 'Could not remove image',
-          detail: this.apiError(err, 'The API rejected the request.'),
+          summary: this.i18n.t('toast.couldNotRemoveImage'),
+          detail: this.apiError(err, this.i18n.t('toast.apiRejected')),
         }),
     });
   }
@@ -367,26 +373,30 @@ export class ServicesComponent implements OnInit {
 
   confirmDelete(service: ServiceListing): void {
     this.confirmationService.confirm({
-      header: 'Delete service',
-      message: `Remove <strong>${service.title}</strong> from the marketplace?`,
+      header: this.i18n.t('services.deleteHeader'),
+      message: this.i18n.t('services.deleteMessage', { name: service.title }),
       icon: 'pi pi-trash',
-      acceptButtonProps: { label: 'Delete', severity: 'danger' },
-      rejectButtonProps: { label: 'Cancel', severity: 'secondary', outlined: true },
+      acceptButtonProps: { label: this.i18n.t('common.delete'), severity: 'danger' },
+      rejectButtonProps: {
+        label: this.i18n.t('common.cancel'),
+        severity: 'secondary',
+        outlined: true,
+      },
       accept: () => {
         this.servicesService.remove(service.id).subscribe({
           next: () => {
             this.reload();
             this.messageService.add({
               severity: 'success',
-              summary: 'Deleted',
+              summary: this.i18n.t('toast.deleted'),
               detail: service.title,
             });
           },
           error: () =>
             this.messageService.add({
               severity: 'error',
-              summary: 'Delete failed',
-              detail: 'The API rejected the request.',
+              summary: this.i18n.t('toast.deleteFailed'),
+              detail: this.i18n.t('toast.apiRejected'),
             }),
         });
       },
@@ -400,6 +410,7 @@ export class ServicesComponent implements OnInit {
   private apiError(err: unknown, fallback: string): string {
     const error = (err as { error?: { errors?: Record<string, string[]>; title?: string } })?.error;
     const first = error?.errors ? Object.values(error.errors)[0] : undefined;
-    return first?.[0] ?? error?.title ?? fallback;
+    // apiMessage() re-translates known English API messages; unknown text passes through.
+    return this.i18n.apiMessage(first?.[0] ?? error?.title ?? fallback);
   }
 }

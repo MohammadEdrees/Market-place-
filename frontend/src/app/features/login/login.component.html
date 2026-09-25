@@ -4,13 +4,13 @@
       <span class="brand-mark"><i class="pi pi-bolt"></i></span>
       <div>
         <h1>Market Workplace</h1>
-        <p>Sign in to the analytics dashboard</p>
+        <p>{{ 'login.subtitle' | t }}</p>
       </div>
     </div>
 
     <form class="login-form" [formGroup]="form" (ngSubmit)="submit()">
       <div class="field">
-        <label for="email">Email</label>
+        <label for="email">{{ 'common.email' | t }}</label>
         <input
           pInputText
           id="email"
@@ -20,22 +20,22 @@
           autocomplete="username"
         />
         @if (form.controls.email.touched && form.controls.email.invalid) {
-          <small class="field-error">Enter a valid email address.</small>
+          <small class="field-error">{{ 'validation.email' | t }}</small>
         }
       </div>
 
       <div class="field">
-        <label for="password">Password</label>
+        <label for="password">{{ 'common.password' | t }}</label>
         <p-password
           inputId="password"
           formControlName="password"
-          placeholder="Password"
+          [placeholder]="'common.password' | t"
           [feedback]="false"
           [toggleMask]="true"
           styleClass="login-password"
         />
         @if (form.controls.password.touched && form.controls.password.invalid) {
-          <small class="field-error">Password is required.</small>
+          <small class="field-error">{{ 'validation.passwordRequired' | t }}</small>
         }
       </div>
 
@@ -45,7 +45,7 @@
 
       <p-button
         type="submit"
-        label="Sign in"
+        [label]="'page.login' | t"
         icon="pi pi-sign-in"
         styleClass="login-submit"
         [loading]="loading()"
@@ -54,17 +54,17 @@
     </form>
 
     <div class="demo-hint">
-      <p class="demo-hint-title"><i class="pi pi-key"></i> Demo accounts</p>
+      <p class="demo-hint-title"><i class="pi pi-key"></i> {{ 'login.demoAccounts' | t }}</p>
       <p><code>superadmin@marketplace.dev</code> · <code>123456</code></p>
       <p><code>admin@marketplace.dev</code> · <code>Admin123!</code></p>
       <p><code>chief.admin@marketplace.dev</code> · <code>Chief123!</code></p>
       <p><code>manager@marketplace.dev</code> · <code>Manager123!</code></p>
       <p><code>viewer@marketplace.dev</code> · <code>Viewer123!</code></p>
 
-      <p class="demo-hint-group">Mobile</p>
-      <p><code>seller@marketplace.dev</code> · <code>Seller123!</code> · Provider</p>
-      <p><code>nova@marketplace.dev</code> · <code>Nova123!</code> · Provider</p>
-      <p><code>client@marketplace.dev</code> · <code>Client123!</code> · Client</p>
+      <p class="demo-hint-group">{{ 'type.mobile' | t }}</p>
+      <p><code>seller@marketplace.dev</code> · <code>Seller123!</code> · {{ 'role.provider' | t }}</p>
+      <p><code>nova@marketplace.dev</code> · <code>Nova123!</code> · {{ 'role.provider' | t }}</p>
+      <p><code>client@marketplace.dev</code> · <code>Client123!</code> · {{ 'role.client' | t }}</p>
     </div>
   </div>
 </div>

@@ -1,8 +1,8 @@
 <section class="page">
   <div class="page-head">
     <div>
-      <h2>Users</h2>
-      <p>{{ total() }} profiles · paged, filtered and sorted by the API</p>
+      <h2>{{ 'nav.users' | t }}</h2>
+      <p>{{ 'users.subtitle' | t: { count: total() } }}</p>
     </div>
     <div class="toolbar">
       <p-iconfield>
@@ -10,15 +10,17 @@
         <input
           pInputText
           type="search"
-          placeholder="Search name, email or location"
-          aria-label="Search users"
+          [placeholder]="'users.searchPlaceholder' | t"
+          [attr.aria-label]="'users.searchAria' | t"
           [formControl]="searchControl"
         />
       </p-iconfield>
 
       <p-select
-        [options]="roleOptions"
-        placeholder="Any role"
+        [options]="roleOptions()"
+        optionLabel="label"
+        optionValue="value"
+        [placeholder]="'users.anyRole' | t"
         [showClear]="true"
         styleClass="filter-select"
         [ngModel]="role()"
@@ -26,17 +28,19 @@
       />
 
       <p-select
-        [options]="typeOptions"
-        placeholder="Any platform"
+        [options]="typeOptions()"
+        optionLabel="label"
+        optionValue="value"
+        [placeholder]="'users.anyPlatform' | t"
         [showClear]="true"
         styleClass="filter-select"
         [ngModel]="type()"
         (ngModelChange)="onType($event)"
       />
 
-      <p-button label="Reset" icon="pi pi-filter-slash" [text]="true" severity="secondary" (onClick)="clearFilters()" />
+      <p-button [label]="'common.reset' | t" icon="pi pi-filter-slash" [text]="true" severity="secondary" (onClick)="clearFilters()" />
       @if (canManageUsers()) {
-        <p-button label="Add user" icon="pi pi-user-plus" (onClick)="openCreate()" />
+        <p-button [label]="'users.add' | t" icon="pi pi-user-plus" (onClick)="openCreate()" />
       }
     </div>
   </div>
@@ -54,19 +58,19 @@
         [totalRecords]="total()"
         (onLazyLoad)="onLazyLoad($event)"
         [showCurrentPageReport]="true"
-        currentPageReportTemplate="{first}–{last} of {totalRecords}"
+        [currentPageReportTemplate]="'common.pageReport' | t"
         [rowsPerPageOptions]="[8, 16, 32]"
         [tableStyle]="{ 'min-width': '58rem' }"
         paginatorPosition="bottom"
       >
         <ng-template #header>
           <tr>
-            <th pSortableColumn="name">User <p-sortIcon field="name" /></th>
-            <th pSortableColumn="role">Role <p-sortIcon field="role" /></th>
-            <th>Platform</th>
-            <th>Phone</th>
-            <th pSortableColumn="location">Location <p-sortIcon field="location" /></th>
-            <th style="width: 7rem">Actions</th>
+            <th pSortableColumn="name">{{ 'users.user' | t }} <p-sortIcon field="name" /></th>
+            <th pSortableColumn="role">{{ 'common.role' | t }} <p-sortIcon field="role" /></th>
+            <th>{{ 'users.platform' | t }}</th>
+            <th>{{ 'common.phone' | t }}</th>
+            <th pSortableColumn="location">{{ 'common.location' | t }} <p-sortIcon field="location" /></th>
+            <th style="width: 7rem">{{ 'common.actions' | t }}</th>
           </tr>
         </ng-template>
 
@@ -80,13 +84,13 @@
                   <span class="avatar">{{ initials(user.name) }}</span>
                 }
                 <span>
-                  <span class="cell-title">{{ user.name }} @if (isSelf(user)) {<span class="you-tag">you</span>}</span>
+                  <span class="cell-title">{{ user.name }} @if (isSelf(user)) {<span class="you-tag">{{ 'users.you' | t }}</span>}</span>
                   <span class="cell-sub">{{ user.email }}</span>
                 </span>
               </div>
             </td>
-            <td><p-tag [value]="user.role" [severity]="roleSeverity(user.role)" /></td>
-            <td><p-tag [value]="user.type" [severity]="typeSeverity(user.type)" /></td>
+            <td><p-tag [value]="i18n.label('role', user.role)" [severity]="roleSeverity(user.role)" /></td>
+            <td><p-tag [value]="i18n.label('type', user.type)" [severity]="typeSeverity(user.type)" /></td>
             <td class="mono">{{ user.phone || '—' }}</td>
             <td>{{ user.location || '—' }}</td>
             <td>
@@ -96,7 +100,7 @@
                   [text]="true"
                   [rounded]="true"
                   severity="secondary"
-                  pTooltip="View profile"
+                  [pTooltip]="'users.viewTooltip' | t"
                   (onClick)="openView(user)"
                 />
                 @if (isSelf(user) || canManageUsers()) {
@@ -105,7 +109,7 @@
                     [text]="true"
                     [rounded]="true"
                     severity="secondary"
-                    [pTooltip]="isSelf(user) ? 'Edit my profile' : 'Edit user'"
+                    [pTooltip]="isSelf(user) ? ('users.editMyProfile' | t) : ('users.editTooltip' | t)"
                     (onClick)="openEdit(user)"
                   />
                 }
@@ -116,7 +120,7 @@
 
         <ng-template #emptymessage>
           <tr>
-            <td colspan="6" class="empty-row">No users match your filters.</td>
+            <td colspan="6" class="empty-row">{{ 'users.empty' | t }}</td>
           </tr>
         </ng-template>
       </p-table>
@@ -130,7 +134,7 @@
   </div>
 
   <p-dialog
-    header="Profile"
+    [header]="'users.profile' | t"
     [(visible)]="viewVisible"
     [modal]="true"
     styleClass="profile-dialog"
@@ -147,23 +151,23 @@
           <strong>{{ user.name }}</strong>
           <span class="cell-sub">{{ user.email }}</span>
           <div class="profile-tags">
-            <p-tag [value]="user.role" [severity]="roleSeverity(user.role)" />
-            <p-tag [value]="user.type" [severity]="typeSeverity(user.type)" />
+            <p-tag [value]="i18n.label('role', user.role)" [severity]="roleSeverity(user.role)" />
+            <p-tag [value]="i18n.label('type', user.type)" [severity]="typeSeverity(user.type)" />
           </div>
         </div>
       </div>
 
       <div class="profile-grid">
         <div>
-          <span>Phone</span>
+          <span>{{ 'common.phone' | t }}</span>
           <strong>{{ user.phone || '—' }}</strong>
         </div>
         <div>
-          <span>Location</span>
+          <span>{{ 'common.location' | t }}</span>
           <strong>{{ user.location || '—' }}</strong>
         </div>
         <div class="profile-bio">
-          <span>Bio</span>
+          <span>{{ 'users.bio' | t }}</span>
           <strong>{{ user.bio || '—' }}</strong>
         </div>
       </div>
@@ -171,8 +175,8 @@
       @if (showRelatedProducts()) {
         <div class="profile-products">
           <span class="profile-products-head">
-            Products
-            <span class="cell-sub">{{ relatedProducts().length }} listed</span>
+            {{ 'nav.products' | t }}
+            <span class="cell-sub">{{ 'users.listed' | t: { count: relatedProducts().length } }}</span>
           </span>
           @if (relatedProducts().length) {
             <ul class="related-list">
@@ -184,18 +188,18 @@
               }
             </ul>
           } @else {
-            <span class="cell-sub">No products yet.</span>
+            <span class="cell-sub">{{ 'users.noProducts' | t }}</span>
           }
         </div>
       }
     }
 
     <ng-template #footer>
-      <p-button label="Close" [text]="true" severity="secondary" (onClick)="viewVisible.set(false)" />
+      <p-button [label]="'common.close' | t" [text]="true" severity="secondary" (onClick)="viewVisible.set(false)" />
       @if (viewing(); as user) {
         @if (isSelf(user) || canManageUsers()) {
           <p-button
-            [label]="isSelf(user) ? 'Edit profile' : 'Edit user'"
+            [label]="isSelf(user) ? ('users.editProfile' | t) : ('users.editUser' | t)"
             icon="pi pi-pencil"
             (onClick)="openEdit(user)"
           />
@@ -205,7 +209,7 @@
   </p-dialog>
 
   <p-dialog
-    [header]="editingSelf() ? 'Edit my profile' : 'Edit user'"
+    [header]="editingSelf() ? ('users.editMyProfile' | t) : ('users.editUser' | t)"
     [(visible)]="editVisible"
     [modal]="true"
     styleClass="profile-dialog"
@@ -213,84 +217,90 @@
   >
     <div class="form-grid">
       <div class="field field-full">
-        <label>Profile picture</label>
+        <label>{{ 'users.profilePicture' | t }}</label>
         <div class="avatar-editor">
           @if (avatarDisplay(); as url) {
-            <img class="avatar avatar-lg avatar-img" [src]="url" alt="Profile picture preview" />
+            <img class="avatar avatar-lg avatar-img" [src]="url" [alt]="'users.picturePreview' | t" />
           } @else {
             <span class="avatar avatar-lg">{{ initials(draft.name || '?') }}</span>
           }
           <div class="avatar-actions">
             <label class="avatar-upload">
               <i class="pi pi-image"></i>
-              <span>{{ avatarDisplay() ? 'Change' : 'Upload' }}</span>
+              <span>{{ avatarDisplay() ? ('users.change' | t) : ('users.upload' | t) }}</span>
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/webp,image/gif"
-                aria-label="Choose profile picture"
+                [attr.aria-label]="'users.choosePicture' | t"
                 (change)="onAvatarSelected($event)"
               />
             </label>
             @if (avatarDisplay()) {
               <button type="button" class="avatar-remove-btn" (click)="removeAvatarImage()">
                 <i class="pi pi-trash"></i>
-                Remove
+                {{ 'common.remove' | t }}
               </button>
             }
           </div>
         </div>
-        <span class="field-hint">PNG, JPG, WEBP or GIF up to 5 MB — applied when you save.</span>
+        <span class="field-hint">{{ 'users.avatarHint' | t }}</span>
       </div>
 
       <div class="field field-full">
-        <label for="u-name">Display name</label>
+        <label for="u-name">{{ 'users.displayName' | t }}</label>
         <input id="u-name" pInputText type="text" [(ngModel)]="draft.name" />
       </div>
 
       @if (!editingSelf()) {
         <div class="field">
-          <label for="ue-email">Email</label>
+          <label for="ue-email">{{ 'common.email' | t }}</label>
           <input id="ue-email" pInputText type="email" [(ngModel)]="editEmail" placeholder="name@marketplace.dev" />
         </div>
 
         <div class="field">
-          <label for="ue-role">Role</label>
-          <p-select id="ue-role" [options]="roleOptions" [(ngModel)]="editRole" />
-          <span class="field-hint">Platform: {{ derivedType(editRole) }} (derived from role)</span>
+          <label for="ue-role">{{ 'common.role' | t }}</label>
+          <p-select
+            id="ue-role"
+            [options]="roleOptions()"
+            optionLabel="label"
+            optionValue="value"
+            [(ngModel)]="editRole"
+          />
+          <span class="field-hint">{{ 'users.platformDerived' | t: { type: derivedType(editRole) } }}</span>
         </div>
 
         <div class="field field-full">
-          <label for="ue-password">New password</label>
+          <label for="ue-password">{{ 'users.newPassword' | t }}</label>
           <input
             id="ue-password"
             pInputText
             type="password"
             [(ngModel)]="editPassword"
-            placeholder="Leave blank to keep the current password"
+            [placeholder]="'users.passwordKeepPlaceholder' | t"
             autocomplete="new-password"
           />
-          <span class="field-hint">Optional — at least 6 characters when set.</span>
+          <span class="field-hint">{{ 'users.passwordHint' | t }}</span>
         </div>
       }
 
       <div class="field">
-        <label for="u-phone">Phone</label>
+        <label for="u-phone">{{ 'common.phone' | t }}</label>
         <input id="u-phone" pInputText type="text" [(ngModel)]="draft.phone" placeholder="+1 555 0100" />
       </div>
 
       <div class="field">
-        <label for="u-location">Location</label>
-        <input id="u-location" pInputText type="text" [(ngModel)]="draft.location" placeholder="City, ST" />
+        <label for="u-location">{{ 'common.location' | t }}</label>
+        <input id="u-location" pInputText type="text" [(ngModel)]="draft.location" [placeholder]="'users.cityPlaceholder' | t" />
       </div>
 
       <div class="field field-full">
-        <label for="u-bio">Bio</label>
-        <textarea id="u-bio" pTextarea rows="3" [(ngModel)]="draft.bio" placeholder="Short contact blurb"></textarea>
+        <label for="u-bio">{{ 'users.bio' | t }}</label>
+        <textarea id="u-bio" pTextarea rows="3" [(ngModel)]="draft.bio" [placeholder]="'users.bioPlaceholder' | t"></textarea>
       </div>
 
       @if (showRelatedProducts()) {
         <div class="field field-full">
-          <label>Products</label>
+          <label>{{ 'nav.products' | t }}</label>
           @if (relatedProducts().length) {
             <ul class="related-list">
               @for (product of relatedProducts(); track product.id) {
@@ -301,16 +311,16 @@
               }
             </ul>
           } @else {
-            <span class="field-hint">No products yet.</span>
+            <span class="field-hint">{{ 'users.noProducts' | t }}</span>
           }
         </div>
       }
     </div>
 
     <ng-template #footer>
-      <p-button label="Cancel" [text]="true" severity="secondary" (onClick)="editVisible.set(false)" />
+      <p-button [label]="'common.cancel' | t" [text]="true" severity="secondary" (onClick)="editVisible.set(false)" />
       <p-button
-        [label]="saving() ? 'Saving…' : editingSelf() ? 'Save profile' : 'Save user'"
+        [label]="saving() ? ('common.saving' | t) : editingSelf() ? ('users.saveProfile' | t) : ('users.saveUser' | t)"
         icon="pi pi-check"
         (onClick)="save()"
         [loading]="saving()"
@@ -319,7 +329,7 @@
   </p-dialog>
 
   <p-dialog
-    header="Add user"
+    [header]="'users.add' | t"
     [(visible)]="createVisible"
     [modal]="true"
     styleClass="create-user-dialog"
@@ -327,53 +337,59 @@
   >
     <div class="form-grid">
       <div class="field">
-        <label for="cu-name">Name</label>
-        <input id="cu-name" pInputText type="text" [(ngModel)]="createDraft.name" placeholder="Full name" />
+        <label for="cu-name">{{ 'common.name' | t }}</label>
+        <input id="cu-name" pInputText type="text" [(ngModel)]="createDraft.name" [placeholder]="'users.fullNamePlaceholder' | t" />
       </div>
 
       <div class="field">
-        <label for="cu-email">Email</label>
+        <label for="cu-email">{{ 'common.email' | t }}</label>
         <input id="cu-email" pInputText type="email" [(ngModel)]="createDraft.email" placeholder="name@marketplace.dev" />
       </div>
 
       <div class="field">
-        <label for="cu-password">Password</label>
+        <label for="cu-password">{{ 'common.password' | t }}</label>
         <input
           id="cu-password"
           pInputText
           type="password"
           [(ngModel)]="createDraft.password"
-          placeholder="At least 6 characters"
+          [placeholder]="'users.passwordPlaceholder' | t"
           autocomplete="new-password"
         />
       </div>
 
       <div class="field">
-        <label for="cu-role">Role</label>
-        <p-select id="cu-role" [options]="roleOptions" [(ngModel)]="createDraft.role" />
-        <span class="field-hint">Platform: {{ derivedType(createDraft.role) }} (derived from role)</span>
+        <label for="cu-role">{{ 'common.role' | t }}</label>
+        <p-select
+          id="cu-role"
+          [options]="roleOptions()"
+          optionLabel="label"
+          optionValue="value"
+          [(ngModel)]="createDraft.role"
+        />
+        <span class="field-hint">{{ 'users.platformDerived' | t: { type: derivedType(createDraft.role) } }}</span>
       </div>
 
       <div class="field">
-        <label for="cu-phone">Phone</label>
+        <label for="cu-phone">{{ 'common.phone' | t }}</label>
         <input id="cu-phone" pInputText type="text" [(ngModel)]="createDraft.phone" placeholder="+1 555 0100" />
       </div>
 
       <div class="field">
-        <label for="cu-location">Location</label>
-        <input id="cu-location" pInputText type="text" [(ngModel)]="createDraft.location" placeholder="City, ST" />
+        <label for="cu-location">{{ 'common.location' | t }}</label>
+        <input id="cu-location" pInputText type="text" [(ngModel)]="createDraft.location" [placeholder]="'users.cityPlaceholder' | t" />
       </div>
 
       <div class="field field-full">
-        <label for="cu-bio">Bio</label>
-        <textarea id="cu-bio" pTextarea rows="3" [(ngModel)]="createDraft.bio" placeholder="Short contact blurb"></textarea>
+        <label for="cu-bio">{{ 'users.bio' | t }}</label>
+        <textarea id="cu-bio" pTextarea rows="3" [(ngModel)]="createDraft.bio" [placeholder]="'users.bioPlaceholder' | t"></textarea>
       </div>
     </div>
 
     <ng-template #footer>
-      <p-button label="Cancel" [text]="true" severity="secondary" (onClick)="createVisible.set(false)" />
+      <p-button [label]="'common.cancel' | t" [text]="true" severity="secondary" (onClick)="createVisible.set(false)" />
       <p-button
-        [label]="creating() ? 'Creating…' : 'Create user'"
+        [label]="creating() ? ('users.creating' | t) : ('users.create' | t)"
         icon="pi pi-user-plus"
         (onClick)="saveNew()"
         [loading]="creating()"

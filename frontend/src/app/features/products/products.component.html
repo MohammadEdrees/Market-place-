@@ -1,8 +1,8 @@
 <section class="page">
   <div class="page-head">
     <div>
-      <h2>Products</h2>
-      <p>{{ total() }} items · paged, filtered and sorted by the API</p>
+      <h2>{{ 'nav.products' | t }}</h2>
+      <p>{{ 'products.subtitle' | t: { count: total() } }}</p>
     </div>
     <div class="toolbar">
       <p-iconfield>
@@ -10,15 +10,15 @@
         <input
           pInputText
           type="search"
-          placeholder="Search name or SKU"
-          aria-label="Search products"
+          [placeholder]="'products.searchPlaceholder' | t"
+          [attr.aria-label]="'products.searchAria' | t"
           [formControl]="searchControl"
         />
       </p-iconfield>
 
       <p-select
         [options]="categories()"
-        placeholder="All categories"
+        [placeholder]="'common.allCategories' | t"
         [showClear]="true"
         styleClass="category-select"
         [ngModel]="category()"
@@ -27,19 +27,19 @@
 
       <p-select
         [options]="providerOptions()"
-        placeholder="Any provider"
+        [placeholder]="'products.anyProvider' | t"
         optionLabel="label"
         optionValue="value"
         [showClear]="true"
         styleClass="category-select"
-        ariaLabel="Filter by provider"
+        [ariaLabel]="'products.filterByProvider' | t"
         [ngModel]="sellerId()"
         (ngModelChange)="onSeller($event)"
       />
 
-      <p-button label="Reset" icon="pi pi-filter-slash" [text]="true" severity="secondary" (onClick)="clearFilters()" />
+      <p-button [label]="'common.reset' | t" icon="pi pi-filter-slash" [text]="true" severity="secondary" (onClick)="clearFilters()" />
       @if (canList()) {
-        <p-button label="New product" icon="pi pi-plus" (onClick)="openNew()" />
+        <p-button [label]="'products.new' | t" icon="pi pi-plus" (onClick)="openNew()" />
       }
     </div>
   </div>
@@ -57,21 +57,21 @@
         [totalRecords]="total()"
         (onLazyLoad)="onLazyLoad($event)"
         [showCurrentPageReport]="true"
-        currentPageReportTemplate="{first}–{last} of {totalRecords}"
+        [currentPageReportTemplate]="'common.pageReport' | t"
         [rowsPerPageOptions]="[8, 16, 32]"
         [tableStyle]="{ 'min-width': '66rem' }"
         paginatorPosition="bottom"
       >
         <ng-template #header>
           <tr>
-            <th pSortableColumn="name">Name <p-sortIcon field="name" /></th>
+            <th pSortableColumn="name">{{ 'common.name' | t }} <p-sortIcon field="name" /></th>
             <th pSortableColumn="sku">SKU <p-sortIcon field="sku" /></th>
-            <th>Seller</th>
-            <th pSortableColumn="category">Category <p-sortIcon field="category" /></th>
-            <th pSortableColumn="price">Price <p-sortIcon field="price" /></th>
-            <th pSortableColumn="stock">Stock <p-sortIcon field="stock" /></th>
-            <th pSortableColumn="sold">Sold <p-sortIcon field="sold" /></th>
-            <th style="width: 7rem">Actions</th>
+            <th>{{ 'products.seller' | t }}</th>
+            <th pSortableColumn="category">{{ 'common.category' | t }} <p-sortIcon field="category" /></th>
+            <th pSortableColumn="price">{{ 'common.price' | t }} <p-sortIcon field="price" /></th>
+            <th pSortableColumn="stock">{{ 'products.stock' | t }} <p-sortIcon field="stock" /></th>
+            <th pSortableColumn="sold">{{ 'products.sold' | t }} <p-sortIcon field="sold" /></th>
+            <th style="width: 7rem">{{ 'common.actions' | t }}</th>
           </tr>
         </ng-template>
 
@@ -91,7 +91,7 @@
                 }
                 <span class="name-meta">
                   <span class="cell-title">{{ product.name }}</span>
-                  <span class="cell-sub">{{ product.createdAt | date: 'MMM y' }} · {{ product.images?.length ?? 0 }} img</span>
+                  <span class="cell-sub">{{ product.createdAt | date: 'MMM y' }} · {{ 'products.imgCount' | t: { count: product.images?.length ?? 0 } }}</span>
                 </span>
               </div>
             </td>
@@ -111,7 +111,7 @@
             </td>
             <td>
               <p-tag
-                [value]="product.status"
+                [value]="i18n.label('status', product.status)"
                 [severity]="statusSeverity(product.status)"
               />
             </td>
@@ -123,7 +123,7 @@
                     [text]="true"
                     [rounded]="true"
                     severity="secondary"
-                    pTooltip="Edit"
+                    [pTooltip]="'common.edit' | t"
                     (onClick)="openEdit(product)"
                   />
                   <p-button
@@ -131,7 +131,7 @@
                     [text]="true"
                     [rounded]="true"
                     severity="danger"
-                    pTooltip="Delete"
+                    [pTooltip]="'common.delete' | t"
                     (onClick)="confirmDelete(product)"
                   />
                 </div>
@@ -142,7 +142,7 @@
 
         <ng-template #emptymessage>
           <tr>
-            <td colspan="8" class="empty-row">No products match your filters.</td>
+            <td colspan="8" class="empty-row">{{ 'products.empty' | t }}</td>
           </tr>
         </ng-template>
       </p-table>
@@ -164,13 +164,13 @@
   >
     <div class="form-grid">
       <div class="field field-full">
-        <label for="p-name">Name</label>
+        <label for="p-name">{{ 'common.name' | t }}</label>
         <input
           id="p-name"
           pInputText
           type="text"
           [(ngModel)]="draft.name"
-          placeholder="e.g. Aurora Wireless Headset"
+          [placeholder]="'products.namePlaceholder' | t"
         />
       </div>
 
@@ -180,18 +180,18 @@
       </div>
 
       <div class="field">
-        <label for="p-category">Category</label>
+        <label for="p-category">{{ 'common.category' | t }}</label>
         <p-select
           id="p-category"
           [options]="categories()"
           [(ngModel)]="draft.category"
-          placeholder="Select a category"
+          [placeholder]="'common.selectCategory' | t"
           [showClear]="true"
         />
       </div>
 
       <div class="field">
-        <label for="p-price">Price (USD)</label>
+        <label for="p-price">{{ 'products.priceUsd' | t }}</label>
         <p-inputnumber
           id="p-price"
           mode="decimal"
@@ -203,20 +203,20 @@
       </div>
 
       <div class="field">
-        <label for="p-stock">Stock on hand</label>
+        <label for="p-stock">{{ 'products.stockOnHand' | t }}</label>
         <p-inputnumber id="p-stock" [min]="0" [useGrouping]="false" [(ngModel)]="draft.stock" />
       </div>
 
       <div class="field field-full">
-        <label>Images</label>
+        <label>{{ 'common.images' | t }}</label>
         <div class="gallery">
           @for (image of existingImages(); track image.id) {
             <div class="gallery-item">
-              <img [src]="image.path" [alt]="'Image ' + (image.sortOrder + 1)" (click)="openImage(image.path)" />
+              <img [src]="image.path" [alt]="'common.imageN' | t: { n: image.sortOrder + 1 }" (click)="openImage(image.path)" />
               <button
                 type="button"
                 class="gallery-remove"
-                aria-label="Remove image"
+                [attr.aria-label]="'common.removeImage' | t"
                 (click)="removeExistingImage(image)"
               >
                 <i class="pi pi-times"></i>
@@ -229,7 +229,7 @@
               <button
                 type="button"
                 class="gallery-remove"
-                aria-label="Remove image"
+                [attr.aria-label]="'common.removeImage' | t"
                 (click)="removePendingImage(item)"
               >
                 <i class="pi pi-times"></i>
@@ -239,25 +239,25 @@
           @if (existingImages().length + pendingImages().length < maxImages) {
             <label class="gallery-add">
               <i class="pi pi-image"></i>
-              <span>Add images</span>
+              <span>{{ 'common.addImages' | t }}</span>
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/webp,image/gif"
                 multiple
-                aria-label="Choose images"
+                [attr.aria-label]="'common.chooseImages' | t"
                 (change)="onFilesSelected($event)"
               />
             </label>
           }
         </div>
-        <span class="field-hint">PNG, JPG, WEBP or GIF up to 5 MB each — max {{ maxImages }} images. Files upload when you save; click a thumbnail to preview.</span>
+        <span class="field-hint">{{ 'common.imagesHint' | t: { max: maxImages } }}</span>
       </div>
     </div>
 
     <ng-template #footer>
-      <p-button label="Cancel" [text]="true" severity="secondary" (onClick)="dialogVisible.set(false)" />
+      <p-button [label]="'common.cancel' | t" [text]="true" severity="secondary" (onClick)="dialogVisible.set(false)" />
       <p-button
-        [label]="saving() ? 'Saving…' : 'Save product'"
+        [label]="saving() ? ('common.saving' | t) : ('products.save' | t)"
         icon="pi pi-check"
         (onClick)="save()"
         [loading]="saving()"

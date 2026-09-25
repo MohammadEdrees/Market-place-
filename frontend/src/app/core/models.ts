@@ -29,12 +29,44 @@ export interface RecentOrder {
   date: string;
 }
 
+/** One slice of the all-time order status breakdown. */
+export interface StatusShare {
+  status: string;
+  count: number;
+  /** Percentage of all orders, one decimal. */
+  share: number;
+}
+
+/** One line of the best-sellers ranking (all-time, by revenue). */
+export interface TopProduct {
+  name: string;
+  kind: 'Product' | 'Service';
+  orders: number;
+  revenue: number;
+}
+
+/** Audience figures computed from the accounts table. */
+export interface UserStats {
+  total: number;
+  clients: number;
+  providers: number;
+  mobile: number;
+  dashboard: number;
+  newLast30: number;
+}
+
 export interface DashboardResponse {
   metrics: MetricCard[];
   revenueTrend: TrendPoint[];
   salesByCategory: CategoryShare[];
   recentOrders: RecentOrder[];
   lowStockCount: number;
+  /** Best five product/service lines by all-time revenue. */
+  topProducts: TopProduct[];
+  /** All orders grouped by status, largest first. */
+  ordersByStatus: StatusShare[];
+  /** Account totals and recent signups. */
+  userStats: UserStats;
 }
 
 export interface Product {
@@ -310,4 +342,29 @@ export interface AdvertisementInput {
   startsAt: string | null;
   endsAt: string | null;
   sortOrder: number;
+}
+
+/** A stored snapshot listed by `GET /api/backup` (newest first). */
+export interface BackupFile {
+  name: string;
+  createdAtUtc: string;
+  sizeBytes: number;
+  /** Row count per table, read from inside the file. */
+  counts: Record<string, number>;
+}
+
+/** Per-table outcome of a restore. */
+export interface RestoreTableResult {
+  table: string;
+  inserted: number;
+  updated: number;
+}
+
+/** Result of `POST /api/backup/restore`. */
+export interface RestoreReport {
+  mode: 'merge' | 'replace';
+  restoredAtUtc: string;
+  tables: RestoreTableResult[];
+  totalInserted: number;
+  totalUpdated: number;
 }

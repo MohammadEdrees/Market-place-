@@ -1,5 +1,5 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
@@ -16,6 +16,8 @@ import { TooltipModule } from 'primeng/tooltip';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { EMPTY, Subject, catchError, debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs';
 import { OrdersService } from '../../core/orders.service';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { TranslatePipe } from '../../core/i18n/t.pipe';
 import type { TableLazyLoadEvent } from 'primeng/table';
 import type { MarketOrder } from '../../core/models';
 
@@ -39,6 +41,7 @@ const STATUSES = ['Processing', 'Confirmed', 'Completed', 'Cancelled', 'Reserved
     TagModule,
     ToastModule,
     TooltipModule,
+    TranslatePipe,
   ],
   providers: [MessageService],
   templateUrl: './orders.component.html',
@@ -48,6 +51,7 @@ export class OrdersComponent implements OnInit {
   private readonly ordersService = inject(OrdersService);
   private readonly messageService = inject(MessageService);
   private readonly destroyRef = inject(DestroyRef);
+  readonly i18n = inject(I18nService);
 
   /** Search box as a reactive control: valueChanges → debounce → distinct → fetch. */
   readonly searchControl = new FormControl('', { nonNullable: true });
@@ -75,11 +79,13 @@ export class OrdersComponent implements OnInit {
   readonly active = signal<MarketOrder | null>(null);
   readonly newStatus = signal<string>('');
 
-  readonly kindOptions = [
-    { label: 'Purchases', value: 'Product' },
-    { label: 'Reservations', value: 'Service' },
-  ];
-  readonly statusOptions = STATUSES.map((s) => ({ label: s, value: s }));
+  readonly kindOptions = computed(() => [
+    { label: this.i18n.t('orders.purchases'), value: 'Product' },
+    { label: this.i18n.t('orders.reservations'), value: 'Service' },
+  ]);
+  readonly statusOptions = computed(() =>
+    STATUSES.map((s) => ({ label: this.i18n.label('status', s), value: s })),
+  );
 
   ngOnInit(): void {
     // Backend search with RxJS: debounce keystrokes, drop duplicates, refetch page 1.
@@ -119,8 +125,8 @@ export class OrdersComponent implements OnInit {
                 this.loading.set(false);
                 this.messageService.add({
                   severity: 'error',
-                  summary: 'API unreachable',
-                  detail: 'Start the .NET API on localhost:5240.',
+                  summary: this.i18n.t('toast.apiUnreachable'),
+                  detail: this.i18n.t('toast.apiUnreachableDetail'),
                 });
                 return EMPTY;
               }),
@@ -199,16 +205,19 @@ export class OrdersComponent implements OnInit {
         this.reload();
         this.messageService.add({
           severity: 'success',
-          summary: 'Status updated',
-          detail: `Order #${order.id} → ${this.newStatus()}`,
+          summary: this.i18n.t('toast.statusUpdated'),
+          detail: this.i18n.t('toast.statusUpdatedDetail', {
+            id: order.id,
+            status: this.i18n.label('status', this.newStatus()),
+          }),
         });
       },
       error: (err) => {
         this.saving.set(false);
         this.messageService.add({
           severity: 'error',
-          summary: 'Update failed',
-          detail: this.apiError(err, 'Only admins or the listing owner can change this status.'),
+          summary: this.i18n.t('toast.updateFailed'),
+          detail: this.apiError(err, this.i18n.t('toast.statusForbidden')),
         });
       },
     });
@@ -238,6 +247,6 @@ export class OrdersComponent implements OnInit {
   private apiError(err: unknown, fallback: string): string {
     const error = (err as { error?: { errors?: Record<string, string[]>; title?: string } })?.error;
     const first = error?.errors ? Object.values(error.errors)[0] : undefined;
-    return first?.[0] ?? error?.title ?? fallback;
+    return this.i18n.apiMessage(first?.[0] ?? error?.title ?? fallback);
   }
 }

@@ -19,7 +19,9 @@ import { TooltipModule } from 'primeng/tooltip';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { EMPTY, Subject, catchError, debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs';
 import { AuthService } from '../../core/auth.service';
+import { I18nService } from '../../core/i18n/i18n.service';
 import { ProductService } from '../../core/product.service';
+import { TranslatePipe } from '../../core/i18n/t.pipe';
 import { UsersService } from '../../core/users.service';
 import type { TableLazyLoadEvent } from 'primeng/table';
 import type { ListingImage, Product, ProductInput, UserProfile } from '../../core/models';
@@ -50,6 +52,7 @@ type PendingImage = { file: File; url: string };
     TagModule,
     ToastModule,
     TooltipModule,
+    TranslatePipe,
   ],
   providers: [MessageService, ConfirmationService],
   templateUrl: './products.component.html',
@@ -62,6 +65,7 @@ export class ProductsComponent implements OnInit {
   private readonly confirmationService = inject(ConfirmationService);
   private readonly auth = inject(AuthService);
   private readonly destroyRef = inject(DestroyRef);
+  readonly i18n = inject(I18nService);
 
   /** Search box as a reactive control: valueChanges → debounce → distinct → fetch. */
   readonly searchControl = new FormControl('', { nonNullable: true });
@@ -104,7 +108,7 @@ export class ProductsComponent implements OnInit {
   );
 
   readonly title = computed(() =>
-    this.editingId() ? 'Edit product' : 'New product',
+    this.editingId() ? this.i18n.t('products.edit') : this.i18n.t('products.new'),
   );
 
   /** Dropdown of providers (mobile sellers) derived from the loaded user directory. */
@@ -152,8 +156,8 @@ export class ProductsComponent implements OnInit {
                 this.loading.set(false);
                 this.messageService.add({
                   severity: 'error',
-                  summary: 'API unreachable',
-                  detail: 'Start the .NET API on localhost:5240.',
+                  summary: this.i18n.t('toast.apiUnreachable'),
+                  detail: this.i18n.t('toast.apiUnreachableDetail'),
                 });
                 return EMPTY;
               }),
@@ -246,8 +250,8 @@ export class ProductsComponent implements OnInit {
     if (!draft.name.trim() || !draft.sku.trim() || !draft.category.trim()) {
       this.messageService.add({
         severity: 'warn',
-        summary: 'Missing fields',
-        detail: 'Name, SKU and category are required.',
+        summary: this.i18n.t('toast.missingFields'),
+        detail: this.i18n.t('validation.productsRequired'),
       });
       return;
     }
@@ -255,8 +259,8 @@ export class ProductsComponent implements OnInit {
     if (this.existingImages().length + this.pendingImages().length > this.maxImages) {
       this.messageService.add({
         severity: 'warn',
-        summary: 'Too many images',
-        detail: `A listing can hold at most ${this.maxImages} images.`,
+        summary: this.i18n.t('toast.tooManyImages'),
+        detail: this.i18n.t('toast.maxImagesDetail', { count: this.maxImages }),
       });
       return;
     }
@@ -271,8 +275,8 @@ export class ProductsComponent implements OnInit {
         this.saving.set(false);
         this.messageService.add({
           severity: 'error',
-          summary: 'Save failed',
-          detail: this.apiError(err, 'The API rejected the request.'),
+          summary: this.i18n.t('toast.saveFailed'),
+          detail: this.apiError(err, this.i18n.t('toast.apiRejected')),
         });
       },
     });
@@ -296,8 +300,8 @@ export class ProductsComponent implements OnInit {
         this.reload();
         this.messageService.add({
           severity: 'error',
-          summary: 'Image upload failed',
-          detail: this.apiError(err, 'The listing was saved, but its images were not.'),
+          summary: this.i18n.t('toast.imageUploadFailed'),
+          detail: this.apiError(err, this.i18n.t('toast.listingSavedImagesNot')),
         });
       },
     });
@@ -309,7 +313,7 @@ export class ProductsComponent implements OnInit {
     this.reload();
     this.messageService.add({
       severity: 'success',
-      summary: editingId ? 'Product updated' : 'Product created',
+      summary: this.i18n.t(editingId ? 'toast.productUpdated' : 'toast.productCreated'),
       detail: label,
     });
   }
@@ -327,8 +331,8 @@ export class ProductsComponent implements OnInit {
     if (files.length > room) {
       this.messageService.add({
         severity: 'warn',
-        summary: 'Gallery limit',
-        detail: `A listing can hold at most ${this.maxImages} images.`,
+        summary: this.i18n.t('toast.galleryLimit'),
+        detail: this.i18n.t('toast.maxImagesDetail', { count: this.maxImages }),
       });
     }
     const accepted = files.slice(0, Math.max(0, room));
@@ -355,8 +359,8 @@ export class ProductsComponent implements OnInit {
       error: (err) =>
         this.messageService.add({
           severity: 'error',
-          summary: 'Could not remove image',
-          detail: this.apiError(err, 'The API rejected the request.'),
+          summary: this.i18n.t('toast.couldNotRemoveImage'),
+          detail: this.apiError(err, this.i18n.t('toast.apiRejected')),
         }),
     });
   }
@@ -373,26 +377,30 @@ export class ProductsComponent implements OnInit {
 
   confirmDelete(product: Product): void {
     this.confirmationService.confirm({
-      header: 'Delete product',
-      message: `Remove <strong>${product.name}</strong> from the catalogue?`,
+      header: this.i18n.t('products.deleteHeader'),
+      message: this.i18n.t('products.deleteMessage', { name: product.name }),
       icon: 'pi pi-trash',
-      acceptButtonProps: { label: 'Delete', severity: 'danger' },
-      rejectButtonProps: { label: 'Cancel', severity: 'secondary', outlined: true },
+      acceptButtonProps: { label: this.i18n.t('common.delete'), severity: 'danger' },
+      rejectButtonProps: {
+        label: this.i18n.t('common.cancel'),
+        severity: 'secondary',
+        outlined: true,
+      },
       accept: () => {
         this.productService.remove(product.id).subscribe({
           next: () => {
             this.reload();
             this.messageService.add({
               severity: 'success',
-              summary: 'Deleted',
+              summary: this.i18n.t('toast.deleted'),
               detail: product.name,
             });
           },
           error: () =>
             this.messageService.add({
               severity: 'error',
-              summary: 'Delete failed',
-              detail: 'The API rejected the request.',
+              summary: this.i18n.t('toast.deleteFailed'),
+              detail: this.i18n.t('toast.apiRejected'),
             }),
         });
       },
@@ -402,7 +410,7 @@ export class ProductsComponent implements OnInit {
   /** Display name of the listing's owner; `Platform` for unowned demo items. */
   sellerName(sellerId?: number | null): string {
     if (sellerId == null) {
-      return 'Platform';
+      return this.i18n.t('products.platform');
     }
     return this.sellers().find((u) => u.id === sellerId)?.name ?? `#${sellerId}`;
   }
@@ -425,6 +433,7 @@ export class ProductsComponent implements OnInit {
   private apiError(err: unknown, fallback: string): string {
     const error = (err as { error?: { errors?: Record<string, string[]>; title?: string } })?.error;
     const first = error?.errors ? Object.values(error.errors)[0] : undefined;
-    return first?.[0] ?? error?.title ?? fallback;
+    // apiMessage() re-translates known English API messages; unknown text passes through.
+    return this.i18n.apiMessage(first?.[0] ?? error?.title ?? fallback);
   }
 }

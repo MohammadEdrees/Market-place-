@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/auth_controller.dart';
+import '../i18n/l10n_ext.dart';
 
 /// One bottom-navigation tab: its shell branch and how it renders.
 class NavTab {
@@ -21,37 +22,44 @@ class NavTab {
 
 /// The tabs for a role. Clients never see the listing-management tab;
 /// providers get it between Services and Orders.
-List<NavTab> navTabsFor({required bool isProvider}) => [
-      const NavTab(
+///
+/// Labels are localized at build time, so this always takes the current
+/// [AppLocalizations] rather than caching English text.
+List<NavTab> navTabsFor({
+  required bool isProvider,
+  required AppLocalizations l10n,
+}) =>
+    [
+      NavTab(
         branch: 0,
         icon: Icons.storefront_outlined,
         selectedIcon: Icons.storefront,
-        label: 'Browse',
+        label: l10n.navBrowse,
       ),
-      const NavTab(
+      NavTab(
         branch: 1,
         icon: Icons.home_repair_service_outlined,
         selectedIcon: Icons.home_repair_service,
-        label: 'Services',
+        label: l10n.navServices,
       ),
       if (isProvider)
-        const NavTab(
+        NavTab(
           branch: 2,
           icon: Icons.inventory_2_outlined,
           selectedIcon: Icons.inventory_2,
-          label: 'Listings',
+          label: l10n.navListings,
         ),
-      const NavTab(
+      NavTab(
         branch: 3,
         icon: Icons.receipt_long_outlined,
         selectedIcon: Icons.receipt_long,
-        label: 'Orders',
+        label: l10n.navOrders,
       ),
-      const NavTab(
+      NavTab(
         branch: 4,
         icon: Icons.person_outline,
         selectedIcon: Icons.person,
-        label: 'Profile',
+        label: l10n.navProfile,
       ),
     ];
 
@@ -64,7 +72,10 @@ class AppShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(authControllerProvider).value;
-    final tabs = navTabsFor(isProvider: session?.user.isProvider ?? false);
+    final tabs = navTabsFor(
+      isProvider: session?.user.isProvider ?? false,
+      l10n: context.l10n,
+    );
     final selectedIndex =
         tabs.indexWhere((tab) => tab.branch == navigationShell.currentIndex);
 

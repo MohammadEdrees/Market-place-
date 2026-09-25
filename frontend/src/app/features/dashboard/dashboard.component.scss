@@ -123,7 +123,7 @@
   }
 
   strong {
-    margin-left: auto;
+    margin-inline-start: auto;
   }
 }
 
@@ -158,4 +158,51 @@
     border-radius: 6px;
     background: var(--app-surface-2);
   }
+}
+
+/* --- Orders by status (share of all orders, server-computed) --- */
+
+.status-share {
+  margin-inline-start: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--app-muted);
+}
+
+/* --- Audience (account totals from the users table) --- */
+
+.audience-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.audience-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+
+  .metric-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+  }
+}
+
+.audience-value {
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.audience-label {
+  color: var(--app-muted);
+  font-size: 0.78rem;
+}
+
+.platforms {
+  margin: 0.85rem 0 0;
+  font-size: 0.8rem;
 }

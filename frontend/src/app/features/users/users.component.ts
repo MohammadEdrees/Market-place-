@@ -20,6 +20,8 @@ import { AuthService } from '../../core/auth.service';
 import { ProductService } from '../../core/product.service';
 import { RolesService } from '../../core/roles.service';
 import { UsersService } from '../../core/users.service';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { TranslatePipe } from '../../core/i18n/t.pipe';
 import type { TableLazyLoadEvent } from 'primeng/table';
 import type { Product, UserCreateInput, UserProfile, UserUpdateInput } from '../../core/models';
 
@@ -53,6 +55,7 @@ const emptyCreateDraft = (): UserCreateInput => ({
     Textarea,
     ToastModule,
     TooltipModule,
+    TranslatePipe,
   ],
   providers: [MessageService],
   templateUrl: './users.component.html',
@@ -65,6 +68,7 @@ export class UsersComponent implements OnInit {
   private readonly messageService = inject(MessageService);
   private readonly auth = inject(AuthService);
   private readonly destroyRef = inject(DestroyRef);
+  readonly i18n = inject(I18nService);
 
   /** Search box as a reactive control: valueChanges → debounce → distinct → fetch. */
   readonly searchControl = new FormControl('', { nonNullable: true });
@@ -128,8 +132,21 @@ export class UsersComponent implements OnInit {
    * names (id order) on init, and left untouched when the request fails so the
    * role dropdown is never empty.
    */
-  roleOptions: string[] = ['SuperAdmin', 'Admin', 'Manager', 'Viewer', 'Provider', 'Client'];
-  readonly typeOptions = ['Dashboard', 'Mobile'];
+  private readonly roleNames = signal<string[]>([
+    'SuperAdmin',
+    'Admin',
+    'Manager',
+    'Viewer',
+    'Provider',
+    'Client',
+  ]);
+  /** Role select options: raw API role names paired with their translated labels. */
+  readonly roleOptions = computed(() =>
+    this.roleNames().map((role) => ({ label: this.i18n.label('role', role), value: role })),
+  );
+  readonly typeOptions = computed(() =>
+    ['Dashboard', 'Mobile'].map((type) => ({ label: this.i18n.label('type', type), value: type })),
+  );
 
   /** SuperAdmin, Admin and Manager may create and edit accounts (the API returns 403 otherwise). */
   readonly canManageUsers = computed(() =>
@@ -143,7 +160,7 @@ export class UsersComponent implements OnInit {
       next: (roles) => {
         const names = roles.map((role) => role.name);
         if (names.length) {
-          this.roleOptions = names;
+          this.roleNames.set(names);
         }
       },
       error: () => {},
@@ -186,8 +203,8 @@ export class UsersComponent implements OnInit {
                 this.loading.set(false);
                 this.messageService.add({
                   severity: 'error',
-                  summary: 'API unreachable',
-                  detail: 'Start the .NET API on localhost:5240.',
+                  summary: this.i18n.t('toast.apiUnreachable'),
+                  detail: this.i18n.t('toast.apiUnreachableDetail'),
                 });
                 return EMPTY;
               }),
@@ -311,11 +328,19 @@ export class UsersComponent implements OnInit {
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      this.messageService.add({ severity: 'warn', summary: 'Image too large', detail: 'Maximum size is 5 MB.' });
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.i18n.t('toast.imageTooLarge'),
+        detail: this.i18n.t('validation.imageTooBig'),
+      });
       return;
     }
     if (!file.type.startsWith('image/')) {
-      this.messageService.add({ severity: 'warn', summary: 'Not an image', detail: 'Choose a PNG, JPG, WEBP or GIF.' });
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.i18n.t('toast.notAnImage'),
+        detail: this.i18n.t('validation.chooseImageFile'),
+      });
       return;
     }
 
@@ -345,8 +370,8 @@ export class UsersComponent implements OnInit {
     if (!draft.name?.trim()) {
       this.messageService.add({
         severity: 'warn',
-        summary: 'Missing fields',
-        detail: 'Display name is required.',
+        summary: this.i18n.t('toast.missingFields'),
+        detail: this.i18n.t('validation.displayNameRequired'),
       });
       return;
     }
@@ -356,16 +381,16 @@ export class UsersComponent implements OnInit {
       if (!this.editEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.editEmail.trim())) {
         this.messageService.add({
           severity: 'warn',
-          summary: 'Missing fields',
-          detail: 'A valid email address is required.',
+          summary: this.i18n.t('toast.missingFields'),
+          detail: this.i18n.t('validation.emailValid'),
         });
         return;
       }
       if (this.editPassword && this.editPassword.length < 6) {
         this.messageService.add({
           severity: 'warn',
-          summary: 'Password too short',
-          detail: 'Use at least 6 characters.',
+          summary: this.i18n.t('toast.passwordTooShort'),
+          detail: this.i18n.t('validation.passwordMin6'),
         });
         return;
       }
@@ -385,13 +410,13 @@ export class UsersComponent implements OnInit {
           password: this.editPassword || null,
         })
         .subscribe({
-          next: (updated) => this.applyAvatarChange(updated, 'User updated'),
+          next: (updated) => this.applyAvatarChange(updated, this.i18n.t('toast.userUpdated')),
           error: (err) => {
             this.saving.set(false);
             this.messageService.add({
               severity: 'error',
-              summary: 'Could not edit user',
-              detail: this.apiError(err, 'The API rejected the request.'),
+              summary: this.i18n.t('toast.couldNotEditUser'),
+              detail: this.apiError(err, this.i18n.t('toast.apiRejected')),
             });
           },
         });
@@ -404,15 +429,15 @@ export class UsersComponent implements OnInit {
         this.saving.set(false);
         this.messageService.add({
           severity: 'error',
-          summary: 'Save failed',
-          detail: this.apiError(err, 'The API rejected the request.'),
+          summary: this.i18n.t('toast.saveFailed'),
+          detail: this.apiError(err, this.i18n.t('toast.apiRejected')),
         });
       },
     });
   }
 
   /** Applies the staged picture change (upload / delete) after the text fields saved. */
-  private applyAvatarChange(updated: UserProfile, summary = 'Profile updated'): void {
+  private applyAvatarChange(updated: UserProfile, summary = this.i18n.t('toast.profileUpdated')): void {
     const finish = () => {
       this.saving.set(false);
       this.editVisible.set(false);
@@ -429,8 +454,8 @@ export class UsersComponent implements OnInit {
       this.saving.set(false);
       this.messageService.add({
         severity: 'error',
-        summary: 'Picture change failed',
-        detail: this.apiError(err, 'Your details were saved, but the picture change was rejected.'),
+        summary: this.i18n.t('toast.pictureChangeFailed'),
+        detail: this.apiError(err, this.i18n.t('toast.detailsSavedPictureNot')),
       });
     };
 
@@ -458,16 +483,16 @@ export class UsersComponent implements OnInit {
     if (!draft.name.trim() || !draft.email.trim() || !draft.password) {
       this.messageService.add({
         severity: 'warn',
-        summary: 'Missing fields',
-        detail: 'Name, email and password are required.',
+        summary: this.i18n.t('toast.missingFields'),
+        detail: this.i18n.t('validation.usersCreateRequired'),
       });
       return;
     }
     if (draft.password.length < 6) {
       this.messageService.add({
         severity: 'warn',
-        summary: 'Password too short',
-        detail: 'Use at least 6 characters.',
+        summary: this.i18n.t('toast.passwordTooShort'),
+        detail: this.i18n.t('validation.passwordMin6'),
       });
       return;
     }
@@ -480,16 +505,20 @@ export class UsersComponent implements OnInit {
         this.reload();
         this.messageService.add({
           severity: 'success',
-          summary: 'User created',
-          detail: `${created.name} · ${created.role} · ${created.type}`,
+          summary: this.i18n.t('toast.userCreated'),
+          detail: this.i18n.t('toast.userCreatedDetail', {
+            name: created.name,
+            role: this.i18n.label('role', created.role),
+            type: this.i18n.label('type', created.type),
+          }),
         });
       },
       error: (err) => {
         this.creating.set(false);
         this.messageService.add({
           severity: 'error',
-          summary: 'Could not create user',
-          detail: this.apiError(err, 'The API rejected the request.'),
+          summary: this.i18n.t('toast.couldNotCreateUser'),
+          detail: this.apiError(err, this.i18n.t('toast.apiRejected')),
         });
       },
     });
@@ -497,7 +526,10 @@ export class UsersComponent implements OnInit {
 
   /** Preview text for the platform that will be assigned on create. */
   derivedType(role: string): string {
-    return role === 'Provider' || role === 'Client' ? 'Mobile' : 'Dashboard';
+    return this.i18n.label(
+      'type',
+      role === 'Provider' || role === 'Client' ? 'Mobile' : 'Dashboard',
+    );
   }
 
   initials(name: string): string {
@@ -533,6 +565,6 @@ export class UsersComponent implements OnInit {
   private apiError(err: unknown, fallback: string): string {
     const error = (err as { error?: { errors?: Record<string, string[]>; title?: string } })?.error;
     const first = error?.errors ? Object.values(error.errors)[0] : undefined;
-    return first?.[0] ?? error?.title ?? fallback;
+    return this.i18n.apiMessage(first?.[0] ?? error?.title ?? fallback);
   }
 }

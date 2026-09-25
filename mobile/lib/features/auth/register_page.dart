@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_exception.dart';
+import '../../core/i18n/l10n_ext.dart';
 import 'auth_controller.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
@@ -65,8 +66,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: const Text('Create account')),
+      appBar: AppBar(title: Text(l10n.registerTitle)),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -80,28 +82,28 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      'Join Market Workplace',
+                      l10n.registerHeading,
                       style: theme.textTheme.headlineSmall
                           ?.copyWith(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Choose how you want to use the marketplace.',
-                      style: theme.textTheme.bodyMedium
-                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                      l10n.registerSubtitle,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant),
                     ),
                     const SizedBox(height: 20),
                     SegmentedButton<String>(
-                      segments: const [
+                      segments: [
                         ButtonSegment(
                           value: 'Client',
-                          label: Text('Client'),
-                          icon: Icon(Icons.shopping_bag_outlined),
+                          label: Text(l10n.statusClient),
+                          icon: const Icon(Icons.shopping_bag_outlined),
                         ),
                         ButtonSegment(
                           value: 'Provider',
-                          label: Text('Provider'),
-                          icon: Icon(Icons.storefront_outlined),
+                          label: Text(l10n.statusProvider),
+                          icon: const Icon(Icons.storefront_outlined),
                         ),
                       ],
                       selected: {_role},
@@ -112,26 +114,28 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     const SizedBox(height: 6),
                     Text(
                       _role == 'Client'
-                          ? 'Browse the catalogue, buy products and reserve services.'
-                          : 'Sell products and offer services of your own.',
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                          ? l10n.registerClientHint
+                          : l10n.registerProviderHint,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant),
                     ),
                     const SizedBox(height: 20),
                     TextFormField(
                       controller: _nameController,
                       textInputAction: TextInputAction.next,
                       maxLength: 120,
-                      decoration: const InputDecoration(
-                        labelText: 'Full name',
-                        prefixIcon: Icon(Icons.person_outline),
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: l10n.registerFullName,
+                        prefixIcon: const Icon(Icons.person_outline),
+                        border: const OutlineInputBorder(),
                         counterText: '',
                       ),
                       validator: (value) {
                         final v = value?.trim() ?? '';
-                        if (v.isEmpty) return 'Name is required.';
-                        if (v.length > 120) return 'Max 120 characters.';
+                        if (v.isEmpty) return l10n.commonNameRequired;
+                        if (v.length > 120) {
+                          return l10n.commonMaxCharacters('120');
+                        }
                         return null;
                       },
                     ),
@@ -141,16 +145,17 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       keyboardType: TextInputType.emailAddress,
                       autofillHints: const [AutofillHints.email],
                       textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(
-                        labelText: 'Email',
-                        prefixIcon: Icon(Icons.mail_outline),
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: l10n.commonEmailLabel,
+                        prefixIcon: const Icon(Icons.mail_outline),
+                        border: const OutlineInputBorder(),
                       ),
                       validator: (value) {
                         final v = value?.trim() ?? '';
-                        if (v.isEmpty) return 'Email is required.';
-                        if (!RegExp(r'^[\w.+-]+@[\w-]+\.[\w.-]+$').hasMatch(v)) {
-                          return 'Enter a valid email address.';
+                        if (v.isEmpty) return l10n.commonEmailRequired;
+                        if (!RegExp(r'^[\w.+-]+@[\w-]+\.[\w.-]+$')
+                            .hasMatch(v)) {
+                          return l10n.commonEmailInvalid;
                         }
                         return null;
                       },
@@ -161,16 +166,16 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       obscureText: true,
                       autofillHints: const [AutofillHints.newPassword],
                       textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(
-                        labelText: 'Password',
-                        helperText: 'At least 6 characters.',
-                        prefixIcon: Icon(Icons.lock_outline),
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: l10n.commonPasswordLabel,
+                        helperText: l10n.commonMinCharacters,
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        border: const OutlineInputBorder(),
                       ),
                       validator: (value) {
                         final v = value ?? '';
-                        if (v.isEmpty) return 'Password is required.';
-                        if (v.length < 6) return 'At least 6 characters.';
+                        if (v.isEmpty) return l10n.commonPasswordRequired;
+                        if (v.length < 6) return l10n.commonMinCharacters;
                         return null;
                       },
                     ),
@@ -180,22 +185,22 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       obscureText: true,
                       textInputAction: TextInputAction.done,
                       onFieldSubmitted: (_) => _submit(),
-                      decoration: const InputDecoration(
-                        labelText: 'Confirm password',
-                        prefixIcon: Icon(Icons.lock_outline),
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: l10n.registerConfirmPassword,
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        border: const OutlineInputBorder(),
                       ),
                       validator: (value) =>
                           value != _passwordController.text
-                              ? 'Passwords do not match.'
+                              ? l10n.commonPasswordsDoNotMatch
                               : null,
                     ),
                     const SizedBox(height: 8),
                     ExpansionTile(
                       shape: const Border(),
-                      title: const Text(
-                        'Optional contact details',
-                        style: TextStyle(fontSize: 14),
+                      title: Text(
+                        l10n.registerOptionalContact,
+                        style: const TextStyle(fontSize: 14),
                       ),
                       tilePadding: EdgeInsets.zero,
                       children: [
@@ -204,10 +209,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                           keyboardType: TextInputType.phone,
                           textInputAction: TextInputAction.next,
                           maxLength: 40,
-                          decoration: const InputDecoration(
-                            labelText: 'Phone',
-                            prefixIcon: Icon(Icons.phone_outlined),
-                            border: OutlineInputBorder(),
+                          decoration: InputDecoration(
+                            labelText: l10n.registerPhone,
+                            prefixIcon: const Icon(Icons.phone_outlined),
+                            border: const OutlineInputBorder(),
                             counterText: '',
                           ),
                         ),
@@ -216,10 +221,11 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                           controller: _locationController,
                           textInputAction: TextInputAction.done,
                           maxLength: 120,
-                          decoration: const InputDecoration(
-                            labelText: 'Location',
-                            prefixIcon: Icon(Icons.location_on_outlined),
-                            border: OutlineInputBorder(),
+                          decoration: InputDecoration(
+                            labelText: l10n.registerLocation,
+                            prefixIcon:
+                                const Icon(Icons.location_on_outlined),
+                            border: const OutlineInputBorder(),
                             counterText: '',
                           ),
                         ),
@@ -229,7 +235,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     if (_error != null) ...[
                       const SizedBox(height: 16),
                       Text(
-                        _error!,
+                        context.localizeApiMessage(_error!),
                         style: TextStyle(color: theme.colorScheme.error),
                       ),
                     ],
@@ -243,14 +249,15 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                           ? const SizedBox(
                               width: 20,
                               height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                              child:
+                                  CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Text('Create account'),
+                          : Text(l10n.registerCreateAccount),
                     ),
                     const SizedBox(height: 8),
                     TextButton(
                       onPressed: _saving ? null : () => context.pop(),
-                      child: const Text('I already have an account'),
+                      child: Text(l10n.registerHaveAccount),
                     ),
                   ],
                 ),

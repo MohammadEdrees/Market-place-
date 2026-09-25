@@ -1,0 +1,65 @@
+/* Settings page: preferences row, the backup table actions and the restore strip. */
+
+.pref-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.35rem 0;
+
+  label {
+    font-weight: 600;
+  }
+}
+
+.hint {
+  margin: 0.65rem 0 0;
+  font-size: 0.85rem;
+}
+
+.file-name {
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.actions-cell {
+  text-align: end;
+  white-space: nowrap;
+
+  .p-button {
+    margin-inline-start: 0.25rem;
+  }
+}
+
+.restore-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.file-input {
+  flex: 1 1 18rem;
+  min-width: 14rem;
+  padding: 0.5rem;
+  border: 1px dashed var(--surface-border, #d0d5dd);
+  border-radius: 8px;
+  background: var(--surface-ground, #f9fafb);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.report {
+  margin-top: 1.25rem;
+  border-top: 1px solid var(--surface-border, #eaecf0);
+  padding-top: 1rem;
+
+  .report-head {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+}

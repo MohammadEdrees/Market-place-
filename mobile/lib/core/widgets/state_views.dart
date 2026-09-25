@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_exception.dart';
+import '../i18n/l10n_ext.dart';
 
-/// Best display message for a caught error.
-String errorMessage(Object error) => error is ApiException
-    ? error.message
-    : 'Something went wrong. Please try again.';
+/// Best display message for a caught error, in the current language.
+String errorMessage(BuildContext context, Object error) => error is ApiException
+    ? context.localizeApiMessage(error.message)
+    : context.l10n.commonGenericError;
 
 /// Full-screen spinner while the first page or a detail loads.
 class LoadingView extends StatelessWidget {
@@ -49,7 +50,7 @@ class ErrorView extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Try again'),
+                label: Text(context.l10n.commonTryAgain),
               ),
             ],
           ],
@@ -114,8 +115,8 @@ class AsyncValueView<T> extends StatelessWidget {
         loading: () => const LoadingView(),
         error: (error, _) => ErrorView(
           message: error is ApiException
-              ? error.message
-              : 'Something went wrong.',
+              ? context.localizeApiMessage(error.message)
+              : context.l10n.commonSomethingWentWrong,
           onRetry: onRetry,
         ),
         data: data,

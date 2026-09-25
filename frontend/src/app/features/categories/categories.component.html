@@ -1,21 +1,22 @@
 <section class="page">
   <div class="page-head">
     <div>
-      <h2>Categories</h2>
+      <h2>{{ 'nav.categories' | t }}</h2>
       <p>
-        {{ categories().length }} {{ kind() === 'Product' ? 'product' : 'service' }} categories ·
-        shared with the listing forms and the mobile app
+        {{ kind() === 'Product'
+          ? ('categories.subtitleProduct' | t: { count: categories().length })
+          : ('categories.subtitleService' | t: { count: categories().length }) }}
       </p>
     </div>
     <div class="toolbar">
       <p-selectbutton
-        [options]="kindOptions"
+        [options]="kindOptions()"
         [allowEmpty]="false"
         [ngModel]="kind()"
         (ngModelChange)="onKind($event)"
       />
       @if (canManage()) {
-        <p-button label="Add category" icon="pi pi-plus" (onClick)="openCreate()" />
+        <p-button [label]="'categories.add' | t" icon="pi pi-plus" (onClick)="openCreate()" />
       }
     </div>
   </div>
@@ -30,11 +31,11 @@
       >
         <ng-template #header>
           <tr>
-            <th pSortableColumn="name">Name <p-sortIcon field="name" /></th>
-            <th>Kind</th>
-            <th pSortableColumn="listingCount">Listings <p-sortIcon field="listingCount" /></th>
-            <th pSortableColumn="createdAt">Added <p-sortIcon field="createdAt" /></th>
-            <th style="width: 7rem">Actions</th>
+            <th pSortableColumn="name">{{ 'common.name' | t }} <p-sortIcon field="name" /></th>
+            <th>{{ 'common.kind' | t }}</th>
+            <th pSortableColumn="listingCount">{{ 'categories.listings' | t }} <p-sortIcon field="listingCount" /></th>
+            <th pSortableColumn="createdAt">{{ 'categories.added' | t }} <p-sortIcon field="createdAt" /></th>
+            <th style="width: 7rem">{{ 'common.actions' | t }}</th>
           </tr>
         </ng-template>
 
@@ -43,7 +44,7 @@
             <td><span class="cell-title">{{ category.name }}</span></td>
             <td>
               <p-tag
-                [value]="category.kind"
+                [value]="i18n.label('kind', category.kind)"
                 [severity]="kindSeverity(category.kind)"
               />
             </td>
@@ -57,7 +58,7 @@
                     [text]="true"
                     [rounded]="true"
                     severity="secondary"
-                    pTooltip="Rename category"
+                    [pTooltip]="'categories.renameTooltip' | t"
                     (onClick)="openEdit(category)"
                   />
                   <p-button
@@ -65,7 +66,7 @@
                     [text]="true"
                     [rounded]="true"
                     severity="danger"
-                    pTooltip="Delete category"
+                    [pTooltip]="'categories.deleteTooltip' | t"
                     (onClick)="confirmDelete(category)"
                   />
                 </div>
@@ -77,7 +78,7 @@
         <ng-template #emptymessage>
           <tr>
             <td colspan="5" class="empty-row">
-              No {{ kind() === 'Product' ? 'product' : 'service' }} categories yet.
+              {{ kind() === 'Product' ? ('categories.emptyProduct' | t) : ('categories.emptyService' | t) }}
             </td>
           </tr>
         </ng-template>
@@ -100,26 +101,24 @@
   >
     <div class="form-grid">
       <div class="field field-full">
-        <label for="c-name">Name</label>
-        <input id="c-name" pInputText type="text" [(ngModel)]="draft.name" placeholder="e.g. Electronics" />
+        <label for="c-name">{{ 'common.name' | t }}</label>
+        <input id="c-name" pInputText type="text" [(ngModel)]="draft.name" [placeholder]="'categories.namePlaceholder' | t" />
         @if (editingId()) {
           <span class="field-hint">
-            Renaming updates every product and service already using this category — including the
-            names shown in the mobile app.
+            {{ 'categories.renameHint' | t }}
           </span>
         } @else {
           <span class="field-hint">
-            Names are shared with the product/service forms and the mobile app — pick one customers
-            will recognize.
+            {{ 'categories.createHint' | t }}
           </span>
         }
       </div>
     </div>
 
     <ng-template #footer>
-      <p-button label="Cancel" [text]="true" severity="secondary" (onClick)="dialogVisible.set(false)" />
+      <p-button [label]="'common.cancel' | t" [text]="true" severity="secondary" (onClick)="dialogVisible.set(false)" />
       <p-button
-        [label]="saving() ? 'Saving…' : editingId() ? 'Save name' : 'Create category'"
+        [label]="saving() ? ('common.saving' | t) : editingId() ? ('categories.saveName' | t) : ('categories.create' | t)"
         icon="pi pi-check"
         (onClick)="save()"
         [loading]="saving()"
