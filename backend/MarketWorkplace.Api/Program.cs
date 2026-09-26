@@ -1,5 +1,6 @@
 using System.Text;
 using MarketWorkplace.Api.Auth;
+using MarketWorkplace.Api.Middleware;
 using MarketWorkplace.Application;
 using MarketWorkplace.Application.Interfaces;
 using MarketWorkplace.Infrastructure.Data;
@@ -130,6 +131,9 @@ if (app.Configuration.GetValue("Swagger:Enabled", true))
 app.UseCors("Frontend");
 app.UseAuthentication();
 app.UseAuthorization();
+// After auth (the JWT identifies the actor) and before the endpoints (the call must have
+// happened before it can be recorded). Records successful mutations only — see the remarks.
+app.UseMiddleware<AuditLogMiddleware>();
 app.MapControllers();
 
 // Create the schema and seed sample data (products, orders, users) on startup.

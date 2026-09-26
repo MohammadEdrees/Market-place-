@@ -1,0 +1,182 @@
+<section class="page">
+  <div class="page-head">
+    <div>
+      <h2>{{ 'nav.auditLogs' | t }}</h2>
+      <p>{{ 'audit.subtitle' | t: { count: total() } }}</p>
+    </div>
+    <div class="toolbar">
+      <p-iconfield>
+        <p-inputicon piSearch />
+        <input
+          pInputText
+          type="search"
+          [placeholder]="'audit.searchPlaceholder' | t"
+          [attr.aria-label]="'audit.searchAria' | t"
+          [formControl]="searchControl"
+        />
+      </p-iconfield>
+
+      <p-select
+        [options]="actionOptions()"
+        optionLabel="label"
+        optionValue="value"
+        [placeholder]="'audit.anyAction' | t"
+        [showClear]="true"
+        styleClass="filter-select"
+        [ngModel]="action()"
+        (ngModelChange)="onAction($event)"
+      />
+
+      <p-select
+        [options]="areaOptions()"
+        optionLabel="label"
+        optionValue="value"
+        [placeholder]="'audit.anyArea' | t"
+        [showClear]="true"
+        styleClass="filter-select"
+        [ngModel]="entity()"
+        (ngModelChange)="onArea($event)"
+      />
+
+      <p-button [label]="'common.reset' | t" icon="pi pi-filter-slash" [text]="true" severity="secondary" (onClick)="clearFilters()" />
+    </div>
+  </div>
+
+  @if (!isAdmin() || forbidden()) {
+    <!-- The API answers 403 to every other role, so the request is never made here. -->
+    <div class="panel admin-only">
+      <i class="pi pi-lock" aria-hidden="true"></i>
+      <h3>{{ 'audit.adminOnly' | t }}</h3>
+      <p>{{ 'audit.adminOnlyDetail' | t }}</p>
+    </div>
+  } @else {
+    <div class="panel">
+      @if (loadedOnce()) {
+        <p-table
+          [value]="entries()"
+          styleClass="data-table"
+          [paginator]="true"
+          [lazy]="true"
+          [loading]="loading()"
+          [first]="first()"
+          [rows]="pageSize()"
+          [totalRecords]="total()"
+          (onLazyLoad)="onLazyLoad($event)"
+          [showCurrentPageReport]="true"
+          [currentPageReportTemplate]="'common.pageReport' | t"
+          [rowsPerPageOptions]="[8, 16, 32]"
+          [tableStyle]="{ 'min-width': '62rem' }"
+          paginatorPosition="bottom"
+        >
+          <ng-template #header>
+            <tr>
+              <th pSortableColumn="createdAt">{{ 'audit.time' | t }} <p-sortIcon field="createdAt" /></th>
+              <th pSortableColumn="user">{{ 'audit.actor' | t }} <p-sortIcon field="user" /></th>
+              <th pSortableColumn="action">{{ 'audit.action' | t }} <p-sortIcon field="action" /></th>
+              <th pSortableColumn="entity">{{ 'audit.area' | t }} <p-sortIcon field="entity" /></th>
+              <th>{{ 'audit.path' | t }}</th>
+              <th pSortableColumn="duration">{{ 'audit.duration' | t }} <p-sortIcon field="duration" /></th>
+              <th style="width: 5rem">{{ 'common.actions' | t }}</th>
+            </tr>
+          </ng-template>
+
+          <ng-template #body let-entry>
+            <tr>
+              <td class="nowrap">{{ entry.createdAt | date: 'MMM d, y HH:mm' }}</td>
+              <td>
+                <span class="cell-title">{{ entry.userName || ('audit.anonymous' | t) }}</span>
+                <span class="cell-sub">{{ entry.role ? i18n.label('role', entry.role) : ('audit.noRole' | t) }}</span>
+              </td>
+              <td><p-tag [value]="i18n.label('action', entry.action)" [severity]="actionSeverity(entry.action)" /></td>
+              <td>
+                <span class="cell-title">{{ i18n.label('entity', entry.entity) }}</span>
+                @if (entry.entityId != null) {
+                  <span class="cell-sub mono">{{ target(entry) }}</span>
+                }
+              </td>
+              <td class="mono path-cell">{{ entry.path }}</td>
+              <td>{{ entry.durationMs }} {{ 'audit.ms' | t }}</td>
+              <td>
+                <div class="row-actions">
+                  <p-button
+                    icon="pi pi-eye"
+                    [text]="true"
+                    [rounded]="true"
+                    severity="secondary"
+                    [pTooltip]="'audit.view' | t"
+                    (onClick)="openView(entry)"
+                  />
+                </div>
+              </td>
+            </tr>
+          </ng-template>
+
+          <ng-template #emptymessage>
+            <tr>
+              <td colspan="7" class="empty-row">{{ 'audit.empty' | t }}</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      } @else {
+        <div class="skeleton-rows">
+          @for (row of [1, 2, 3, 4, 5]; track row) {
+            <p-skeleton height="2.5rem" />
+          }
+        </div>
+      }
+    </div>
+  }
+
+  <p-dialog [header]="'audit.details' | t" [(visible)]="viewVisible" [modal]="true" styleClass="profile-dialog" [style]="{ width: '32rem' }">
+    @if (viewing(); as entry) {
+      <div class="detail-grid">
+        <div>
+          <span>{{ 'audit.entry' | t }}</span>
+          <strong>{{ 'audit.entryId' | t: { id: entry.id } }}</strong>
+        </div>
+        <div>
+          <span>{{ 'audit.time' | t }}</span>
+          <strong>{{ entry.createdAt | date: 'medium' }}</strong>
+        </div>
+        <div>
+          <span>{{ 'audit.action' | t }}</span>
+          <strong><p-tag [value]="i18n.label('action', entry.action)" [severity]="actionSeverity(entry.action)" /></strong>
+        </div>
+        <div>
+          <span>{{ 'audit.area' | t }}</span>
+          <strong>{{ i18n.label('entity', entry.entity) }} {{ target(entry) }}</strong>
+        </div>
+        <div>
+          <span>{{ 'audit.actor' | t }}</span>
+          <strong>{{ entry.userName || ('audit.anonymous' | t) }}</strong>
+        </div>
+        <div>
+          <span>{{ 'common.role' | t }}</span>
+          <strong>{{ entry.role ? i18n.label('role', entry.role) : ('audit.noRole' | t) }}</strong>
+        </div>
+        <div>
+          <span>{{ 'audit.accountId' | t }}</span>
+          <strong>{{ entry.userId != null ? entry.userId : ('audit.noAccount' | t) }}</strong>
+        </div>
+        <div>
+          <span>{{ 'audit.statusCode' | t }}</span>
+          <strong>{{ entry.statusCode }}</strong>
+        </div>
+        <div class="detail-wide">
+          <span>{{ 'audit.duration' | t }}</span>
+          <strong>{{ entry.durationMs }} {{ 'audit.ms' | t }}</strong>
+        </div>
+        <div class="detail-wide">
+          <span>{{ 'audit.path' | t }}</span>
+          <strong class="mono">{{ entry.path }}</strong>
+        </div>
+      </div>
+    }
+
+    <ng-template #footer>
+      <p-button [label]="'common.close' | t" [text]="true" severity="secondary" (onClick)="viewVisible.set(false)" />
+    </ng-template>
+  </p-dialog>
+
+  <p-toast />
+</section>

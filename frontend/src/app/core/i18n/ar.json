@@ -1,4 +1,12 @@
 {
+  "action": {
+    "create": "تم الإنشاء",
+    "delete": "تم الحذف",
+    "login": "تسجيل الدخول",
+    "register": "تم التسجيل",
+    "restore": "تمت الاستعادة",
+    "update": "تم التحديث"
+  },
   "advertisements": {
     "adSubtitle": "عنوان فرعي",
     "adSubtitlePlaceholder": "سطر قصير أسفل العنوان (اختياري)",
@@ -36,6 +44,32 @@
     "toggleAria": "تفعيل الإعلان أو تعطيله",
     "toggleTooltip": "تفعيل / تعطيل",
     "until": "حتى"
+  },
+  "audit": {
+    "action": "الإجراء",
+    "accountId": "معرّف الحساب",
+    "actor": "الجهة",
+    "adminOnly": "للمشرفين فقط",
+    "adminOnlyDetail": "يسجّل سجل التدقيق كل تغيير تقدّمه الواجهة البرمجية، لذا لا يُتاح قراءته إلا لحسابات SuperAdmin وAdmin وManager. لم يُرسل أي طلب إلى الخادم من حسابك.",
+    "anonymous": "جهة غير معروفة",
+    "anyAction": "كل الإجراءات",
+    "anyArea": "كل المجالات",
+    "area": "المجال",
+    "details": "تفاصيل السجل",
+    "duration": "المدة",
+    "empty": "لا توجد سجلات مطابقة لمرشحاتك.",
+    "entry": "السجل",
+    "entryId": "السجل #{{id}}",
+    "ms": "مللي ثانية",
+    "noAccount": "غير مسجّل الدخول",
+    "noRole": "بدون دور",
+    "path": "مسار الطلب",
+    "searchAria": "ابحث في سجل التدقيق",
+    "searchPlaceholder": "ابحث بالجهة أو الإجراء أو المسار",
+    "statusCode": "حالة الاستجابة",
+    "subtitle": "{{count}} إجراء مسجّل · ترقيم وتصفية من الخادم · يُحتفظ بـ 10,000 سجل الأحدث",
+    "time": "الوقت",
+    "view": "عرض السجل"
   },
   "categories": {
     "add": "إضافة تصنيف",
@@ -147,6 +181,18 @@
     "The field Price must be between 0 and 1000000": "يجب أن يكون الحقل Price بين 0 و1000000.",
     "The field Title must be a string or array type with a maximum length of 120": "يجب أن يكون الحقل Title نصًا بحد أقصى 120 حرفًا."
   },
+  "entity": {
+    "advertisements": "الإعلانات",
+    "auth": "المصادقة",
+    "backup": "النسخ الاحتياطي",
+    "categories": "التصنيفات",
+    "orders": "الطلبات",
+    "products": "المنتجات",
+    "roles": "الأدوار",
+    "services": "الخدمات",
+    "subscriptions": "الاشتراكات",
+    "users": "المستخدمون"
+  },
   "kind": {
     "product": "منتج",
     "service": "خدمة"
@@ -168,6 +214,7 @@
     "revenue": "الإيرادات"
   },
   "nav": {
+    "auditLogs": "سجل التدقيق",
     "dashboard": "لوحة التحكم",
     "products": "المنتجات",
     "services": "الخدمات",

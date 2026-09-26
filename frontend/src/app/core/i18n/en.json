@@ -1,4 +1,12 @@
 {
+  "action": {
+    "create": "Created",
+    "delete": "Deleted",
+    "login": "Signed in",
+    "register": "Registered",
+    "restore": "Restored",
+    "update": "Updated"
+  },
   "advertisements": {
     "adSubtitle": "Subtitle",
     "adSubtitlePlaceholder": "Short line under the title (optional)",
@@ -36,6 +44,32 @@
     "toggleAria": "Enable or disable advertisement",
     "toggleTooltip": "Enable / disable",
     "until": "Until"
+  },
+  "audit": {
+    "action": "Action",
+    "accountId": "Account id",
+    "actor": "Actor",
+    "adminOnly": "Administrators only",
+    "adminOnlyDetail": "The audit log records every change the API serves, so only SuperAdmin, Admin and Manager accounts can read it. Nothing was sent to the server for your account.",
+    "anonymous": "Unknown caller",
+    "anyAction": "Any action",
+    "anyArea": "Any area",
+    "area": "Area",
+    "details": "Entry details",
+    "duration": "Duration",
+    "empty": "No entries match your filters.",
+    "entry": "Entry",
+    "entryId": "Entry #{{id}}",
+    "ms": "ms",
+    "noAccount": "Not signed in",
+    "noRole": "No role",
+    "path": "Request path",
+    "searchAria": "Search the audit log",
+    "searchPlaceholder": "Search actor, action or path",
+    "statusCode": "Status",
+    "subtitle": "{{count}} recorded actions · paged and filtered by the API · the newest 10,000 are kept",
+    "time": "When",
+    "view": "View entry"
   },
   "categories": {
     "add": "Add category",
@@ -147,6 +181,18 @@
     "The field Price must be between 0 and 1000000": "The field Price must be between 0 and 1000000.",
     "The field Title must be a string or array type with a maximum length of 120": "The field Title must be a string or array type with a maximum length of 120."
   },
+  "entity": {
+    "advertisements": "Advertisements",
+    "auth": "Authentication",
+    "backup": "Backup",
+    "categories": "Categories",
+    "orders": "Orders",
+    "products": "Products",
+    "roles": "Roles",
+    "services": "Services",
+    "subscriptions": "Subscriptions",
+    "users": "Users"
+  },
   "kind": {
     "product": "Product",
     "service": "Service"
@@ -177,6 +223,7 @@
     "users": "Users",
     "roles": "Roles",
     "subscriptions": "Subscriptions",
+    "auditLogs": "Audit log",
     "reports": "Reports",
     "team": "Team",
     "settings": "Settings"

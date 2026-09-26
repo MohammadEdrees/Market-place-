@@ -66,6 +66,7 @@ public static class DbInitializer
         }
 
         EnsureSubscriptions(db);
+        EnsureAuditLogs(db);
     }
 
     /// <summary>Seeds the built-in roles when the table is empty and returns them keyed by name.</summary>
@@ -220,6 +221,70 @@ public static class DbInitializer
         }).ToList();
 
         db.Subscriptions.AddRange(subscriptions);
+        db.SaveChanges();
+    }
+
+    /// <summary>
+    /// Seeds a handful of trail entries when the table is empty, so the dashboard's
+    /// audit page has something to show on a fresh install. Real traffic replaces
+    /// them as it accumulates (the retention cap keeps only the newest rows).
+    /// </summary>
+    /// <remarks>Listed oldest first: ids are store-generated, so insertion order keeps
+    /// them aligned with <c>CreatedAt</c> and the prune-by-id cap deletes the right rows.</remarks>
+    private static void EnsureAuditLogs(MarketDbContext db)
+    {
+        if (db.AuditLogs.Any())
+        {
+            return;
+        }
+
+        var admin = db.Users
+            .Where(u => u.Role.Name == "Admin")
+            .Select(u => new { u.Id, UserName = u.Name, RoleName = u.Role.Name })
+            .FirstOrDefault();
+
+        if (admin is null)
+        {
+            return;
+        }
+
+        // One row is attributed to a mobile member so the list shows a second actor.
+        var member = db.Users
+            .Where(u => u.Type == "Mobile")
+            .Select(u => new { u.Id, UserName = u.Name, RoleName = u.Role.Name })
+            .FirstOrDefault() ?? admin;
+
+        var now = DateTime.UtcNow;
+
+        // Listed oldest first: ids are store-generated, so insertion order keeps them
+        // aligned with CreatedAt and the prune-by-id retention cap deletes the right rows.
+        var rows = new (double DaysAgo, string Action, string Entity, int? EntityId, string Path, int Status, int DurationMs, int ActorId, string ActorName, string ActorRole)[]
+        {
+            (5.5, "restore", "backup", null, "/api/backup/restore", 200, 1840, admin.Id, admin.UserName, admin.RoleName),
+            (4.0, "login", "auth", null, "/api/auth/login", 200, 118, member.Id, member.UserName, member.RoleName),
+            (3.2, "delete", "categories", 9, "/api/categories/9", 204, 27, admin.Id, admin.UserName, admin.RoleName),
+            (2.4, "update", "orders", 15, "/api/orders/15/status", 200, 38, admin.Id, admin.UserName, admin.RoleName),
+            (1.8, "create", "subscriptions", 3, "/api/subscriptions", 201, 44, admin.Id, admin.UserName, admin.RoleName),
+            (1.1, "update", "products", 12, "/api/products/12", 200, 61, admin.Id, admin.UserName, admin.RoleName),
+            (0.6, "create", "products", 25, "/api/products", 201, 96, admin.Id, admin.UserName, admin.RoleName),
+            (0.2, "login", "auth", null, "/api/auth/login", 200, 142, admin.Id, admin.UserName, admin.RoleName),
+        };
+
+        var entries = rows.Select(row => new AuditLog
+        {
+            CreatedAt = now.AddDays(-row.DaysAgo),
+            UserId = row.ActorId,
+            UserName = row.ActorName,
+            Role = row.ActorRole,
+            Action = row.Action,
+            Entity = row.Entity,
+            EntityId = row.EntityId,
+            Path = row.Path,
+            StatusCode = row.Status,
+            DurationMs = row.DurationMs,
+        }).ToList();
+
+        db.AuditLogs.AddRange(entries);
         db.SaveChanges();
     }
 

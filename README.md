@@ -157,13 +157,27 @@ shared `Access` rules keep working as before.
 | `GET`    | `/api/backup/{name}`            | Download a stored snapshot (`200`/`404`; `403`) |
 | `DELETE` | `/api/backup/{name}`            | Delete a stored snapshot (`204`/`404`; `403`) |
 | `POST`   | `/api/backup/restore`           | Apply a snapshot (admin; multipart `file` + `mode=merge\|replace`; per-table insert/update report, `400` on an invalid or unsupported file) |
+| `GET`    | `/api/auditlogs`                | One page of the audit trail — actor, action, area, target id, path, status and duration, newest first (admin; `403` otherwise; filters `search`/`action`/`entity`/`userId`) |
 
 All rows except `POST /api/auth/login` and `POST /api/auth/register` return `401` without a
 valid bearer token; listing and management operations additionally enforce the role rules
 below and return `403` when they do not apply.
 
-The four list endpoints (`/api/products`, `/api/services`, `/api/orders`, `/api/users`) do
-their **pagination, filtering and sorting on the server** and return a paged envelope:
+The **audit trail** is written by the API rather than by the endpoints: after every
+successful `POST`/`PUT`/`PATCH`/`DELETE` under `/api/` (2xx only — rejected calls are not
+entries), `AuditLogMiddleware` records the caller (the `sub` claim, or the e-mail carried by
+an anonymous sign-in), the action derived from the verb (`create`/`update`/`delete`, plus
+`login`, `register` and `restore` from their sub-routes), the route family and target id, the
+path, the status and the duration. The write runs after the call completes in its **own DI
+scope**, so a failing insert can never disturb — or be rolled back with — the request it
+records, and the oldest rows are pruned once the trail reaches **10,000** entries. Reads are
+deliberately not recorded, the trail is excluded from backup/restore (it is operational
+history, not data), and only `GET /api/auditlogs` exposes it — there is no create, update or
+delete endpoint.
+
+The five list endpoints (`/api/products`, `/api/services`, `/api/orders`, `/api/users`,
+`/api/auditlogs`) do their **pagination, filtering and sorting on the server** and return a
+paged envelope:
 
 ```json
 { "items": [ … ], "total": 24, "page": 1, "pageSize": 20 }
@@ -299,6 +313,16 @@ To hide the docs in an environment, set the kill switch in `backend/MarketWorkpl
   dialog — *Assign plan* picks any account from `GET /api/users`, edit keeps the account
   fixed and can flip status — and confirm-to-delete. The mobile Profile screen reads the
   signed-in user's own row from `GET /api/subscriptions/user/{id}`.
+- **Audit log** (`/audit-logs`) — what changed on the platform and who changed it: a
+  read-only, server-paged table of every successful mutation the API has served, showing
+  when it happened, the actor (name plus a role chip — or the e-mail for an anonymous
+  sign-in), a colour-coded action tag, the area with its target id, the raw request path and
+  the duration. Search, action and area filters round-trip to `GET /api/auditlogs`, columns
+  sort through the same whitelist, and the eye button opens the full entry (status code,
+  account id, path). There are deliberately no create/edit/delete controls: entries arrive
+  from the API's own middleware and the oldest are pruned past 10,000 rows. SuperAdmin/Admin/
+  Manager read it; every other role gets an *administrators only* panel instead of a doomed
+  `403` request.
 - **Categories** (`/categories`) — the managed category list behind every filter chip and
   form dropdown: a Products/Services switcher (`?kind=`) over a table of name, kind, live
   listing count and creation date, with add/rename dialogs and confirm-to-delete. Renames
@@ -430,10 +454,10 @@ flutter test       # 63 tests: repositories (mocked Dio), session store, formatt
 
 | Project            | Contains                                                                                                                                                                            |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `MarketWorkplace.Domain`         | Entities only (`User`, `Product`, `Service`, `Order`, `ListingImage`, `Role`, `Category`, `Advertisement`, `Subscription`) — no dependencies.                                    |
-| `MarketWorkplace.Application`    | DTOs, application services (`AuthService`, `UsersService`, `ProductsService`, `ServicesService`, `OrdersService`, `DashboardService`, `RolesService`, `SubscriptionsService`, `BackupService`) that return the exact HTTP results the controllers delegate to, repository interfaces, `Access` rules, `PasswordHasher`, `ITokenService`, `IImageStore`. |
+| `MarketWorkplace.Domain`         | Entities only (`User`, `Product`, `Service`, `Order`, `ListingImage`, `Role`, `Category`, `Advertisement`, `Subscription`, `AuditLog`) — no dependencies.                                    |
+| `MarketWorkplace.Application`    | DTOs, application services (`AuthService`, `UsersService`, `ProductsService`, `ServicesService`, `OrdersService`, `DashboardService`, `RolesService`, `SubscriptionsService`, `BackupService`, `AuditLogsService` + `AuditLogWriter`) that return the exact HTTP results the controllers delegate to, repository interfaces, `Access` rules, `PasswordHasher`, `ITokenService`, `IImageStore`. |
 | `MarketWorkplace.Infrastructure` | `MarketDbContext`, `DbInitializer` + migrations, repository implementations (`EfRepository<T>`, `UserRepository`, `RoleRepository`, …), `ImageStore`, `PlaceholderPng`, and the `AddInfrastructure()` DI wiring. |
-| `MarketWorkplace.Api`           | Thin controllers (attributes, XML docs, ModelState checks, delegation), `TokenService`, Swagger setup, `Program.cs` — the composition root calling `AddApplication()` + `AddInfrastructure()`. |
+| `MarketWorkplace.Api`           | Thin controllers (attributes, XML docs, ModelState checks, delegation), `TokenService`, `AuditLogMiddleware` (records every successful mutation), Swagger setup, `Program.cs` — the composition root calling `AddApplication()` + `AddInfrastructure()`. |
 
 Controllers depend on Application services; Application depends on Domain and repository
 interfaces only (queries compose with LINQ, no EF types); Infrastructure implements those
@@ -463,12 +487,17 @@ cascade with their listing, and every account holds a role
 (`Users.RoleId → Roles.Id`, `RESTRICT`) and may carry subscription plans
 (`Subscriptions.UserId → Users.Id`, `RESTRICT`). Primary keys are app-assigned
 (`ValueGeneratedNever`), matching the services' `Max + 1` pattern, and `Users.Email` and
-`Roles.Name` carry unique indexes.
+`Roles.Name` carry unique indexes. **`AuditLogs` is the one deliberate exception**: rows are
+appended concurrently by the middleware outside any request's unit of work, so its key is a
+store-generated identity (`ValueGeneratedOnAdd`) — the only race-free option — with indexes
+on `CreatedAt`, `Entity` and `UserId`, and no relationship to `Users`: the actor is stored as
+a snapshot so renaming or deleting an account never rewrites the trail.
 
 `backend/MarketWorkplace.Infrastructure/Data/DbInitializer.cs` then seeds the 6 roles,
 24 products (owned by the demo sellers/admin), 6 services, ~74 orders across the last 12
-months, 8 users (5 dashboard, 3 mobile) and a starter subscription plan per mobile user
-**only when a table is empty** — data persists
+months, 8 users (5 dashboard, 3 mobile), a starter subscription plan per mobile user and
+eight demo audit entries (listed oldest first, so their store-generated ids stay
+chronological for the retention prune) **only when a table is empty** — data persists
 across restarts. Display strings (currency, month names) are formatted with an explicit
 `en-US` culture in `DashboardService`, so output does not depend on the machine's regional
 settings.

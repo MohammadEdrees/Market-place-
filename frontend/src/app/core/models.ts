@@ -422,3 +422,51 @@ export interface SubscriptionUpdateInput {
   endsAt?: string | null;
   autoRenew: boolean;
 }
+
+/**
+ * What a trail entry records. The API derives it from the HTTP verb, with the
+ * well-known sub-routes called out by name (`/auth/login`, `/backup/restore`).
+ */
+export type AuditAction = 'create' | 'update' | 'delete' | 'login' | 'register' | 'restore';
+
+/** Query accepted by `GET /api/auditlogs` (admin callers only). */
+export interface AuditLogQuery extends PageParams {
+  search?: string;
+  /** Exact action, e.g. `delete`. */
+  action?: string;
+  /** Exact route family, e.g. `products`. */
+  entity?: string;
+  /** Only entries recorded for this account. */
+  userId?: number;
+}
+
+/**
+ * One recorded API mutation, as returned by `GET /api/auditlogs`.
+ *
+ * Written by the API's audit middleware *after* the call completes — there is no
+ * create endpoint, and the oldest rows are pruned once the retention cap is hit.
+ * `userName`/`role` are snapshots, so they stay readable after the account is
+ * renamed or removed.
+ */
+export interface AuditLog {
+  id: number;
+  /** When the call finished (UTC). */
+  createdAt: string;
+  /** `null` for anonymous calls; a sign-in row still carries the e-mail as `userName`. */
+  userId: number | null;
+  /** Actor display name at the time of the call. */
+  userName: string;
+  /** Actor role at the time of the call; empty for anonymous callers. */
+  role: string;
+  action: AuditAction;
+  /** Route family, e.g. `products`, `users`, `backup`. */
+  entity: string;
+  /** First numeric route segment after the entity, when there is one. */
+  entityId: number | null;
+  /** Raw request path, e.g. `/api/products/12/images/7`. */
+  path: string;
+  /** Status returned — always 2xx; rejected calls are not recorded. */
+  statusCode: number;
+  /** Server-side duration of the request. */
+  durationMs: number;
+}

@@ -78,6 +78,13 @@ export const routes: Routes = [
           import('./features/subscriptions/subscriptions.component').then((m) => m.SubscriptionsComponent),
       },
       {
+        path: 'audit-logs',
+        title: 'Audit log · Market Workplace',
+        data: { breadcrumb: 'Audit log' },
+        loadComponent: () =>
+          import('./features/audit-logs/audit-logs.component').then((m) => m.AuditLogsComponent),
+      },
+      {
         path: 'settings',
         title: 'Settings · Market Workplace',
         data: { breadcrumb: 'Settings' },

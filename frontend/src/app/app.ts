@@ -80,6 +80,7 @@ export class App {
     { labelKey: 'nav.users', icon: 'pi pi-users', link: '/users' },
     { labelKey: 'nav.roles', icon: 'pi pi-key', link: '/roles' },
     { labelKey: 'nav.subscriptions', icon: 'pi pi-credit-card', link: '/subscriptions' },
+    { labelKey: 'nav.auditLogs', icon: 'pi pi-history', link: '/audit-logs' },
     { labelKey: 'nav.settings', icon: 'pi pi-cog', link: '/settings' },
   ];
 
@@ -114,6 +115,7 @@ export class App {
           users: 'nav.users',
           roles: 'nav.roles',
           subscriptions: 'nav.subscriptions',
+          'audit-logs': 'nav.auditLogs',
           settings: 'page.settings',
         };
         // Store the *key*; pageTitle re-translates it on every switch.

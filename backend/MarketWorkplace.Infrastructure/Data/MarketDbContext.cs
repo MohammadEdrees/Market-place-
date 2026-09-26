@@ -39,6 +39,9 @@ public class MarketDbContext(DbContextOptions<MarketDbContext> options) : DbCont
     /// <summary>Subscription plans purchased by accounts (mobile users primarily).</summary>
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
 
+    /// <summary>Append-only trail of every successful mutating API call.</summary>
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Product>(entity =>
@@ -146,6 +149,27 @@ public class MarketDbContext(DbContextOptions<MarketDbContext> options) : DbCont
             entity.Property(s => s.Status).IsRequired().HasMaxLength(10);
             entity.Property(s => s.Price).HasPrecision(18, 2);
             entity.HasIndex(s => s.UserId);
+        });
+
+        modelBuilder.Entity<AuditLog>(entity =>
+        {
+            entity.HasKey(a => a.Id);
+            // Deliberate exception to the app-assigned-key rule: rows are appended
+            // concurrently by the middleware after the response, outside any request's
+            // unit of work, so a store-generated key is the only race-free option.
+            entity.Property(a => a.Id).ValueGeneratedOnAdd();
+            entity.Property(a => a.UserName).IsRequired().HasMaxLength(254);
+            entity.Property(a => a.Role).IsRequired().HasMaxLength(40);
+            entity.Property(a => a.Action).IsRequired().HasMaxLength(12);
+            entity.Property(a => a.Entity).IsRequired().HasMaxLength(40);
+            entity.Property(a => a.Path).IsRequired().HasMaxLength(260);
+            // Drives both the "newest first" listing and the retention cap's
+            // "delete the oldest rows" prune.
+            entity.HasIndex(a => a.CreatedAt);
+            entity.HasIndex(a => a.Entity);
+            entity.HasIndex(a => a.UserId);
+            // No relationship to Users on purpose: the actor is a snapshot, so
+            // renaming or deleting an account never rewrites the trail.
         });
 
         // --- Relationships (products related to their provider, orders to buyers/listings) ---
