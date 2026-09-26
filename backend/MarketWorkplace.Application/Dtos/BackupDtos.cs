@@ -16,6 +16,8 @@ namespace MarketWorkplace.Application.Dtos;
 /// <param name="Images">Gallery image rows (the files themselves live in wwwroot and are not included).</param>
 /// <param name="Orders">Order history.</param>
 /// <param name="Advertisements">Advertisement slides.</param>
+/// <param name="Subscriptions">Subscription plans; omitted by snapshots written before that
+/// table existed, which restore as "no subscriptions" instead of being rejected.</param>
 public record BackupSnapshot(
     int Version,
     DateTime CreatedAtUtc,
@@ -28,7 +30,8 @@ public record BackupSnapshot(
     IReadOnlyList<ServiceSnapshot> Services,
     IReadOnlyList<ImageSnapshot> Images,
     IReadOnlyList<OrderSnapshot> Orders,
-    IReadOnlyList<AdvertisementSnapshot> Advertisements);
+    IReadOnlyList<AdvertisementSnapshot> Advertisements,
+    IReadOnlyList<SubscriptionSnapshot>? Subscriptions = null);
 
 /// <summary>One role inside a backup file.</summary>
 public record RoleSnapshot(int Id, string Name, string? Description);
@@ -110,6 +113,19 @@ public record AdvertisementSnapshot(
     DateTime? StartsAt,
     DateTime? EndsAt,
     int SortOrder,
+    DateTime CreatedAt);
+
+/// <summary>One subscription plan inside a backup file.</summary>
+public record SubscriptionSnapshot(
+    int Id,
+    int UserId,
+    string Plan,
+    decimal Price,
+    string BillingCycle,
+    string Status,
+    DateTime StartsAt,
+    DateTime? EndsAt,
+    bool AutoRenew,
     DateTime CreatedAt);
 
 /// <summary>A stored snapshot listed by <c>GET /api/backup</c>.</summary>

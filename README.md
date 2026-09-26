@@ -146,6 +146,12 @@ shared `Access` rules keep working as before.
 | `PUT`    | `/api/advertisements/{id}`   | Update title/subtitle/target/schedule/order (admin; `200`/`400`/`404`/`403`) |
 | `DELETE` | `/api/advertisements/{id}`   | Delete a slide and its banner file (`204`/`404`/`403`) |
 | `POST`   | `/api/advertisements/{id}/image` | Upload/replace the banner (admin; multipart `file`, png/jpg/webp/gif ≤ 5 MB; the old file is removed) |
+| `GET`    | `/api/subscriptions`            | Every plan with its subscribed account (`userName`/`userEmail`/`userType`), newest first |
+| `GET`    | `/api/subscriptions/{id}`       | One plan (`200`/`404`)                              |
+| `GET`    | `/api/subscriptions/user/{userId}` | The plans held by one account — the link to a mobile user (`200`/`404`) |
+| `POST`   | `/api/subscriptions`            | Create a plan for an account (admin; `201`/`400` unknown account or bad plan/`403`) |
+| `PUT`    | `/api/subscriptions/{id}`       | Update plan/price/cycle/status/renewal (admin; `200`/`400`/`404`/`403`) |
+| `DELETE` | `/api/subscriptions/{id}`       | Remove a plan (`204`/`404`/`403`)                  |
 | `GET`    | `/api/backup`                   | Stored snapshots with their row counts, newest first (admin) |
 | `GET`    | `/api/backup/export`            | Snapshot the live data, store a copy in `App_Data/backups` and download the JSON file (admin) |
 | `GET`    | `/api/backup/{name}`            | Download a stored snapshot (`200`/`404`; `403`) |

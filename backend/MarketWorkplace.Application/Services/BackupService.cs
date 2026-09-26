@@ -30,6 +30,7 @@ public class BackupService(
     IRepository<ListingImage> images,
     IRepository<Order> orders,
     IRepository<Advertisement> advertisements,
+    ISubscriptionRepository subscriptions,
     IBackupStore store)
 {
     /// <summary>Format version written into every snapshot; restores refuse anything else.</summary>
@@ -218,6 +219,7 @@ public class BackupService(
         var imageRows = images.QueryReadOnly().OrderBy(i => i.Id).ToList();
         var orderRows = orders.QueryReadOnly().OrderBy(o => o.Id).ToList();
         var adRows = advertisements.QueryReadOnly().OrderBy(a => a.Id).ToList();
+        var subscriptionRows = subscriptions.QueryReadOnly().OrderBy(s => s.Id).ToList();
 
         var counts = new Dictionary<string, int>
         {
@@ -229,6 +231,7 @@ public class BackupService(
             ["images"] = imageRows.Count,
             ["orders"] = orderRows.Count,
             ["advertisements"] = adRows.Count,
+            ["subscriptions"] = subscriptionRows.Count,
         };
 
         return new BackupSnapshot(
@@ -253,7 +256,10 @@ public class BackupService(
                 o.Date, o.Kind, o.ProductId, o.ServiceId, o.BuyerId)).ToList(),
             adRows.Select(a => new AdvertisementSnapshot(
                 a.Id, a.Title, a.Subtitle, a.ImagePath, a.TargetUrl, a.IsActive,
-                a.StartsAt, a.EndsAt, a.SortOrder, a.CreatedAt)).ToList());
+                a.StartsAt, a.EndsAt, a.SortOrder, a.CreatedAt)).ToList(),
+            subscriptionRows.Select(s => new SubscriptionSnapshot(
+                s.Id, s.UserId, s.Plan, s.Price, s.BillingCycle, s.Status,
+                s.StartsAt, s.EndsAt, s.AutoRenew, s.CreatedAt)).ToList());
     }
 
     /// <summary>Row counts recorded inside a stored snapshot, or an empty map when unreadable.</summary>
@@ -290,6 +296,8 @@ public class BackupService(
         services.RemoveRange(services.Query());
         products.RemoveRange(products.Query());
         advertisements.RemoveRange(advertisements.Query());
+        // Subscriptions reference accounts, so they go before Users (FK is Restrict).
+        subscriptions.RemoveRange(subscriptions.Query());
         users.RemoveRange(users.Query());
         categories.RemoveRange(categories.Query());
         roles.RemoveRange(roles.Query());
@@ -300,6 +308,7 @@ public class BackupService(
     {
         roles.SaveChanges();
         users.SaveChanges();
+        subscriptions.SaveChanges();
         categories.SaveChanges();
         products.SaveChanges();
         services.SaveChanges();
@@ -349,6 +358,12 @@ public class BackupService(
             IsActive = s.IsActive, StartsAt = s.StartsAt, EndsAt = s.EndsAt, SortOrder = s.SortOrder,
             CreatedAt = s.CreatedAt,
         }));
+        subscriptions.AddRange((snapshot.Subscriptions ?? Array.Empty<SubscriptionSnapshot>()).Select(s => new Subscription
+        {
+            Id = s.Id, UserId = s.UserId, Plan = s.Plan, Price = s.Price, BillingCycle = s.BillingCycle,
+            Status = s.Status, StartsAt = s.StartsAt, EndsAt = s.EndsAt, AutoRenew = s.AutoRenew,
+            CreatedAt = s.CreatedAt,
+        }));
 
         SaveAll();
 
@@ -360,6 +375,7 @@ public class BackupService(
         results.Add(new RestoreTableResultDto("images", snapshot.Images.Count, 0));
         results.Add(new RestoreTableResultDto("orders", snapshot.Orders.Count, 0));
         results.Add(new RestoreTableResultDto("advertisements", snapshot.Advertisements.Count, 0));
+        results.Add(new RestoreTableResultDto("subscriptions", snapshot.Subscriptions?.Count ?? 0, 0));
         return results;
     }
 
@@ -648,6 +664,47 @@ public class BackupService(
         }
 
         results.Add(new RestoreTableResultDto("advertisements", adInserted, adUpdated));
+
+        // --- subscriptions (user is required)
+        var subscriptionRows = subscriptions.Query().ToList();
+        var subscriptionById = subscriptionRows.ToDictionary(s => s.Id);
+        var subscriptionInserted = 0;
+        var subscriptionUpdated = 0;
+        foreach (var s in snapshot.Subscriptions ?? Array.Empty<SubscriptionSnapshot>())
+        {
+            if (!userIds.Contains(s.UserId))
+            {
+                throw new InvalidOperationException(
+                    $"A subscription for account {s.UserId} references an account the backup does not contain.");
+            }
+
+            if (subscriptionById.TryGetValue(s.Id, out var existing))
+            {
+                existing.UserId = s.UserId;
+                existing.Plan = s.Plan;
+                existing.Price = s.Price;
+                existing.BillingCycle = s.BillingCycle;
+                existing.Status = s.Status;
+                existing.StartsAt = s.StartsAt;
+                existing.EndsAt = s.EndsAt;
+                existing.AutoRenew = s.AutoRenew;
+                subscriptionUpdated++;
+            }
+            else
+            {
+                var added = new Subscription
+                {
+                    Id = s.Id, UserId = s.UserId, Plan = s.Plan, Price = s.Price,
+                    BillingCycle = s.BillingCycle, Status = s.Status, StartsAt = s.StartsAt,
+                    EndsAt = s.EndsAt, AutoRenew = s.AutoRenew, CreatedAt = s.CreatedAt,
+                };
+                subscriptions.Add(added);
+                subscriptionById[s.Id] = added;
+                subscriptionInserted++;
+            }
+        }
+
+        results.Add(new RestoreTableResultDto("subscriptions", subscriptionInserted, subscriptionUpdated));
 
         SaveAll();
         return results;

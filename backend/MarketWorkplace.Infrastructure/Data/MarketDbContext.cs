@@ -150,6 +150,50 @@ public class MarketDbContext(DbContextOptions<MarketDbContext> options) : DbCont
 
         // --- Relationships (products related to their provider, orders to buyers/listings) ---
 
+        // A product belongs to the provider/seller who listed it; nullable so platform demo
+        // items (SellerId = null) stay valid and deleting an owner keeps the listing.
+        modelBuilder.Entity<Product>()
+            .HasOne<User>()
+            .WithMany()
+            .HasForeignKey(p => p.SellerId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // A service requires its provider (ProviderId is mandatory) — deleting a provider
+        // who still offers services is rejected by the database instead of orphaning rows.
+        modelBuilder.Entity<Service>()
+            .HasOne<User>()
+            .WithMany()
+            .HasForeignKey(s => s.ProviderId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Orders are historical records with denormalized name/category columns: deleting a
+        // buyer, product or service detaches the order rather than destroying its history.
+        modelBuilder.Entity<Order>()
+            .HasOne<User>()
+            .WithMany()
+            .HasForeignKey(o => o.BuyerId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<Order>()
+            .HasOne<Product>()
+            .WithMany()
+            .HasForeignKey(o => o.ProductId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<Order>()
+            .HasOne<Service>()
+            .WithMany()
+            .HasForeignKey(o => o.ServiceId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // Every account holds exactly one role; Restrict is the database-level backstop that
+        // keeps a role with members from disappearing (the API returns 409 before that).
+        modelBuilder.Entity<User>()
+            .HasOne(u => u.Role)
+            .WithMany(r => r.Users)
+            .HasForeignKey(u => u.RoleId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         // A subscription belongs to one account; deleting a user keeps their
         // history, so the subscriber reference is left as-is (SetNull is not
         // meaningful here — the subscription is a record about the user).

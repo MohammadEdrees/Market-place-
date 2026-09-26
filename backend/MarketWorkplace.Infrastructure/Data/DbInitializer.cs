@@ -182,27 +182,41 @@ public static class DbInitializer
         var now = DateTime.UtcNow;
         var mobileUserIds = db.Users
             .Where(u => u.Type == "Mobile")
+            .OrderBy(u => u.Id)
             .Select(u => u.Id)
             .ToList();
 
-        var starters = new[]
+        if (mobileUserIds.Count == 0)
         {
-            (userId: 6, plan: Subscription.PremiumPlan, price: 29.99m, cycle: Subscription.Monthly, status: Subscription.Active),
-            (userId: 7, plan: Subscription.BasicPlan, price: 9.99m, cycle: Subscription.Monthly, status: Subscription.Active),
-            (userId: 8, plan: Subscription.BasicPlan, price: 9.99m, cycle: Subscription.Monthly, status: Subscription.Active),
+            return;
+        }
+
+        // First mobile account gets the premium showcase plan, the rest start on basic.
+        var starters = new (string plan, decimal price)[]
+        {
+            (Subscription.PremiumPlan, 29.99m),
+            (Subscription.BasicPlan, 9.99m),
+            (Subscription.BasicPlan, 9.99m),
         };
 
-        var subscriptions = starters.Select(s => new Subscription
+        // Keys are app-assigned (ValueGeneratedNever), so hand out explicit ids.
+        var nextId = db.Subscriptions.Any() ? db.Subscriptions.Max(s => s.Id) + 1 : 1;
+        var subscriptions = mobileUserIds.Select((userId, index) =>
         {
-            UserId = s.userId,
-            Plan = s.plan,
-            Price = s.price,
-            BillingCycle = s.cycle,
-            Status = s.status,
-            StartsAt = now.AddDays(-30),
-            EndsAt = now.AddDays(335),
-            AutoRenew = true,
-            CreatedAt = now.AddDays(-30),
+            var (plan, price) = index < starters.Length ? starters[index] : (Subscription.BasicPlan, 9.99m);
+            return new Subscription
+            {
+                Id = nextId++,
+                UserId = userId,
+                Plan = plan,
+                Price = price,
+                BillingCycle = Subscription.Monthly,
+                Status = Subscription.Active,
+                StartsAt = now.AddDays(-30),
+                EndsAt = now.AddDays(335),
+                AutoRenew = true,
+                CreatedAt = now.AddDays(-30),
+            };
         }).ToList();
 
         db.Subscriptions.AddRange(subscriptions);

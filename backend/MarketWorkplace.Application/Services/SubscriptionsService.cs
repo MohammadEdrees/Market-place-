@@ -73,6 +73,9 @@ public class SubscriptionsService(
         var now = DateTime.UtcNow;
         var subscription = new Subscription
         {
+            Id = subscriptions.QueryReadOnly().Any()
+                ? subscriptions.QueryReadOnly().Max(s => s.Id) + 1
+                : 1,
             UserId = input.UserId,
             Plan = input.Plan.Trim(),
             Price = input.Price,
@@ -87,7 +90,9 @@ public class SubscriptionsService(
         subscriptions.Add(subscription);
         subscriptions.SaveChanges();
 
-        return CreatedAtAction("GetById", new { id = subscription.Id }, ToDto(subscription));
+        // The navigation is needed by ToDto (user name/email/type shown in the dashboard).
+        var saved = subscriptions.WithUser().FirstOrDefault(s => s.Id == subscription.Id);
+        return CreatedAtAction("GetById", new { id = subscription.Id }, ToDto(saved ?? subscription));
     }
 
     /// <summary>Updates a subscription (admin callers only).</summary>
@@ -114,7 +119,8 @@ public class SubscriptionsService(
         sub.AutoRenew = input.AutoRenew;
 
         subscriptions.SaveChanges();
-        return Ok(ToDto(sub));
+        var saved = subscriptions.WithUser().FirstOrDefault(s => s.Id == id);
+        return Ok(ToDto(saved ?? sub));
     }
 
     /// <summary>Deletes a subscription (admin callers only).</summary>
