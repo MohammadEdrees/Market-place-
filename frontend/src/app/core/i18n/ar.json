@@ -96,6 +96,10 @@
     "title": "العنوان",
     "total": "الإجمالي"
   },
+  "cycle": {
+    "monthly": "شهري",
+    "yearly": "سنوي"
+  },
   "dashboard": {
     "audience": "الجمهور",
     "audienceHint": "الحسابات حسب الدور والمنصة",
@@ -172,6 +176,7 @@
     "advertisements": "الإعلانات",
     "users": "المستخدمون",
     "roles": "الأدوار",
+    "subscriptions": "الاشتراكات",
     "reports": "التقارير",
     "team": "الفريق",
     "settings": "الإعدادات"
@@ -194,6 +199,11 @@
   "page": {
     "settings": "الإعدادات",
     "login": "تسجيل الدخول"
+  },
+  "plan": {
+    "basic": "أساسي",
+    "premium": "بريميوم",
+    "enterprise": "مؤسسي"
   },
   "products": {
     "anyProvider": "أي مزوّد",
@@ -317,6 +327,7 @@
     "completed": "مكتمل",
     "confirmed": "مؤكد",
     "expired": "منتهٍ",
+    "inactive": "غير نشط",
     "live": "مباشر",
     "lowStock": "مخزون منخفض",
     "off": "معطّل",
@@ -325,6 +336,41 @@
     "refunded": "مسترد",
     "reserved": "محجوز",
     "scheduled": "مجدول"
+  },
+  "subscriptions": {
+    "account": "الحساب",
+    "accountHint": "مستخدمو تطبيق الجوال هم المشتركون المعتادون — اختر أي حساب في المنصة.",
+    "accountLocked": "تبقى الباقة مرتبطة بالحساب الذي أنشئت من أجله.",
+    "add": "إسناد باقة",
+    "anyPlan": "أي باقة",
+    "anyStatus": "أي حالة",
+    "autoRenew": "تجديد تلقائي",
+    "autoRenewHint": "يُجدَّد تلقائيًا عند انتهاء الدورة الحالية.",
+    "create": "إسناد باقة",
+    "createHint": "أرفق باقة بحساب — يُقرأ المشترك من سجل الحساب.",
+    "cycle": "دورة الفوترة",
+    "deleteHeader": "حذف الباقة",
+    "deleteMessage": "إزالة باقة <strong>{{plan}}</strong> من <strong>{{name}}</strong>؟",
+    "deleteTooltip": "حذف الباقة",
+    "edit": "تعديل الباقة",
+    "editTooltip": "تعديل الباقة",
+    "empty": "لم تُسند أي باقة بعد.",
+    "emptyFiltered": "لا توجد باقات تطابق عوامل التصفية.",
+    "ends": "الانتهاء",
+    "endsAfterStarts": "يجب أن يكون الانتهاء بعد البدء.",
+    "off": "لا",
+    "on": "نعم",
+    "openEnded": "بلا نهاية",
+    "period": "الفترة",
+    "pickAccount": "اختر حسابًا",
+    "plan": "الباقة",
+    "priceHint": "السعر بالدولار المخصوم لدورة واحدة.",
+    "save": "حفظ الباقة",
+    "searchAria": "البحث في الاشتراكات",
+    "searchPlaceholder": "ابحث بالحساب أو الباقة",
+    "starts": "البدء",
+    "subtitle": "{{count}} باقات · مرتبطة بحسابات لوحة التحكم وتطبيق الجوال",
+    "title": "الاشتراكات"
   },
   "toast": {
     "backupCreated": "تم إنشاء النسخة الاحتياطية",
@@ -339,6 +385,8 @@
     "adSavedImageNot": "تم حفظ الإعلان، لكن لم تُحفظ صورته.",
     "adUpdated": "تم تحديث الإعلان",
     "adminsOnly": "يسمح للمسؤولين فقط بإدارة الإعلانات.",
+    "subCreated": "تم إسناد الباقة",
+    "subUpdated": "تم تحديث الباقة",
     "apiRejected": "رفضت واجهة برمجة التطبيقات الطلب.",
     "apiRejectedImage": "رفضت واجهة برمجة التطبيقات الصورة.",
     "apiUnreachable": "تعذّر الوصول إلى الواجهة",
@@ -443,6 +491,7 @@
     "imageTypeOnly": "PNG أو JPG أو WEBP أو GIF فقط.",
     "passwordMin6": "استخدم 6 أحرف على الأقل.",
     "passwordRequired": "كلمة المرور مطلوبة.",
+    "accountRequired": "اختر الحساب الذي تنتمي إليه هذه الباقة.",
     "productsRequired": "الاسم ورمز SKU والتصنيف مطلوبة.",
     "roleNameRequired": "اسم الدور مطلوب.",
     "scheduleOrder": "يجب أن يكون تاريخ الانتهاء بعد تاريخ البدء.",

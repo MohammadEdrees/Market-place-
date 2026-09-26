@@ -161,7 +161,7 @@ void main() {
       final en = readArb('lib/l10n/app_en.arb');
       final ar = readArb('lib/l10n/app_ar.arb');
 
-      expect(en, hasLength(186));
+      expect(en, hasLength(197));
       expect(ar.keys.toSet(), en.keys.toSet(),
           reason: 'every English key must have an Arabic counterpart');
 

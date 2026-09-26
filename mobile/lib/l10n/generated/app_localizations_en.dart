@@ -463,6 +463,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileLocation => 'Location';
 
   @override
+  String get profileNoPlan => 'No plan assigned yet.';
+
+  @override
   String get profilePhone => 'Phone';
 
   @override
@@ -483,6 +486,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileSignOutTitle => 'Sign out?';
+
+  @override
+  String get profileSubscription => 'Subscription';
 
   @override
   String get profileTitle => 'Profile';
@@ -509,6 +515,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statusDashboard => 'Dashboard';
 
   @override
+  String get statusExpired => 'Expired';
+
+  @override
   String get statusInactive => 'Inactive';
 
   @override
@@ -531,6 +540,30 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statusReserved => 'Reserved';
+
+  @override
+  String get planBasic => 'Basic';
+
+  @override
+  String get planEnterprise => 'Enterprise';
+
+  @override
+  String get planPremium => 'Premium';
+
+  @override
+  String get subscriptionAutoRenewOff => 'Will not renew automatically';
+
+  @override
+  String get subscriptionAutoRenewOn => 'Renews automatically';
+
+  @override
+  String get subscriptionOpenEnded => 'Open-ended';
+
+  @override
+  String get subscriptionPerMonth => 'per month';
+
+  @override
+  String get subscriptionPerYear => 'per year';
 
   @override
   String get errorsAccountExists =>

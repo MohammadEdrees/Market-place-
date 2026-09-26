@@ -71,6 +71,13 @@ export const routes: Routes = [
           import('./features/roles/roles.component').then((m) => m.RolesComponent),
       },
       {
+        path: 'subscriptions',
+        title: 'Subscriptions · Market Workplace',
+        data: { breadcrumb: 'Subscriptions' },
+        loadComponent: () =>
+          import('./features/subscriptions/subscriptions.component').then((m) => m.SubscriptionsComponent),
+      },
+      {
         path: 'settings',
         title: 'Settings · Market Workplace',
         data: { breadcrumb: 'Settings' },

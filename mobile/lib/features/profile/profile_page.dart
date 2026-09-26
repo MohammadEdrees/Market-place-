@@ -3,12 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/auth/session.dart';
+import '../../core/format/formatters.dart';
 import '../../core/i18n/language_switcher.dart';
 import '../../core/i18n/l10n_ext.dart';
 import '../../core/i18n/locale_provider.dart';
 import '../../core/widgets/state_views.dart';
+import '../../core/widgets/status_badge.dart';
 import '../auth/auth_controller.dart';
 import '../auth/auth_repository.dart';
+import 'subscription.dart';
 import 'users_repository.dart';
 
 /// View/edit the signed-in profile, manage the avatar and sign out.
@@ -292,6 +295,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         _infoRow(
             theme, Icons.location_on_outlined, l10n.profileLocation, user.location),
         _infoRow(theme, Icons.notes_outlined, l10n.profileBio, user.bio),
+        const SizedBox(height: 14),
+        const _SubscriptionCard(),
         const SizedBox(height: 20),
         FilledButton.icon(
           onPressed: () => _startEditing(user),
@@ -538,4 +543,156 @@ class _RolePill extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The plan attached to this account, read from
+/// `GET /api/subscriptions/user/{id}`.
+///
+/// Plans are managed from the dashboard's `/subscriptions` page; the app only
+/// reports what it has been assigned.
+class _SubscriptionCard extends ConsumerWidget {
+  const _SubscriptionCard();
+
+  String _planLabel(AppLocalizations l10n, String plan) => switch (plan) {
+        'Basic' => l10n.planBasic,
+        'Premium' => l10n.planPremium,
+        'Enterprise' => l10n.planEnterprise,
+        _ => plan,
+      };
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final l10n = context.l10n;
+    final plans = ref.watch(mySubscriptionsProvider);
+    final muted = theme.colorScheme.onSurfaceVariant;
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: plans.when(
+        loading: () => const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 22),
+          child: Center(
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        ),
+        // The API needs a signed-in token; a failure here is not worth
+        // interrupting the profile screen with an error card.
+        error: (_, _) => const SizedBox.shrink(),
+        data: (rows) {
+          if (rows.isEmpty) {
+            return ListTile(
+              leading: const Icon(Icons.workspace_premium_outlined),
+              title: Text(l10n.profileSubscription),
+              subtitle: Text(l10n.profileNoPlan),
+            );
+          }
+
+          // Prefer the active plan when an account holds more than one row.
+          final plan = rows.firstWhere(
+            (row) => row.status == 'Active',
+            orElse: () => rows.first,
+          );
+          final period = plan.endsAt == null
+              ? '${formatDate(plan.startsAt)} · ${l10n.subscriptionOpenEnded}'
+              : '${formatDate(plan.startsAt)} · ${formatDate(plan.endsAt!)}';
+
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.workspace_premium_outlined,
+                      size: 20,
+                      color: theme.colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        l10n.profileSubscription,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    StatusBadge(status: plan.status),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _planLabel(l10n, plan.plan),
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          formatMoney(plan.price),
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                        Text(
+                          plan.billingCycle == 'Yearly'
+                              ? l10n.subscriptionPerYear
+                              : l10n.subscriptionPerMonth,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: muted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _detail(
+                  theme,
+                  Icons.schedule_outlined,
+                  period,
+                ),
+                const SizedBox(height: 6),
+                _detail(
+                  theme,
+                  plan.autoRenew ? Icons.autorenew : Icons.block_outlined,
+                  plan.autoRenew
+                      ? l10n.subscriptionAutoRenewOn
+                      : l10n.subscriptionAutoRenewOff,
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _detail(ThemeData theme, IconData icon, String text) => Row(
+        children: [
+          Icon(icon, size: 16, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
+      );
 }

@@ -26,6 +26,10 @@ class StatusBadge extends StatelessWidget {
             background: const Color(0xFFECECF3),
             foreground: const Color(0xFF5A5A6E),
           ),
+        'Expired' => (
+            background: const Color(0xFFFDE3E3),
+            foreground: const Color(0xFFB3261E),
+          ),
         _ => (
             background: const Color(0xFFE3EDFF),
             foreground: const Color(0xFF2B5BC7),

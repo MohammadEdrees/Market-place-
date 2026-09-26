@@ -938,6 +938,12 @@ abstract class AppLocalizations {
   /// **'Location'**
   String get profileLocation;
 
+  /// No description provided for @profileNoPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'No plan assigned yet.'**
+  String get profileNoPlan;
+
   /// No description provided for @profilePhone.
   ///
   /// In en, this message translates to:
@@ -979,6 +985,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sign out?'**
   String get profileSignOutTitle;
+
+  /// No description provided for @profileSubscription.
+  ///
+  /// In en, this message translates to:
+  /// **'Subscription'**
+  String get profileSubscription;
 
   /// No description provided for @profileTitle.
   ///
@@ -1028,6 +1040,12 @@ abstract class AppLocalizations {
   /// **'Dashboard'**
   String get statusDashboard;
 
+  /// No description provided for @statusExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'Expired'**
+  String get statusExpired;
+
   /// No description provided for @statusInactive.
   ///
   /// In en, this message translates to:
@@ -1075,6 +1093,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reserved'**
   String get statusReserved;
+
+  /// No description provided for @planBasic.
+  ///
+  /// In en, this message translates to:
+  /// **'Basic'**
+  String get planBasic;
+
+  /// No description provided for @planEnterprise.
+  ///
+  /// In en, this message translates to:
+  /// **'Enterprise'**
+  String get planEnterprise;
+
+  /// No description provided for @planPremium.
+  ///
+  /// In en, this message translates to:
+  /// **'Premium'**
+  String get planPremium;
+
+  /// No description provided for @subscriptionAutoRenewOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Will not renew automatically'**
+  String get subscriptionAutoRenewOff;
+
+  /// No description provided for @subscriptionAutoRenewOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Renews automatically'**
+  String get subscriptionAutoRenewOn;
+
+  /// No description provided for @subscriptionOpenEnded.
+  ///
+  /// In en, this message translates to:
+  /// **'Open-ended'**
+  String get subscriptionOpenEnded;
+
+  /// No description provided for @subscriptionPerMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'per month'**
+  String get subscriptionPerMonth;
+
+  /// No description provided for @subscriptionPerYear.
+  ///
+  /// In en, this message translates to:
+  /// **'per year'**
+  String get subscriptionPerYear;
 
   /// No description provided for @errorsAccountExists.
   ///

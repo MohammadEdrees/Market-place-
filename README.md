@@ -292,6 +292,13 @@ To hide the docs in an environment, set the kill switch in `backend/MarketWorkpl
   to: a table of name, description and account count backed by `GET /api/roles`, with a shared
   create/edit dialog and confirm-to-delete. A role still held by accounts is refused by the
   API (`409`), and the page surfaces the returned message so you can reassign first.
+- **Subscriptions** (`/subscriptions`) — the plans bound to accounts, which is how a mobile
+  user becomes a subscriber: a table joining each row back to its account (name, email and
+  a Dashboard/Mobile chip) with plan, price, billing cycle, status, start→end period and
+  auto-renew, plus search and plan/status filters. SuperAdmin/Admin/Manager get a shared
+  dialog — *Assign plan* picks any account from `GET /api/users`, edit keeps the account
+  fixed and can flip status — and confirm-to-delete. The mobile Profile screen reads the
+  signed-in user's own row from `GET /api/subscriptions/user/{id}`.
 - **Categories** (`/categories`) — the managed category list behind every filter chip and
   form dropdown: a Products/Services switcher (`?kind=`) over a table of name, kind, live
   listing count and creation date, with add/rename dialogs and confirm-to-delete. Renames
@@ -328,7 +335,7 @@ Both front-ends ship English and Arabic with a runtime switcher — no rebuild, 
 build target:
 
 - **Dashboard** — `frontend/src/app/core/i18n/` holds `en.json` and `ar.json` (a single nested
-  dictionary per language, ~400 keys, kept key-symmetric) plus `I18nService` (a signal-backed
+  dictionary per language, ~450 keys, kept key-symmetric) plus `I18nService` (a signal-backed
   `lang`, `t('key', params)` with English fallback, `label(prefix, value)` for enum values such
   as order statuses, and `apiMessage()` for known API problem-details) and the impure
   `TranslatePipe` (`{{ 'nav.products' | t }}`). Switching flips `<html lang>` **and**
@@ -366,7 +373,7 @@ listings from a phone. It talks to the same .NET API as the dashboard.
   a `401` anywhere drops the session and returns to the sign-in screen.
 - **English / Arabic** — a language switcher on the sign-in screen and under *Profile →
   Language*; the choice is persisted (`marketplace.locale`) and Arabic flips the whole app
-  to a right-to-right layout. See *Languages* above.
+  to a right-to-left layout. See *Languages* above.
 - **Browse** — paged product and service lists with search, category chips, infinite scroll,
   pull-to-refresh, and detail pages with a swipeable **image gallery**, en-US prices
   (`$1,234.50`) and stock/status badges.
@@ -386,7 +393,11 @@ listings from a phone. It talks to the same .NET API as the dashboard.
   rules — including a **category dropdown fed by the managed category list** — plus a
   **gallery editor**: pick photos → `multipart` upload → remove.
 - **Profile** — view/edit name, phone, location and bio (`PUT /api/users/me`, empty =
-  clear), avatar upload/replace/remove, sign out.
+  clear), avatar upload/replace/remove, sign out, and a **Subscription card** that reports
+  the account's plan (`GET /api/subscriptions/user/{id}`): status chip, plan name, price and
+  billing cadence, start→end period and whether it renews automatically. The card prefers an
+  active plan, shows *No plan assigned yet* for a subscriber with none and disappears on a
+  failed request; plans themselves are managed from the dashboard.
 
 ### Configuration
 
@@ -419,8 +430,8 @@ flutter test       # 63 tests: repositories (mocked Dio), session store, formatt
 
 | Project            | Contains                                                                                                                                                                            |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `MarketWorkplace.Domain`         | Entities only (`User`, `Product`, `Service`, `Order`, `ListingImage`, `Role`, `Category`, `Advertisement`) — no dependencies.                                    |
-| `MarketWorkplace.Application`    | DTOs, application services (`AuthService`, `UsersService`, `ProductsService`, `ServicesService`, `OrdersService`, `DashboardService`, `RolesService`) that return the exact HTTP results the controllers delegate to, repository interfaces, `Access` rules, `PasswordHasher`, `ITokenService`, `IImageStore`. |
+| `MarketWorkplace.Domain`         | Entities only (`User`, `Product`, `Service`, `Order`, `ListingImage`, `Role`, `Category`, `Advertisement`, `Subscription`) — no dependencies.                                    |
+| `MarketWorkplace.Application`    | DTOs, application services (`AuthService`, `UsersService`, `ProductsService`, `ServicesService`, `OrdersService`, `DashboardService`, `RolesService`, `SubscriptionsService`, `BackupService`) that return the exact HTTP results the controllers delegate to, repository interfaces, `Access` rules, `PasswordHasher`, `ITokenService`, `IImageStore`. |
 | `MarketWorkplace.Infrastructure` | `MarketDbContext`, `DbInitializer` + migrations, repository implementations (`EfRepository<T>`, `UserRepository`, `RoleRepository`, …), `ImageStore`, `PlaceholderPng`, and the `AddInfrastructure()` DI wiring. |
 | `MarketWorkplace.Api`           | Thin controllers (attributes, XML docs, ModelState checks, delegation), `TokenService`, Swagger setup, `Program.cs` — the composition root calling `AddApplication()` + `AddInfrastructure()`. |
 
@@ -449,13 +460,15 @@ The fluent model defines the real relationships: a **product belongs to its prov
 requires its provider** (`Services.ProviderId → Users.Id`, `RESTRICT`), orders reference
 their buyer/product/service (`SET NULL` — history survives deletes), gallery images
 cascade with their listing, and every account holds a role
-(`Users.RoleId → Roles.Id`, `RESTRICT`). Primary keys are app-assigned
+(`Users.RoleId → Roles.Id`, `RESTRICT`) and may carry subscription plans
+(`Subscriptions.UserId → Users.Id`, `RESTRICT`). Primary keys are app-assigned
 (`ValueGeneratedNever`), matching the services' `Max + 1` pattern, and `Users.Email` and
 `Roles.Name` carry unique indexes.
 
 `backend/MarketWorkplace.Infrastructure/Data/DbInitializer.cs` then seeds the 6 roles,
 24 products (owned by the demo sellers/admin), 6 services, ~74 orders across the last 12
-months and 8 users (5 dashboard, 3 mobile) **only when a table is empty** — data persists
+months, 8 users (5 dashboard, 3 mobile) and a starter subscription plan per mobile user
+**only when a table is empty** — data persists
 across restarts. Display strings (currency, month names) are formatted with an explicit
 `en-US` culture in `DashboardService`, so output does not depend on the machine's regional
 settings.

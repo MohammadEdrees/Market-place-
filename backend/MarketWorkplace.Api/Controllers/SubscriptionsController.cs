@@ -6,7 +6,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace MarketWorkplace.Api.Controllers;
 
 /// <summary>Subscription plans purchased by accounts (mobile users are the primary
-/// subscribers); the dashboard's Settings page surfaces these next to each user.</summary>
+/// subscribers); the dashboard's <c>/subscriptions</c> page manages them and the mobile
+/// Profile screen shows the signed-in user's own plan.</summary>
 /// <remarks>Reads need a valid bearer token; writes are limited to dashboard admins.</remarks>
 [ApiController]
 [Authorize]

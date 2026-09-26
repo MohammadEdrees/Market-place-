@@ -96,6 +96,10 @@
     "title": "Title",
     "total": "Total"
   },
+  "cycle": {
+    "monthly": "Monthly",
+    "yearly": "Yearly"
+  },
   "dashboard": {
     "audience": "Audience",
     "audienceHint": "Accounts by role and platform",
@@ -172,6 +176,7 @@
     "advertisements": "Advertisements",
     "users": "Users",
     "roles": "Roles",
+    "subscriptions": "Subscriptions",
     "reports": "Reports",
     "team": "Team",
     "settings": "Settings"
@@ -194,6 +199,11 @@
   "page": {
     "settings": "Settings",
     "login": "Sign in"
+  },
+  "plan": {
+    "basic": "Basic",
+    "premium": "Premium",
+    "enterprise": "Enterprise"
   },
   "products": {
     "anyProvider": "Any provider",
@@ -317,6 +327,7 @@
     "completed": "Completed",
     "confirmed": "Confirmed",
     "expired": "Expired",
+    "inactive": "Inactive",
     "live": "Live",
     "lowStock": "Low stock",
     "off": "Off",
@@ -325,6 +336,41 @@
     "refunded": "Refunded",
     "reserved": "Reserved",
     "scheduled": "Scheduled"
+  },
+  "subscriptions": {
+    "account": "Account",
+    "accountHint": "Mobile app users are the usual subscribers — pick any account on the platform.",
+    "accountLocked": "A plan stays attached to the account it was created for.",
+    "add": "Assign plan",
+    "anyPlan": "Any plan",
+    "anyStatus": "Any status",
+    "autoRenew": "Auto-renew",
+    "autoRenewHint": "Renew automatically when the current cycle ends.",
+    "create": "Assign plan",
+    "createHint": "Attach a plan to an account. The subscriber is read from the account record.",
+    "cycle": "Billing cycle",
+    "deleteHeader": "Delete plan",
+    "deleteMessage": "Remove the <strong>{{plan}}</strong> plan from <strong>{{name}}</strong>?",
+    "deleteTooltip": "Delete plan",
+    "edit": "Edit plan",
+    "editTooltip": "Edit plan",
+    "empty": "No plans have been assigned yet.",
+    "emptyFiltered": "No plans match your filters.",
+    "ends": "Ends",
+    "endsAfterStarts": "Ends must be after Starts.",
+    "off": "No",
+    "on": "Yes",
+    "openEnded": "Open-ended",
+    "period": "Period",
+    "pickAccount": "Select an account",
+    "plan": "Plan",
+    "priceHint": "Price in USD charged for one cycle.",
+    "save": "Save plan",
+    "searchAria": "Search subscriptions",
+    "searchPlaceholder": "Search account or plan",
+    "starts": "Starts",
+    "subtitle": "{{count}} plans · linked to dashboard and mobile accounts",
+    "title": "Subscriptions"
   },
   "toast": {
     "backupCreated": "Backup created",
@@ -339,6 +385,8 @@
     "adSavedImageNot": "The advertisement was saved, but its image was not.",
     "adUpdated": "Advertisement updated",
     "adminsOnly": "Only admins can manage advertisements.",
+    "subCreated": "Plan assigned",
+    "subUpdated": "Plan updated",
     "apiRejected": "The API rejected the request.",
     "apiRejectedImage": "The API rejected the image.",
     "apiUnreachable": "API unreachable",
@@ -443,6 +491,7 @@
     "imageTypeOnly": "PNG, JPG, WEBP or GIF only.",
     "passwordMin6": "Use at least 6 characters.",
     "passwordRequired": "Password is required.",
+    "accountRequired": "Pick the account this plan belongs to.",
     "productsRequired": "Name, SKU and category are required.",
     "roleNameRequired": "Role name is required.",
     "scheduleOrder": "Ends must be after starts.",

@@ -458,6 +458,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get profileLocation => 'الموقع';
 
   @override
+  String get profileNoPlan => 'لم تُسند إليك أي باقة بعد.';
+
+  @override
   String get profilePhone => 'الهاتف';
 
   @override
@@ -478,6 +481,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get profileSignOutTitle => 'تسجيل الخروج؟';
+
+  @override
+  String get profileSubscription => 'الاشتراك';
 
   @override
   String get profileTitle => 'الملف الشخصي';
@@ -504,6 +510,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get statusDashboard => 'لوحة التحكم';
 
   @override
+  String get statusExpired => 'منتهٍ';
+
+  @override
   String get statusInactive => 'غير نشط';
 
   @override
@@ -526,6 +535,30 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get statusReserved => 'محجوز';
+
+  @override
+  String get planBasic => 'أساسي';
+
+  @override
+  String get planEnterprise => 'مؤسسي';
+
+  @override
+  String get planPremium => 'بريميوم';
+
+  @override
+  String get subscriptionAutoRenewOff => 'لن يُجدَّد تلقائيًا';
+
+  @override
+  String get subscriptionAutoRenewOn => 'يُجدَّد تلقائيًا';
+
+  @override
+  String get subscriptionOpenEnded => 'بلا نهاية';
+
+  @override
+  String get subscriptionPerMonth => 'شهريًا';
+
+  @override
+  String get subscriptionPerYear => 'سنويًا';
 
   @override
   String get errorsAccountExists => 'يوجد حساب بهذا البريد الإلكتروني بالفعل.';

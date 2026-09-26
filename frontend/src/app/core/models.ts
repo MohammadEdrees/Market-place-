@@ -368,3 +368,57 @@ export interface RestoreReport {
   totalInserted: number;
   totalUpdated: number;
 }
+
+/** Known plans (`Subscription.Plan` constants on the API). */
+export type SubscriptionPlan = 'Basic' | 'Premium' | 'Enterprise';
+
+/** Billing cadences supported by the platform. */
+export type BillingCycle = 'Monthly' | 'Yearly';
+
+/** Lifecycle of a plan row. */
+export type SubscriptionStatus = 'Active' | 'Inactive' | 'Expired';
+
+/**
+ * A plan attached to an account, as returned by `GET /api/subscriptions`.
+ * The `user*` fields are the link back to the (mobile) subscriber.
+ */
+export interface Subscription {
+  id: number;
+  userId: number;
+  /** Display name of the subscribed account. */
+  userName: string;
+  userEmail: string;
+  /** `Dashboard` or `Mobile`. */
+  userType: string;
+  plan: SubscriptionPlan;
+  /** Price in USD for one billing cycle. */
+  price: number;
+  billingCycle: BillingCycle;
+  status: SubscriptionStatus;
+  startsAt: string;
+  /** `null` = open-ended plan. */
+  endsAt: string | null;
+  autoRenew: boolean;
+  createdAt: string;
+}
+
+/** Payload for `POST /api/subscriptions` — the account must already exist (400 otherwise). */
+export interface SubscriptionCreateInput {
+  userId: number;
+  plan: SubscriptionPlan;
+  price: number;
+  billingCycle: BillingCycle;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  autoRenew: boolean;
+}
+
+/** Payload for `PUT /api/subscriptions/{id}` — the account cannot be re-pointed. */
+export interface SubscriptionUpdateInput {
+  plan: SubscriptionPlan;
+  price: number;
+  billingCycle: BillingCycle;
+  status: SubscriptionStatus;
+  endsAt?: string | null;
+  autoRenew: boolean;
+}

@@ -17,6 +17,7 @@ extension L10nX on BuildContext {
         'Low stock' => l10n.statusLowStock,
         'Out of stock' => l10n.statusOutOfStock,
         'Inactive' => l10n.statusInactive,
+        'Expired' => l10n.statusExpired,
         'Processing' => l10n.statusProcessing,
         'Confirmed' => l10n.statusConfirmed,
         'Completed' => l10n.statusCompleted,

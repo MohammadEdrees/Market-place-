@@ -1,0 +1,281 @@
+<section class="page">
+  <div class="page-head">
+    <div>
+      <h2>{{ 'subscriptions.title' | t }}</h2>
+      <p>{{ 'subscriptions.subtitle' | t: { count: subs().length } }}</p>
+    </div>
+    <div class="toolbar">
+      <p-iconfield>
+        <p-inputicon piSearch />
+        <input
+          pInputText
+          type="search"
+          [placeholder]="'subscriptions.searchPlaceholder' | t"
+          [attr.aria-label]="'subscriptions.searchAria' | t"
+          [ngModel]="search()"
+          (ngModelChange)="onSearch($event)"
+        />
+      </p-iconfield>
+
+      <p-select
+        [options]="planOptions()"
+        optionLabel="label"
+        optionValue="value"
+        [placeholder]="'subscriptions.anyPlan' | t"
+        [showClear]="true"
+        styleClass="filter-select"
+        [ngModel]="planFilter()"
+        (ngModelChange)="onPlan($event)"
+      />
+
+      <p-select
+        [options]="statusOptions()"
+        optionLabel="label"
+        optionValue="value"
+        [placeholder]="'subscriptions.anyStatus' | t"
+        [showClear]="true"
+        styleClass="filter-select"
+        [ngModel]="statusFilter()"
+        (ngModelChange)="onStatus($event)"
+      />
+
+      <p-button
+        [label]="'common.reset' | t"
+        icon="pi pi-filter-slash"
+        [text]="true"
+        severity="secondary"
+        (onClick)="clearFilters()"
+      />
+      @if (canManage()) {
+        <p-button [label]="'subscriptions.add' | t" icon="pi pi-plus" (onClick)="openCreate()" />
+      }
+    </div>
+  </div>
+
+  <div class="panel">
+    @if (loadedOnce()) {
+      <p-table
+        [value]="visible()"
+        styleClass="data-table"
+        [loading]="loading()"
+        [tableStyle]="{ 'min-width': '68rem' }"
+      >
+        <ng-template #header>
+          <tr>
+            <th pSortableColumn="userName">{{ 'subscriptions.account' | t }} <p-sortIcon field="userName" /></th>
+            <th pSortableColumn="plan">{{ 'subscriptions.plan' | t }} <p-sortIcon field="plan" /></th>
+            <th pSortableColumn="price">{{ 'common.price' | t }} <p-sortIcon field="price" /></th>
+            <th>{{ 'subscriptions.cycle' | t }}</th>
+            <th pSortableColumn="status">{{ 'common.status' | t }} <p-sortIcon field="status" /></th>
+            <th pSortableColumn="startsAt">{{ 'subscriptions.period' | t }} <p-sortIcon field="startsAt" /></th>
+            <th>{{ 'subscriptions.autoRenew' | t }}</th>
+            <th style="width: 7rem">{{ 'common.actions' | t }}</th>
+          </tr>
+        </ng-template>
+
+        <ng-template #body let-row>
+          <tr>
+            <td>
+              <span class="cell-title">{{ row.userName }}</span>
+              <span class="cell-sub">{{ row.userEmail }}</span>
+            </td>
+            <td>
+              <p-tag [value]="i18n.label('plan', row.plan)" [severity]="planSeverity(row.plan)" />
+            </td>
+            <td class="mono">{{ row.price | currency: 'USD' }}</td>
+            <td>{{ i18n.label('cycle', row.billingCycle) }}</td>
+            <td>
+              <p-tag [value]="i18n.label('status', row.status)" [severity]="statusSeverity(row.status)" />
+            </td>
+            <td class="muted">
+              <span [class.expired]="isEnded(row)">
+                {{ row.startsAt | date: 'MMM d, y' }}
+                <i class="pi pi-arrow-right" aria-hidden="true"></i>
+                {{ row.endsAt ? (row.endsAt | date: 'MMM d, y') : ('subscriptions.openEnded' | t) }}
+              </span>
+            </td>
+            <td>
+              <p-tag
+                [value]="row.autoRenew ? ('subscriptions.on' | t) : ('subscriptions.off' | t)"
+                [severity]="row.autoRenew ? 'success' : 'secondary'"
+              />
+            </td>
+            <td>
+              @if (canManage()) {
+                <div class="row-actions">
+                  <p-button
+                    icon="pi pi-pencil"
+                    [text]="true"
+                    [rounded]="true"
+                    severity="secondary"
+                    [pTooltip]="'subscriptions.editTooltip' | t"
+                    (onClick)="openEdit(row)"
+                  />
+                  <p-button
+                    icon="pi pi-trash"
+                    [text]="true"
+                    [rounded]="true"
+                    severity="danger"
+                    [pTooltip]="'subscriptions.deleteTooltip' | t"
+                    (onClick)="confirmDelete(row)"
+                  />
+                </div>
+              }
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template #emptymessage>
+          <tr>
+            <td colspan="8" class="empty-row">
+              {{
+                search() || planFilter() || statusFilter()
+                  ? ('subscriptions.emptyFiltered' | t)
+                  : ('subscriptions.empty' | t)
+              }}
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    } @else {
+      <div class="skeleton-rows">
+        @for (row of [1, 2, 3, 4, 5]; track row) {
+          <p-skeleton height="2.5rem" />
+        }
+      </div>
+    }
+  </div>
+
+  <p-dialog
+    [header]="editing() ? ('subscriptions.edit' | t) : ('subscriptions.create' | t)"
+    [(visible)]="dialogOpen"
+    [modal]="true"
+    styleClass="subscription-dialog"
+    [style]="{ width: '34rem' }"
+  >
+    <div class="form-grid">
+      <div class="field field-full">
+        <label for="s-account">{{ 'subscriptions.account' | t }}</label>
+        @if (editing()) {
+          <input id="s-account" pInputText [value]="editing()!.userName + ' · ' + editing()!.userEmail" readonly />
+          <span class="field-hint">{{ 'subscriptions.accountLocked' | t }}</span>
+        } @else {
+          <p-select
+            id="s-account"
+            [options]="accountOptions()"
+            optionLabel="label"
+            optionValue="value"
+            [filter]="true"
+            [placeholder]="'subscriptions.pickAccount' | t"
+            [ngModel]="draft().userId"
+            (ngModelChange)="patchDraft({ userId: $event })"
+          />
+          <span class="field-hint">{{ 'subscriptions.accountHint' | t }}</span>
+        }
+      </div>
+
+      <div class="field">
+        <label for="s-plan">{{ 'subscriptions.plan' | t }}</label>
+        <p-select
+          id="s-plan"
+          [options]="planOptions()"
+          optionLabel="label"
+          optionValue="value"
+          [ngModel]="draft().plan"
+          (ngModelChange)="patchDraft({ plan: $event })"
+        />
+      </div>
+
+      <div class="field">
+        <label for="s-cycle">{{ 'subscriptions.cycle' | t }}</label>
+        <p-select
+          id="s-cycle"
+          [options]="cycleOptions()"
+          optionLabel="label"
+          optionValue="value"
+          [ngModel]="draft().billingCycle"
+          (ngModelChange)="patchDraft({ billingCycle: $event })"
+        />
+      </div>
+
+      <div class="field">
+        <label for="s-price">{{ 'common.price' | t }}</label>
+        <p-inputnumber
+          id="s-price"
+          mode="decimal"
+          [min]="0"
+          [minFractionDigits]="2"
+          [maxFractionDigits]="2"
+          [useGrouping]="false"
+          [ngModel]="draft().price"
+          (ngModelChange)="patchDraft({ price: $event })"
+        />
+        <span class="field-hint">{{ 'subscriptions.priceHint' | t }}</span>
+      </div>
+
+      @if (editing()) {
+        <div class="field">
+          <label for="s-status">{{ 'common.status' | t }}</label>
+          <p-select
+            id="s-status"
+            [options]="statusOptions()"
+            optionLabel="label"
+            optionValue="value"
+            [ngModel]="draft().status"
+            (ngModelChange)="patchDraft({ status: $event })"
+          />
+        </div>
+      }
+
+      <div class="field">
+        <label for="s-starts">{{ 'subscriptions.starts' | t }}</label>
+        <p-datepicker
+          id="s-starts"
+          [ngModel]="draft().startsAt"
+          (ngModelChange)="patchDraft({ startsAt: $event })"
+          [showClear]="true"
+          [readonlyInput]="true"
+          appendTo="body"
+        />
+      </div>
+
+      <div class="field">
+        <label for="s-ends">{{ 'subscriptions.ends' | t }}</label>
+        <p-datepicker
+          id="s-ends"
+          [ngModel]="draft().endsAt"
+          (ngModelChange)="patchDraft({ endsAt: $event })"
+          [placeholder]="'subscriptions.openEnded' | t"
+          [showClear]="true"
+          [readonlyInput]="true"
+          appendTo="body"
+        />
+      </div>
+
+      <div class="field field-full">
+        <div class="switch-row">
+          <p-toggleswitch
+            id="s-renew"
+            [ngModel]="draft().autoRenew"
+            (ngModelChange)="patchDraft({ autoRenew: $event })"
+            [ariaLabel]="'subscriptions.autoRenew' | t"
+          />
+          <span class="field-hint">{{ 'subscriptions.autoRenewHint' | t }}</span>
+        </div>
+      </div>
+    </div>
+
+    <ng-template #footer>
+      <p-button [label]="'common.cancel' | t" [text]="true" severity="secondary" (onClick)="dialogOpen.set(false)" />
+      <p-button
+        [label]="saving() ? ('common.saving' | t) : editing() ? ('subscriptions.save' | t) : ('subscriptions.create' | t)"
+        icon="pi pi-check"
+        (onClick)="save()"
+        [loading]="saving()"
+      />
+    </ng-template>
+  </p-dialog>
+
+  <p-toast />
+  <p-confirmDialog />
+</section>
